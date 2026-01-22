@@ -1,188 +1,411 @@
-import { Droplets, Wind, Sparkles, AlertTriangle } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ScatterChart, Scatter, ZAxis } from 'recharts';
 
-export function PaintQualityDashboard() {
-  const paintThicknessData = [
-    { 차량: 1, 프론트: 32, 사이드: 35, 루프: 33, 리어: 34 },
-    { 차량: 2, 프론트: 34, 사이드: 33, 루프: 35, 리어: 32 },
-    { 차량: 3, 프론트: 31, 사이드: 34, 루프: 32, 리어: 33 },
-    { 차량: 4, 프론트: 33, 사이드: 36, 루프: 34, 리어: 35 },
-    { 차량: 5, 프론트: 35, 사이드: 32, 루프: 31, 리어: 33 },
-  ];
+import React, { useEffect, useState } from "react";
+import PaintUploader from "@/components/paint/PaintUploader";
+import PaintResult from "@/components/paint/PaintResult";
+import PaintMetaPanel from "@/components/paint/PaintMetaPanel";
+import {MetricCard}  from "@/components/paint/MetricCard";
+import { AlertTriangle, CheckCircle, TrendingDown, Target, Eye } from "lucide-react";
+import { usePaintStore } from "@/store/paintStore";
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
+import { 
+  getTodayStatistics, 
+  getAnalysisHistory, 
+  getAnalysisDetail, 
+  type PaintStatistics, 
+  type AnalysisHistory,
+  type AnalysisDetail 
+} from "@/services/paintAnalysis";
 
-  const environmentalData = [
-    { 시간: '09:00', 온도: 22, 습도: 55, 압력: 1013 },
-    { 시간: '10:00', 온도: 22.5, 습도: 54, 압력: 1013 },
-    { 시간: '11:00', 온도: 23, 습도: 53, 압력: 1012 },
-    { 시간: '12:00', 온도: 23.5, 습도: 52, 압력: 1012 },
-    { 시간: '13:00', 온도: 24, 습도: 51, 압력: 1011 },
-    { 시간: '14:00', 온도: 24.5, 습도: 50, 압력: 1011 },
-    { 시간: '15:00', 온도: 25, 습도: 52, 압력: 1010 },
-  ];
+const PaintQualityDashboard: React.FC = () => {
+  const current = usePaintStore((s) => s.current);
+  const recent = usePaintStore((s) => s.recent);
+  
+  const [stats, setStats] = useState<PaintStatistics>({
+    totalInspections: 0,
+    passedInspections: 0,
+    failedInspections: 0,
+    warningInspections: 0,
+    defectCount: 0,
+    defectRate: 0,
+    passRate: 0,
+    avgConfidence: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState<AnalysisHistory[]>([]);
+  const [selectedDetail, setSelectedDetail] = useState<AnalysisDetail | null>(null);
 
-  const defectData = [
-    { type: '먼지', count: 12, x: 30, y: 40, z: 12 },
-    { type: '기포', count: 8, x: 50, y: 60, z: 8 },
-    { type: '색상 불균일', count: 5, x: 70, y: 30, z: 5 },
-    { type: '흐름자국', count: 15, x: 40, y: 70, z: 15 },
-  ];
+  // DB에서 통계 가져오기
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const data = await getTodayStatistics();
+        setStats(data);
+      } catch (error) {
+        console.error('Failed to fetch statistics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const boothStatus = [
-    { id: 'PB-01', status: '가동중', temp: 23.5, humidity: 52, thickness: 33.2, defectRate: 1.2 },
-    { id: 'PB-02', status: '가동중', temp: 24.0, humidity: 51, thickness: 34.1, defectRate: 0.8 },
-    { id: 'PB-03', status: '정비중', temp: 22.0, humidity: 55, thickness: 0, defectRate: 0 },
-    { id: 'PB-04', status: '가동중', temp: 23.8, humidity: 50, thickness: 32.8, defectRate: 1.5 },
+    fetchStats();
+    
+    // 30초마다 통계 갱신
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  // 분석 이력 가져오기
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const data = await getAnalysisHistory();
+        setHistory(data);
+      } catch (error) {
+        console.error('Failed to fetch analysis history:', error);
+      }
+    };
+
+    fetchHistory();
+    
+    // 10초마다 이력 갱신
+    const interval = setInterval(fetchHistory, 10000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  // 상세 정보 조회
+  const handleViewDetail = async (resultId: string) => {
+    try {
+      const detail = await getAnalysisDetail(resultId);
+      if (detail) {
+        setSelectedDetail(detail);
+      }
+    } catch (error) {
+      console.error('Failed to fetch detail:', error);
+    }
+  };
+  
+  // 결함 유형별 색상 매핑
+  const getColorForDefect = (name: string): string => {
+    const colorMap: { [key: string]: string } = {
+      "정상": "#10b981",
+      "오렌지 필": "#ef4444",
+      "러닝 및 쇠갈음": "#f97316",
+      "용제 팝": "#eab308",
+      "워터 스팟팅": "#6366f1",
+    };
+    return colorMap[name] || "#999";
+  };
+
+  // 최근 결과에서 결함 유형별 비율 계산 (DB 히스토리 기반)
+  const getDefectRatio = () => {
+    if (history.length === 0) return [];
+    
+    const defectMap: { [key: string]: number } = {};
+    history.forEach((h) => {
+      h.detectedDefects.forEach((d) => {
+        defectMap[d.defectNameKo] = (defectMap[d.defectNameKo] || 0) + 1;
+      });
+    });
+    
+    // 결함이 없는 경우 추가
+    const defectCount = Object.values(defectMap).reduce((a, b) => a + b, 0);
+    const passCount = history.length - defectCount;
+    if (passCount > 0) {
+      defectMap["정상"] = passCount;
+    }
+    
+    return Object.entries(defectMap).map(([name, value]) => ({
+      name,
+      value,
+      fill: getColorForDefect(name),
+      percentage: ((value / history.length) * 100).toFixed(1),
+    }));
+  };
+  
+  // 상태별 색상
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "PASS": return "text-green-600 bg-green-50";
+      case "FAIL": return "text-red-600 bg-red-50";
+      case "WARNING": return "text-yellow-600 bg-yellow-50";
+      default: return "text-gray-600 bg-gray-50";
+    }
+  };
+  
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "PASS": return "정상";
+      case "FAIL": return "결함";
+      case "WARNING": return "경고";
+      default: return status;
+    }
+  };
+  
+  // DB 데이터 기반 메트릭 (실시간 통계)
+  const metrics = [
+    { 
+      label: "전체 검사 수", 
+      value: loading ? "..." : stats.totalInspections.toLocaleString(), 
+      subtitle: "오늘 검사 완료", 
+      icon: Target, 
+      iconBg: "bg-[#dbeafe]", 
+      iconColor: "text-[#155dfc]" 
+    },
+    { 
+      label: "결함률",     
+      value: loading ? "..." : `${stats.defectRate.toFixed(1)}%`,  
+      subtitle: `${stats.failedInspections}건 결함 발견`, 
+      icon: AlertTriangle, 
+      iconBg: "bg-[#ffedd4]", 
+      iconColor: "text-[#f54900]" 
+    },
+    { 
+      label: "정상률",     
+      value: loading ? "..." : `${stats.passRate.toFixed(1)}%`, 
+      subtitle: `${stats.passedInspections}건 정상`,   
+      icon: CheckCircle, 
+      iconBg: "bg-[#dcfce7]", 
+      iconColor: "text-[#00a63e]" 
+    },
+    { 
+      label: "평균 신뢰도", 
+      value: loading ? "..." : `${stats.avgConfidence.toFixed(1)}%`, 
+      subtitle: "AI 판단 정확도",   
+      icon: TrendingDown, 
+      iconBg: "bg-[#f3e8ff]", 
+      iconColor: "text-[#9810fa]" 
+    },
   ];
 
   return (
-    <div className="p-8">
+    <div className="p-6 space-y-4">
+      {/* Header */}
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">도장 품질 모니터링</h2>
-        <p className="text-gray-600 mt-1">도막 두께, 환경 조건 및 불량 분석</p>
+        <h2 className="text-3xl font-bold text-gray-900">도장 품질 관리</h2>
+        <p className="text-gray-600 mt-1">AI 기반 결함 검출 및 품질 분석</p>
       </div>
 
-      {/* Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">평균 도막 두께</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">33.4 μm</p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Droplets className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-          <p className="text-xs text-gray-600 mt-4">목표: 30-35 μm</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">부스 온도</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">24.0°C</p>
-            </div>
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Wind className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-          <p className="text-xs text-gray-600 mt-4">목표: 22-25°C</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">품질 적합률</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">98.3%</p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-          <p className="text-xs text-green-600 mt-4">▲ 0.5% 개선</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">불량 발생</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">40건</p>
-            </div>
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6 text-yellow-600" />
-            </div>
-          </div>
-          <p className="text-xs text-yellow-600 mt-4">먼지 불량 주의</p>
-        </div>
+      {/* Metrics - Single Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+        {metrics.map((m, i) => (
+          <MetricCard key={i} {...m} />
+        ))}
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">차량별 도막 두께 분포</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={paintThicknessData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="차량" />
-              <YAxis domain={[25, 40]} />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="프론트" stroke="#3b82f6" />
-              <Line type="monotone" dataKey="사이드" stroke="#10b981" />
-              <Line type="monotone" dataKey="루프" stroke="#f59e0b" />
-              <Line type="monotone" dataKey="리어" stroke="#8b5cf6" />
-            </LineChart>
-          </ResponsiveContainer>
+      {/* Uploader & Defect Ratio Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-64">
+        {/* Uploader */}
+        <div className="rounded-lg border p-3 bg-white">
+          <div className="text-xs text-slate-500 mb-2 font-medium">이미지 등록</div>
+          <PaintUploader />
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">환경 조건 추이</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={environmentalData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="시간" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip />
-              <Legend />
-              <Area yAxisId="left" type="monotone" dataKey="온도" stroke="#f97316" fill="#f97316" fillOpacity={0.3} />
-              <Area yAxisId="left" type="monotone" dataKey="습도" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        {/* Defect Ratio Chart */}
+        {getDefectRatio().length > 0 && (
+          <div className="rounded-lg border p-3 bg-white">
+            <div className="text-xs text-slate-500 mb-2 font-medium">결함 비율</div>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={getDefectRatio()}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={(entry) => `${entry.percentage}%`}
+                  outerRadius={60}
+                  dataKey="value"
+                >
+                  {getDefectRatio().map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => `${value}건`} />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
-      {/* Defect Analysis */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-8">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">불량 유형 분석</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {defectData.map((defect) => (
-            <div key={defect.type} className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <p className="text-sm text-gray-600">{defect.type}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">{defect.count}건</p>
+      {/* Result & Meta - Show when image uploaded */}
+      {current && (
+        <div className="rounded-lg border p-4 bg-white">
+          <div className="text-sm font-semibold mb-3 text-gray-900">현재 분석 결과</div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <div className="text-xs text-slate-600 mb-2 font-medium">검출 결과</div>
+              <div className="flex-1 overflow-auto">
+                <PaintResult />
+              </div>
             </div>
-          ))}
+            <div className="flex flex-col">
+              <div className="text-xs text-slate-600 mb-2 font-medium">검사 정보</div>
+              <div className="flex-1 overflow-auto">
+                <PaintMetaPanel />
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* Booth Status Table */}
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">도장 부스 현황</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">부스 ID</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">상태</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">온도 (°C)</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">습도 (%)</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">도막두께 (μm)</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">불량률 (%)</th>
+      )}
+      
+      {/* Analysis History Table */}
+      <div className="rounded-lg border p-3 bg-white">
+        <h3 className="text-sm font-semibold mb-3">분석 이력</h3>
+        <div className="overflow-auto max-h-96">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-100 border-b sticky top-0">
+              <tr>
+                <th className="text-left p-2 font-semibold">시간</th>
+                <th className="text-left p-2 font-semibold">상태</th>
+                <th className="text-left p-2 font-semibold">결함</th>
+                <th className="text-left p-2 font-semibold">신뢰도</th>
+                <th className="text-left p-2 font-semibold">위치</th>
+                <th className="text-center p-2 font-semibold">보기</th>
               </tr>
             </thead>
             <tbody>
-              {boothStatus.map((booth) => (
-                <tr key={booth.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 px-4 font-medium text-gray-900">{booth.id}</td>
-                  <td className="py-3 px-4">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs ${
-                      booth.status === '가동중' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {booth.status}
-                    </span>
+              {history.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center p-6 text-slate-400 text-xs">
+                    분석 이력이 없습니다
                   </td>
-                  <td className="py-3 px-4 text-gray-700">{booth.temp}</td>
-                  <td className="py-3 px-4 text-gray-700">{booth.humidity}</td>
-                  <td className="py-3 px-4 text-gray-700">{booth.thickness}</td>
-                  <td className="py-3 px-4 text-gray-700">{booth.defectRate}</td>
                 </tr>
-              ))}
+              ) : (
+                history.map((item) => (
+                  <React.Fragment key={item.resultId}>
+                    <tr 
+                      className="border-b hover:bg-slate-50 transition-colors cursor-pointer"
+                      onClick={() => {
+                        if (selectedDetail?.resultId === item.resultId) {
+                          setSelectedDetail(null);
+                        } else {
+                          handleViewDetail(item.resultId);
+                        }
+                      }}
+                    >
+                      <td className="p-2 text-xs whitespace-nowrap">
+                        {new Date(item.analyzedAt).toLocaleString('ko-KR', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                      <td className="p-2">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${getStatusColor(item.status)}`}>
+                          {getStatusText(item.status)}
+                        </span>
+                      </td>
+                      <td className="p-2 text-xs">
+                        {item.primaryDefectType ? item.primaryDefectType.substring(0, 10) : '-'}
+                      </td>
+                      <td className="p-2 text-xs font-medium">
+                        {item.confidence.toFixed(0)}%
+                      </td>
+                      <td className="p-2 text-xs">
+                        {item.locationCode || '-'}
+                      </td>
+                      <td className="p-2 text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (selectedDetail?.resultId === item.resultId) {
+                              setSelectedDetail(null);
+                            } else {
+                              handleViewDetail(item.resultId);
+                            }
+                          }}
+                          className="px-2 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition-colors"
+                        >
+                          {selectedDetail?.resultId === item.resultId ? '닫기' : '보기'}
+                        </button>
+                      </td>
+                    </tr>
+                    
+                    {/* Expanded Detail Row */}
+                    {selectedDetail?.resultId === item.resultId && (
+                      <tr className="border-b bg-blue-50">
+                        <td colSpan={6} className="p-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                            {/* Left: Analysis Result Image */}
+                            <div>
+                              <h4 className="text-xs font-semibold mb-2">분석 이미지</h4>
+                              <img 
+                                src={`http://localhost:8000${selectedDetail.resultImageUrl}`} 
+                                alt="분석 결과" 
+                                className="max-w-[250px] rounded border"
+                              />
+                            </div>
+                            
+                            {/* Middle & Right: Analysis Info and Defects */}
+                            <div className="lg:col-span-2 space-y-3">
+                              {/* Info */}
+                              <div className="p-3 bg-white rounded border text-xs">
+                                <h5 className="text-xs font-semibold mb-2">분석 정보</h5>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <div className="text-slate-500">시간</div>
+                                    <div className="font-medium">{new Date(selectedDetail.analyzedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500">상태</div>
+                                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${getStatusColor(selectedDetail.status)}`}>
+                                      {getStatusText(selectedDetail.status)}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500">신뢰도</div>
+                                    <div className="font-medium">{selectedDetail.confidence.toFixed(1)}%</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-slate-500">처리시간</div>
+                                    <div className="font-medium">{selectedDetail.inferenceTimeMs}ms</div>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Detected Defects */}
+                              {selectedDetail.detectedDefects.length > 0 && (
+                                <div className="p-3 bg-white rounded border text-xs">
+                                  <h5 className="text-xs font-semibold mb-2">검출 결함</h5>
+                                  <div className="space-y-1">
+                                    {selectedDetail.detectedDefects.map((defect, idx) => (
+                                      <div key={idx} className="flex items-center justify-between p-1.5 bg-slate-50 rounded text-xs">
+                                        <div>
+                                          <div className="font-medium">{defect.defectNameKo}</div>
+                                          <div className="text-slate-500 text-xs">{defect.defectClass}</div>
+                                        </div>
+                                        <div className="text-right">
+                                          <div className="font-medium">{defect.confidence.toFixed(0)}%</div>
+                                          <div className={`text-xs font-medium ${
+                                            defect.severityLevel === 'CRITICAL' ? 'text-red-600' :
+                                            defect.severityLevel === 'HIGH' ? 'text-orange-600' :
+                                            defect.severityLevel === 'MEDIUM' ? 'text-yellow-600' :
+                                            'text-blue-600'
+                                          }`}>
+                                            {defect.severityLevel}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default PaintQualityDashboard;

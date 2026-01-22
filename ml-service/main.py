@@ -1,98 +1,78 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-import joblib
-import pandas as pd
-import numpy as np
-import os
 
-app = FastAPI()
+import asyncio
+from pathlib import Path
+from datetime import datetime
+import uuid
 
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from .schemas import DefectPrediction, PredictionList, Metrics
+from .inference import model_service
+from .storage import store
+
+
+app = FastAPI(title="Paint Defect API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["*"], allow_credentials=True,
+    allow_methods=["*"], allow_headers=["*"],
 )
 
-import os
 
-# Get the directory where main.py is located
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR: Path = Path(__file__).resolve().parent
+STATIC_DIR: Path = BASE_DIR.parent / "model" / "detect" / "val_predictions"
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR.parent.parent)), name="static")
 
-# Load models using absolute paths
-MODEL_PATH = os.path.join(BASE_DIR, "best_model.pkl")
-SCALER_PATH = os.path.join(BASE_DIR, "scaler.pkl")
-ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder.pkl")
 
-model = None
-scaler = None
-encoder = None
 
-def load_models():
-    global model, scaler, encoder
-    try:
-        model = joblib.load(MODEL_PATH)
-        scaler = joblib.load(SCALER_PATH)
-        encoder = joblib.load(ENCODER_PATH)
-        print("Models loaded successfully")
-    except Exception as e:
-        print(f"Error loading models: {e}")
+@app.post("/api/predict", response_model=DefectPrediction)
+async def predict(image: UploadFile = File(...), location: str = "구역 A - 차량 001"):
+    # 1) 업로드 파일 저장
+    from pathlib import Path
+    from datetime import datetime
+    import uuid
 
-load_models()
+    ext = Path(image.filename).suffix or ".jpg"
+    img_id = uuid.uuid4().hex
+    save_path = STATIC_DIR / f"{img_id}{ext}"
+    with open(save_path, "wb") as f:
+        f.write(await image.read())
 
-class PredictionRequest(BaseModel):
-    Speed: int
-    Length: float
-    RealPower: float
-    SetFrequency: int = 1000
-    SetDuty: int = 100
-    SetPower: int
-    GateOnTime: int
+    # 2) YOLOv8 추론
+    pred = model_service.predict(save_path)
 
-@app.post("/predict")
-def predict(data: PredictionRequest):
-    if not model or not scaler:
-        raise HTTPException(status_code=500, detail="Models not loaded")
+    # YOLO 결과 이미지 경로 구성 (YOLO가 results 폴더 내에 저장함)
+    # YOLO는 img_id 폴더를 생성하고 그 안에 원본 파일명으로 결과 이미지 저장
+    result_img_path = STATIC_DIR / "results" / img_id / save_path.name
     
-    # Feature Engineering
-    # 12 Features total:
-    # Original: Speed, Length, RealPower, SetFrequency, SetDuty, SetPower, GateOnTime
-    # Engineered: PowerEfficiency, PowerDifference, DutyPowerRatio, GateOnTimeRatio, SpeedLengthRatio
-    
-    try:
-        df = pd.DataFrame([data.dict()])
-        
-        # Calculate engineered features
-        df['PowerEfficiency'] = df['RealPower'] / (df['SetPower'] + 1)
-        df['PowerDifference'] = df['RealPower'] - df['SetPower']
-        df['DutyPowerRatio'] = df['SetDuty'] * df['SetPower']
-        df['GateOnTimeRatio'] = df['GateOnTime'] / (df['Length'] + 1)
-        df['SpeedLengthRatio'] = df['Speed'] * df['Length']
-        
-        # Ensure correct column order
-        feature_order = [
-            'Speed', 'Length', 'RealPower', 'SetFrequency', 'SetDuty', 'SetPower', 'GateOnTime',
-            'PowerEfficiency', 'PowerDifference', 'DutyPowerRatio', 'GateOnTimeRatio', 'SpeedLengthRatio'
-        ]
-        
-        X = df[feature_order]
-        X_scaled = scaler.transform(X)
-        
-        prediction = model.predict(X_scaled)
-        prediction_label = encoder.inverse_transform(prediction)[0]
-        
-        # Probability if available
-        # prediction_proba = model.predict_proba(X_scaled).max()
-        
-        return {
-            "prediction": prediction_label,
-            # "confidence": float(prediction_proba)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    # relative path for URL
+    if result_img_path.exists():
+        # STATIC_DIR.parent.parent = model 폴더이므로 model/detect/val_predictions부터의 상대경로
+        rel_path = result_img_path.relative_to(STATIC_DIR.parent.parent)
+        image_url = f"/static/{rel_path.as_posix()}"
+    else:
+        image_url = f"/static/detect/val_predictions/{save_path.relative_to(STATIC_DIR).as_posix()}"
+
+    # 3) 요약 응답
+    item = {
+        "id": img_id,
+        "status": pred["status"],
+        "defect_type": pred.get("defect_type"),
+        "confidence": round(float(pred["confidence"]) * 100, 1),  # 0~100%
+        "location": location,
+        "timestamp": datetime.utcnow().isoformat(),
+        "image_url": image_url,
+    }
+
+    # 4) 저장 & SSE 브로드캐스트
+    store.add(item)
+    # await broadcast_sse({"type": "prediction", "data": item})
+    return item
+
 
 @app.get("/health")
 def health():

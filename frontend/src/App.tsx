@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, JSX } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage } from './components/LoginPage';
 import { SignupPage } from './components/SignupPage';
@@ -6,7 +6,7 @@ import { Sidebar } from './components/Sidebar';
 import { PressMachineDashboard } from './components/PressMachineDashboard';
 import { EngineAssemblyDashboard } from './components/EngineAssemblyDashboard';
 import { BodyAssemblyDashboard } from './components/BodyAssemblyDashboard';
-import { PaintQualityDashboard } from './components/PaintQualityDashboard';
+import PaintQualityDashboard from './components/PaintQualityDashboard';
 import { FacilityDashboard } from './components/FacilityDashboard';
 import { MainDashboard } from './components/MainDashboard';
 import { BatteryDashboard } from './components/BatteryDashboard';
@@ -14,6 +14,7 @@ import { AIChatbot } from './components/AIChatbot';
 import { BoardListPage } from './components/Board/BoardListPage';
 import { BoardWritePage } from './components/Board/BoardWritePage';
 import { BoardDetailPage } from './components/Board/BoardDetailPage';
+//import PaintQualityDashboard from '@/components/PaintQuality/PaintQualityDashboard';
 
 function Layout({ children, username, onLogout }: { children: React.ReactNode, username: string, onLogout: () => void }) {
   return (
@@ -89,6 +90,9 @@ export default function App() {
                 <Route path="/paint" element={<PaintQualityDashboard />} />
                 <Route path="/battery" element={<BatteryDashboard />} />
                 <Route path="/facility" element={<FacilityDashboard />} />
+                {/* Util Routes */}
+                <Route path="/paint-quality" element={<PaintQualityDashboard />} />
+                <Route path="*" element={<Navigate to="/paint-quality" replace />} />
 
                 {/* Board Routes */}
                 <Route path="/board" element={<BoardListPage />} />

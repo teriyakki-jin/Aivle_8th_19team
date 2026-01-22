@@ -18,7 +18,7 @@ export function MainDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/dashboard/main')
+    fetch('/api/v1/dashboard/main')
       .then(res => res.json())
       .then(setData)
       .finally(() => setLoading(false));

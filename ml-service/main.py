@@ -1,83 +1,49 @@
-
-import asyncio
-from pathlib import Path
-from datetime import datetime
-import uuid
-
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+import os
 
-from .schemas import DefectPrediction, PredictionList, Metrics
-from .inference import model_service
-from .storage import store
+# 모듈 불러오기 (배터리 예측 로직)
+import battery 
 
+app = FastAPI()
 
-app = FastAPI(title="Paint Defect API")
-
+# CORS 설정 (프론트엔드에서 접근 허용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True,
-    allow_methods=["*"], allow_headers=["*"],
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+# 서버 시작 시 모델 로딩
+@app.on_event("startup")
+def startup_event():
+    print("서버 시작: 모델 로딩 중...")
+    battery.load_battery_models()
 
-BASE_DIR: Path = Path(__file__).resolve().parent
-STATIC_DIR: Path = BASE_DIR.parent / "model" / "detect" / "val_predictions"
-STATIC_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR.parent.parent)), name="static")
+@app.get("/")
+def read_root():
+    return {"message": "ML Service API is running"}
 
-
-
-@app.post("/api/predict", response_model=DefectPrediction)
-async def predict(image: UploadFile = File(...), location: str = "구역 A - 차량 001"):
-    # 1) 업로드 파일 저장
-    from pathlib import Path
-    from datetime import datetime
-    import uuid
-
-    ext = Path(image.filename).suffix or ".jpg"
-    img_id = uuid.uuid4().hex
-    save_path = STATIC_DIR / f"{img_id}{ext}"
-    with open(save_path, "wb") as f:
-        f.write(await image.read())
-
-    # 2) YOLOv8 추론
-    pred = model_service.predict(save_path)
-
-    # YOLO 결과 이미지 경로 구성 (YOLO가 results 폴더 내에 저장함)
-    # YOLO는 img_id 폴더를 생성하고 그 안에 원본 파일명으로 결과 이미지 저장
-    result_img_path = STATIC_DIR / "results" / img_id / save_path.name
-    
-    # relative path for URL
-    if result_img_path.exists():
-        # STATIC_DIR.parent.parent = model 폴더이므로 model/detect/val_predictions부터의 상대경로
-        rel_path = result_img_path.relative_to(STATIC_DIR.parent.parent)
-        image_url = f"/static/{rel_path.as_posix()}"
-    else:
-        image_url = f"/static/detect/val_predictions/{save_path.relative_to(STATIC_DIR).as_posix()}"
-
-    # 3) 요약 응답
-    item = {
-        "id": img_id,
-        "status": pred["status"],
-        "defect_type": pred.get("defect_type"),
-        "confidence": round(float(pred["confidence"]) * 100, 1),  # 0~100%
-        "location": location,
-        "timestamp": datetime.utcnow().isoformat(),
-        "image_url": image_url,
-    }
-
-    # 4) 저장 & SSE 브로드캐스트
-    store.add(item)
-    # await broadcast_sse({"type": "prediction", "data": item})
-    return item
-
+# 배터리 예측 엔드포인트
+@app.post("/predict")
+def predict_endpoint(data: battery.BatteryPredictionRequest):
+    try:
+        # battery 모듈의 예측 함수 호출
+        result = battery.predict_battery_quality(data)
+        return {"prediction": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "models_loaded": model is not None}
+    return {
+        "status": "ok", 
+        "models_loaded": battery.model is not None
+    }
 
 if __name__ == "__main__":
     import uvicorn
+    # 모든 네트워크 인터페이스에서 접근 가능하도록 0.0.0.0 설정
     uvicorn.run(app, host="0.0.0.0", port=8000)

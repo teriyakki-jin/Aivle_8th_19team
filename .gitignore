@@ -36,3 +36,11 @@ yarn-error.log*
 # Database
 server/database.sqlite
 database.sqlite
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv
+.ipynb_checkpoints

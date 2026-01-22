@@ -46,7 +46,7 @@ export default defineConfig({
       '@radix-ui/react-aspect-ratio@1.1.2': '@radix-ui/react-aspect-ratio',
       '@radix-ui/react-alert-dialog@1.1.6': '@radix-ui/react-alert-dialog',
       '@radix-ui/react-accordion@1.2.3': '@radix-ui/react-accordion',
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(__dirname, 'src'),
     },
   },
   build: {
@@ -54,7 +54,7 @@ export default defineConfig({
     outDir: 'build',
   },
   server: {
-    port: 3000,
+    port: 5173,
     open: true,
     proxy: {
       '/api': {
@@ -66,6 +66,21 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ml-api/, ''),
       },
+      '/static': {
+            target: 'http://localhost:8000',
+            changeOrigin: true,
+            // 정적 파일임을 명시적으로 표시
+            bypass: (req, res, opt) => {
+              // /static/detect/...로 시작하는 요청만 프록시
+              if (req.url?.startsWith('/static')) {
+                return null; // 프록시 진행
+              }
+            },
+      },
+      '/detect': {
+            target: 'http://localhost:8000',
+            changeOrigin: true,
+            rewrite: p => p.replace(/^\/detect/, '/static/detect'),
+      },
     },
-  },
 });

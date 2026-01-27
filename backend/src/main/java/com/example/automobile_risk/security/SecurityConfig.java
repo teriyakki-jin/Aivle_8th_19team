@@ -54,7 +54,6 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/board/**").permitAll()
                         .requestMatchers("/api/v1/dashboard/**").permitAll() // Dashboard is public as per current FE
                         .requestMatchers("/api/v1/chatbot/**").permitAll() // Chatbot is public
-                        .requestMatchers("/api/paint-analysis/**").permitAll() // Paint analysis API (ML service)
                         .anyRequest().authenticated());
 
         http.authenticationProvider(authenticationProvider());

@@ -17,7 +17,7 @@ public class JwtUtils {
     @Value("${app.jwt.secret:your-very-secure-secret-key-that-is-long-enough}")
     private String jwtSecret;
 
-    @Value("${app.jwt.expirationMs:3600000}")
+    @Value("${app.jwt.expirationMs:36000000}")  // 600분 = 10시간 
     private int jwtExpirationMs;
 
     private SecretKey getSigningKey() {

@@ -26,6 +26,21 @@ public class BoardService {
         return postRepository.findById(id);
     }
 
+    public Post updatePost(Long id, Post updatedPost, String username) {
+        Post existingPost = postRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Post not found"));
+        
+        // Check if the user is the author
+        if (!existingPost.getAuthorName().equals(username)) {
+            throw new IllegalStateException("You can only update your own posts");
+        }
+        
+        existingPost.setTitle(updatedPost.getTitle());
+        existingPost.setContent(updatedPost.getContent());
+        
+        return postRepository.save(existingPost);
+    }
+
     public void deletePost(Long id) {
         postRepository.deleteById(id);
     }

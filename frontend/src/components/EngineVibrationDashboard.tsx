@@ -6,8 +6,6 @@ import {
   Gauge,
   AlertCircle,
   CheckCircle2,
-  PlayCircle,
-  Pause,
   X,
   Activity,
   AlertTriangle,
@@ -43,14 +41,12 @@ function nowHHMMSS(): string {
 }
 
 function makeMiniArffBlob(header: string, row: string): Blob {
-  // ARFF는 header + @data + row 가 있어야 파서가 정상 동작함
   // header에는 @data 까지 포함되어 있어야 함
   const content = `${header}\n${row.endsWith("\n") ? row : row + "\n"}`;
   return new Blob([content], { type: "text/plain" });
 }
 
 function splitArffHeaderAndRows(arffText: string): { header: string; rows: string[] } {
-  // @data 위치 찾기
   const idx = arffText.toLowerCase().indexOf("@data");
   if (idx === -1) throw new Error("ARFF에 @data 섹션이 없습니다.");
 
@@ -60,20 +56,17 @@ function splitArffHeaderAndRows(arffText: string): { header: string; rows: strin
   const rows = dataPart
     .split(/\r?\n/)
     .map((l) => l.trim())
-    .filter((l) => l.length > 0 && !l.startsWith("%")); // 주석 제거
+    .filter((l) => l.length > 0 && !l.startsWith("%"));
 
   return { header: headerPart.trim(), rows };
 }
 
 export function EngineVibrationDashboard() {
-  // =========================
-  // public/data/ 아래에 두기
-  // =========================
   const DEMO_ARFF_URL = "/data/FordA_TEST.arff";
   const ENGINE_API_URL = "http://localhost:8000/api/v1/smartfactory/engine";
 
-  const [isMonitoring, setIsMonitoring] = useState(false);
-  const [systemStatus, setSystemStatus] = useState<"WAITING" | "LOADING_ARFF" | "MONITORING">("WAITING");
+  // ✅ 자동 모니터링(버튼 제거)
+  const [systemStatus, setSystemStatus] = useState<"WAITING" | "LOADING_ARFF" | "MONITORING">("LOADING_ARFF");
 
   const [arffHeader, setArffHeader] = useState<string | null>(null);
   const [arffRows, setArffRows] = useState<string[] | null>(null);
@@ -95,7 +88,7 @@ export function EngineVibrationDashboard() {
   const [abnormalHistory, setAbnormalHistory] = useState<MonitorEntry[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // ✅ ARFF 로딩(한 번)
+  // ✅ ARFF 로딩(한 번) → 성공하면 바로 MONITORING
   useEffect(() => {
     let cancelled = false;
 
@@ -112,7 +105,11 @@ export function EngineVibrationDashboard() {
         if (!cancelled) {
           setArffHeader(header);
           setArffRows(rows);
-          setSystemStatus("WAITING");
+
+          // ✅ 로드 완료 즉시 자동 스트리밍 시작
+          if (rows.length > 0) setSystemStatus("MONITORING");
+          else setSystemStatus("WAITING");
+
           console.log("[ENGINE] ARFF loaded:", { headerLen: header.length, rows: rows.length });
         }
       } catch (e) {
@@ -127,20 +124,18 @@ export function EngineVibrationDashboard() {
     };
   }, []);
 
-  // ✅ 모니터링: 랜덤 row 뽑아서 “미니 ARFF” 업로드
+  // ✅ 자동 모니터링: MONITORING 상태 && rows 있으면 5초마다 FastAPI에 POST
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
 
-    if (isMonitoring) {
+    const canRun = systemStatus === "MONITORING" && arffHeader && arffRows && arffRows.length > 0;
+
+    if (canRun) {
       interval = setInterval(async () => {
         try {
-          if (!arffHeader || !arffRows || arffRows.length === 0) return;
+          const row = arffRows![Math.floor(Math.random() * arffRows!.length)];
 
-          // 랜덤 샘플 1줄 선택
-          const row = arffRows[Math.floor(Math.random() * arffRows.length)];
-
-          // 미니 ARFF 만들기
-          const blob = makeMiniArffBlob(arffHeader, row);
+          const blob = makeMiniArffBlob(arffHeader!, row);
           const file = new File([blob], "stream_row.arff", { type: "text/plain" });
 
           const form = new FormData();
@@ -148,7 +143,6 @@ export function EngineVibrationDashboard() {
 
           const res = await fetch(ENGINE_API_URL, { method: "POST", body: form });
 
-          // ✅ 원인 분석용: 실패 시 본문 로그
           if (!res.ok) {
             const txt = await res.text().catch(() => "");
             console.error("[ENGINE] API FAIL:", res.status, txt);
@@ -182,10 +176,17 @@ export function EngineVibrationDashboard() {
             const total = prev.totalCount + 1;
             const abnormal = judgement === "ABNORMAL" ? prev.abnormalCount + 1 : prev.abnormalCount;
             const normalRate = ((total - abnormal) / total) * 100;
-            return { ...prev, totalCount: total, abnormalCount: abnormal, normalRate: Number(normalRate.toFixed(1)) };
+            return {
+              ...prev,
+              totalCount: total,
+              abnormalCount: abnormal,
+              normalRate: Number(normalRate.toFixed(1)),
+            };
           });
 
-          if (judgement === "ABNORMAL") setAbnormalHistory((prev) => [entry, ...prev].slice(0, 30));
+          if (judgement === "ABNORMAL") {
+            setAbnormalHistory((prev) => [entry, ...prev].slice(0, 30));
+          }
 
           setBuffer((prev) => {
             const next = [...prev, entry];
@@ -201,21 +202,7 @@ export function EngineVibrationDashboard() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isMonitoring, arffHeader, arffRows]);
-
-  const handleStartMonitoring = () => {
-    if (!arffHeader || !arffRows || arffRows.length === 0) {
-      alert("ARFF 로딩이 아직 안됐어요. /public/data 경로를 확인해주세요.");
-      return;
-    }
-    setIsMonitoring(true);
-    setSystemStatus("MONITORING");
-  };
-
-  const handleStopMonitoring = () => {
-    setIsMonitoring(false);
-    setSystemStatus("WAITING");
-  };
+  }, [systemStatus, arffHeader, arffRows]);
 
   // Charts
   const trend = useMemo(() => {
@@ -264,6 +251,15 @@ export function EngineVibrationDashboard() {
       });
     }
 
+    if (systemStatus === "WAITING") {
+      list.push({
+        id: 4,
+        issue: "ARFF 로드 실패 또는 데이터 없음 (/public/data 확인)",
+        severity: "주의",
+        time: nowHHMMSS(),
+      });
+    }
+
     return list;
   }, [abnormalHistory, systemStatus]);
 
@@ -284,8 +280,8 @@ export function EngineVibrationDashboard() {
                 <Layers className="w-7 h-7 text-black" />
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-gray-900">엔진 진동 분석 </h2>
-                <p className="text-gray-600 mt-1">엔진 진동 실시간 데이터 분석</p>
+                <h2 className="text-3xl font-bold text-gray-900">엔진 진동 분석</h2>
+                <p className="text-gray-600 mt-1">엔진 진동 실시간 데이터 분석 (자동 요청)</p>
               </div>
             </div>
 
@@ -293,19 +289,6 @@ export function EngineVibrationDashboard() {
               <span className={`px-3 py-1 rounded-full font-semibold ${statusBadge}`}>{systemStatus}</span>
               <span className="text-gray-500">Time: {nowHHMMSS()}</span>
             </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={isMonitoring ? handleStopMonitoring : handleStartMonitoring}
-              style={{ backgroundColor: isMonitoring ? "#dc2626" : "#111827" }}
-              className={`px-6 py-3 rounded-xl font-bold text-white transition-all shadow-lg hover:shadow-xl flex items-center gap-2 outline-none focus:ring-4 ${
-                isMonitoring ? "hover:bg-red-700 focus:ring-red-200" : "hover:bg-gray-800 focus:ring-gray-200"
-              }`}
-            >
-              {isMonitoring ? <Pause className="w-5 h-5" /> : <PlayCircle className="w-5 h-5" />}
-              {isMonitoring ? "STOP MONITORING" : "START MONITORING"}
-            </button>
           </div>
         </div>
 
@@ -333,7 +316,7 @@ export function EngineVibrationDashboard() {
                     {result.judgement}
                   </span>
                 ) : (
-                  <span className="text-xs text-gray-500">모니터링을 시작하세요</span>
+                  <span className="text-xs text-gray-500">ARFF 로딩 후 자동으로 요청이 시작됩니다</span>
                 )}
               </div>
 
@@ -359,7 +342,11 @@ export function EngineVibrationDashboard() {
                       <AlertTriangle className="w-5 h-5 text-red-600" />
                       <p className="text-sm font-medium text-gray-600">ABNORMAL History</p>
                     </div>
-                    <div className={`w-2 h-2 rounded-full ${abnormalHistory.length > 0 ? "bg-red-500 animate-pulse" : "bg-gray-300"}`} />
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        abnormalHistory.length > 0 ? "bg-red-500 animate-pulse" : "bg-gray-300"
+                      }`}
+                    />
                   </div>
                   <p className="text-3xl font-bold text-red-600 mb-1">{stats.abnormalCount}</p>
                   <p className="text-xs text-red-600 font-medium">상세 리포트 보기</p>
@@ -395,7 +382,9 @@ export function EngineVibrationDashboard() {
                 <div className="w-2 h-2 bg-indigo-500 rounded-full" />
                 <h3 className="text-lg font-bold text-gray-900">NORMAL/ABNORMAL Trend (초 단위)</h3>
               </div>
-              <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">NORMAL=1 / ABNORMAL=0</span>
+              <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">
+                NORMAL=1 / ABNORMAL=0
+              </span>
             </div>
 
             <div style={{ height: "250px" }}>
@@ -493,7 +482,7 @@ export function EngineVibrationDashboard() {
               <Activity className="w-5 h-5 text-blue-600" />
               <p className="text-sm font-medium text-gray-600">Monitoring</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900">{isMonitoring ? "ON" : "OFF"}</p>
+            <p className="text-3xl font-bold text-gray-900">{systemStatus === "MONITORING" ? "ON" : "OFF"}</p>
             <p className="text-xs text-blue-600 font-medium">랜덤 샘플 스트림</p>
           </div>
 

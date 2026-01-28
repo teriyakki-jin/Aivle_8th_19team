@@ -13,8 +13,6 @@ import {
 } from "recharts";
 import {
   Car,
-  PlayCircle,
-  Pause,
   AlertTriangle,
   CheckCircle2,
   Cpu,
@@ -92,10 +90,10 @@ function PassFailPill({ value }: { value: "PASS" | "FAIL" }) {
 }
 
 export function BodyAssemblyDashboard() {
-  const [isMonitoring, setIsMonitoring] = useState(false);
+  // ✅ 버튼 없이 자동 모니터링
   const [systemStatus, setSystemStatus] = useState<
     "WAITING" | "MONITORING" | "ANALYZING"
-  >("WAITING");
+  >("MONITORING");
 
   const [results, setResults] = useState<
     Partial<Record<PartKey, BodyResult | null>>
@@ -108,7 +106,7 @@ export function BodyAssemblyDashboard() {
     { time: string; failParts: number; totalDetections: number }[]
   >([]);
 
-  // ✅ Real-time Logs: 5칸 “고정 슬롯” (배치마다 통째로 갱신)
+  // ✅ Real-time Logs: 5칸 “고정 슬롯”
   const [logSlots, setLogSlots] = useState<
     { time: string; part: PartKey; pass_fail: "PASS" | "FAIL"; detCount: number }[]
   >([]);
@@ -154,19 +152,18 @@ export function BodyAssemblyDashboard() {
     return `${topStr} 포함 ${r.detections.length}건 탐지 — 시각검사/재작업 필요`;
   };
 
-  // ✅ 자동 배치(서버가 이미지 자동 선택) — 업로드/Confidence 없음
+  // ✅ 자동 배치(서버가 이미지 자동 선택)
   const fetchAutoBatch = async () => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
 
     setError(null);
     try {
-      // 서버가 자동으로 이미지 선택하는 auto 엔드포인트 가정
+      setSystemStatus("ANALYZING");
+
       const res = await fetch(
         `${API_BASE}/api/v1/smartfactory/body/inspect/batch/auto`,
-        {
-          method: "POST",
-        }
+        { method: "POST" }
       );
 
       if (!res.ok) {
@@ -179,11 +176,9 @@ export function BodyAssemblyDashboard() {
 
       const t = nowHHMMSS();
 
-      // 결과 반영
       setResults(next);
       setLastUpdated(t);
 
-      // 배치 히스토리(최근 30개)
       const failParts = PARTS.filter(
         (p) => next?.[p.key]?.pass_fail === "FAIL"
       ).length;
@@ -197,7 +192,6 @@ export function BodyAssemblyDashboard() {
         [...prev, { time: t, failParts, totalDetections }].slice(-30)
       );
 
-      // ✅ 로그 슬롯: 배치마다 5개로 “갱신”
       const newSlots = PARTS.map((p) => {
         const r: BodyResult | undefined = next?.[p.key];
         return {
@@ -207,42 +201,26 @@ export function BodyAssemblyDashboard() {
           detCount: r?.detections?.length ?? 0,
         };
       });
-
       setLogSlots(newSlots);
+
+      setSystemStatus("MONITORING");
     } catch (e: any) {
       setError(e?.message ?? "자동 배치 분석 중 오류가 발생했습니다.");
+      setSystemStatus("WAITING");
     } finally {
       inFlightRef.current = false;
     }
   };
 
-  const handleStartMonitoring = () => {
-    setIsMonitoring(true);
-    setSystemStatus("MONITORING");
-    setTimeout(() => setSystemStatus("ANALYZING"), 1200);
-  };
-
-  const handleStopMonitoring = () => {
-    setIsMonitoring(false);
-    setSystemStatus("WAITING");
-  };
-
-  // ✅ 5초 폴링 (모니터링 ON일 때만)
+  // ✅ 자동 폴링: 마운트 즉시 1회 + 5초마다 계속
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
-
-    if (isMonitoring) {
-      fetchAutoBatch(); // 즉시 1회
-      interval = setInterval(fetchAutoBatch, POLL_MS);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    fetchAutoBatch(); // 즉시 1회
+    const interval = setInterval(fetchAutoBatch, POLL_MS);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMonitoring]);
+  }, []);
 
-  // ✅ 최신 검사 결과 “초콜릿” 레이아웃 순서용
+  // ✅ 최신 검사 결과 순서
   const latestCards = useMemo(() => {
     const get = (k: PartKey) => results[k] as BodyResult | null | undefined;
     return {
@@ -254,7 +232,7 @@ export function BodyAssemblyDashboard() {
     };
   }, [results]);
 
-  // ✅ 이미지 잘림 방지: aspect box + object-contain
+  // ✅ 이미지 잘림 방지
   const ImgBox = ({
     label,
     src,
@@ -346,7 +324,7 @@ export function BodyAssemblyDashboard() {
                   차체 조립 모니터링
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  부품별 비전 검사 결과 자동 수집 및 결함 탐지
+                  부품별 비전 검사 결과 자동 수집 및 결함 탐지 (자동 요청)
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
                   Polling: {POLL_MS / 1000}s · Last update:{" "}
@@ -354,26 +332,6 @@ export function BodyAssemblyDashboard() {
                 </p>
               </div>
             </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={isMonitoring ? handleStopMonitoring : handleStartMonitoring}
-              style={{ backgroundColor: isMonitoring ? "#dc2626" : "#2563eb" }}
-              className={cn(
-                "px-6 py-3 rounded-xl font-bold text-white transition-all shadow-lg hover:shadow-xl flex items-center gap-2 outline-none focus:ring-4",
-                isMonitoring
-                  ? "hover:bg-red-700 focus:ring-red-200"
-                  : "hover:bg-blue-700 focus:ring-blue-200"
-              )}
-            >
-              {isMonitoring ? (
-                <Pause className="w-5 h-5" />
-              ) : (
-                <PlayCircle className="w-5 h-5" />
-              )}
-              {isMonitoring ? "STOP MONITORING" : "START MONITORING"}
-            </button>
           </div>
         </div>
 
@@ -436,12 +394,7 @@ export function BodyAssemblyDashboard() {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <div
-                  className={cn(
-                    "w-2 h-2 rounded-full",
-                    isMonitoring ? "bg-blue-500" : "bg-gray-300"
-                  )}
-                />
+                <div className={cn("w-2 h-2 rounded-full", "bg-blue-500")} />
                 <h3 className="text-lg font-bold text-gray-900">Batch Fail Trend</h3>
               </div>
               <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">
@@ -518,7 +471,7 @@ export function BodyAssemblyDashboard() {
           </div>
         </div>
 
-        {/* Latest (Chocolate layout) */}
+        {/* Latest */}
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200 overflow-hidden mb-8">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <Layers className="w-5 h-5 text-blue-600" />
@@ -670,10 +623,7 @@ export function BodyAssemblyDashboard() {
                       const label = PARTS.find((p) => p.key === r.part)?.label ?? r.part;
 
                       return (
-                        <div
-                          key={`${r.part}-${idx}`}
-                          className="bg-white rounded-2xl p-5 border border-red-100 shadow-sm"
-                        >
+                        <div key={`${r.part}-${idx}`} className="bg-white rounded-2xl p-5 border border-red-100 shadow-sm">
                           <div className="flex items-center justify-between mb-4">
                             <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
                               {label} · {lastUpdated}
@@ -690,17 +640,13 @@ export function BodyAssemblyDashboard() {
                             </div>
                             <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
                               <p className="text-[10px] text-gray-500 mb-1">탐지 수</p>
-                              <p className="text-sm font-bold text-gray-900">
-                                {r.detections?.length ?? 0}
-                              </p>
+                              <p className="text-sm font-bold text-gray-900">{r.detections?.length ?? 0}</p>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                              <div className="px-3 py-2 text-[11px] text-gray-500 border-b border-gray-100">
-                                원본
-                              </div>
+                              <div className="px-3 py-2 text-[11px] text-gray-500 border-b border-gray-100">원본</div>
                               <div className="aspect-[16/9] w-full bg-white">
                                 {r.original_image_url ? (
                                   <img
@@ -709,17 +655,13 @@ export function BodyAssemblyDashboard() {
                                     className="w-full h-full object-contain object-center p-2"
                                   />
                                 ) : (
-                                  <div className="w-full h-full grid place-items-center text-sm text-gray-400">
-                                    -
-                                  </div>
+                                  <div className="w-full h-full grid place-items-center text-sm text-gray-400">-</div>
                                 )}
                               </div>
                             </div>
 
                             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                              <div className="px-3 py-2 text-[11px] text-gray-500 border-b border-gray-100">
-                                결과
-                              </div>
+                              <div className="px-3 py-2 text-[11px] text-gray-500 border-b border-gray-100">결과</div>
                               <div className="aspect-[16/9] w-full bg-white">
                                 {r.result_image_url ? (
                                   <img
@@ -728,9 +670,7 @@ export function BodyAssemblyDashboard() {
                                     className="w-full h-full object-contain object-center p-2"
                                   />
                                 ) : (
-                                  <div className="w-full h-full grid place-items-center text-sm text-gray-400">
-                                    -
-                                  </div>
+                                  <div className="w-full h-full grid place-items-center text-sm text-gray-400">-</div>
                                 )}
                               </div>
                             </div>
@@ -740,9 +680,7 @@ export function BodyAssemblyDashboard() {
                             <AlertTriangle className="w-4 h-4 text-red-600 mt-1 flex-shrink-0" />
                             <div>
                               <p className="text-xs font-bold text-red-900 mb-1">AI 분석 결과</p>
-                              <p className="text-sm text-red-800 leading-tight font-medium">
-                                {getAnalysis(r)}
-                              </p>
+                              <p className="text-sm text-red-800 leading-tight font-medium">{getAnalysis(r)}</p>
                             </div>
                           </div>
 

@@ -51,7 +51,8 @@ const DEFECT_TYPES = [
   "Patches",
 ];
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8000"; // 이미지용
+const ML_API_BASE = "http://localhost:3001/api/v1/ml";
 const DEMO_RANDOM_ON_SAME_VALUE = false;
 
 // ✅ 폴링 주기
@@ -138,7 +139,7 @@ export function PressMachineDashboard() {
 
     setIsImageLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/smartfactory/press/image`, {
+      const res = await fetch(`${ML_API_BASE}/press/image`, {
         method: "POST",
       });
 
@@ -199,7 +200,7 @@ export function PressMachineDashboard() {
       vibInFlightRef.current = true;
 
       try {
-        const response = await fetch(`${API_BASE}/api/v1/smartfactory/press/vibration`, {
+        const response = await fetch(`${ML_API_BASE}/press/vibration`, {
           method: "POST",
         });
 

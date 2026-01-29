@@ -167,7 +167,7 @@ export function WindShieldDashboard() {
           form.append("file", file);
 
           const res = await fetch(
-            "http://localhost:8000/api/v1/smartfactory/windshield",
+            "http://localhost:3001/api/v1/ml/windshield",
             {
               method: "POST",
               body: form,

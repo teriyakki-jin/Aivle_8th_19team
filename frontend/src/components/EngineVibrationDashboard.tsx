@@ -63,7 +63,7 @@ function splitArffHeaderAndRows(arffText: string): { header: string; rows: strin
 
 export function EngineVibrationDashboard() {
   const DEMO_ARFF_URL = "/data/FordA_TEST.arff";
-  const ENGINE_API_URL = "http://localhost:8000/api/v1/smartfactory/engine";
+  const ENGINE_API_URL = "http://localhost:3001/api/v1/ml/engine";
 
   // ✅ 자동 모니터링(버튼 제거)
   const [systemStatus, setSystemStatus] = useState<"WAITING" | "LOADING_ARFF" | "MONITORING">("LOADING_ARFF");

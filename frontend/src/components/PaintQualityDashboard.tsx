@@ -52,8 +52,8 @@ type HistoryItem = {
   defects: DetectedDefect[];
 };
 
-const API_BASE = "http://localhost:8000";
-const AUTO_ENDPOINT = `${API_BASE}/api/v1/smartfactory/paint/auto`;
+const API_BASE = "http://localhost:8000"; // 이미지용
+const AUTO_ENDPOINT = "http://localhost:3001/api/v1/ml/paint/auto";
 const POLL_MS = 5000;
 
 function cn(...xs: Array<string | false | null | undefined>) {

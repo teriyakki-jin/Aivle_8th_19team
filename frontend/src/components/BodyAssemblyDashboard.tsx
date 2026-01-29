@@ -45,7 +45,8 @@ type BatchResponse = {
   results: Record<PartKey, BodyResult | null | any>;
 };
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://localhost:8000"; // 이미지용
+const ML_API_BASE = "http://localhost:3001/api/v1/ml";
 const POLL_MS = 5000;
 
 const PARTS: { key: PartKey; label: string }[] = [
@@ -162,7 +163,7 @@ export function BodyAssemblyDashboard() {
       setSystemStatus("ANALYZING");
 
       const res = await fetch(
-        `${API_BASE}/api/v1/smartfactory/body/inspect/batch/auto`,
+        `${ML_API_BASE}/body/inspect/batch/auto`,
         { method: "POST" }
       );
 

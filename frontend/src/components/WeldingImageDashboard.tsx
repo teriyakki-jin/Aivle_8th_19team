@@ -35,8 +35,8 @@ type HistoryRow = {
    Constants
 ===================== */
 
-const ENDPOINT_AUTO = "http://localhost:8000/api/v1/smartfactory/welding/image/auto";
-const SERVER_BASE = "http://localhost:8000";
+const ENDPOINT_AUTO = "http://localhost:3001/api/v1/ml/welding/image/auto";
+const SERVER_BASE = "http://localhost:8000"; // 이미지는 여전히 FastAPI에서 제공
 const POLL_MS = 5000;
 
 /* =====================

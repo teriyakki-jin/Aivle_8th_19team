@@ -9,17 +9,19 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 from fastapi.responses import JSONResponse
 
-from . import press
-from . import windshield
-from . import engine
-from .paint import service as paint_service
-from . import body_assembly
-from .body_assembly import service as body_service
+import press
+import windshield
+import engine
 
-# ✅ welding_image는 "본래 welding-image FastAPI 계약"을 그대로 제공하는 모듈로 구성
-from .welding_image.pipeline import full_pipeline
-from .welding_image.schemas import DefectResponse
-from . import welding_image
+from paint import service as paint_service
+
+import body_assembly
+from body_assembly import service as body_service
+
+# welding_image 모듈
+import welding_image
+from welding_image.pipeline import full_pipeline
+from welding_image.schemas import DefectResponse
 
 app = FastAPI(title="ML Service API", version="1.0.0")
 

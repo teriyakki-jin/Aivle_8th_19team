@@ -62,3 +62,6 @@ ml-service/welding_image/sample_images
 
 # Node
 node_modules/
+
+# package
+frontend/package-lock.json

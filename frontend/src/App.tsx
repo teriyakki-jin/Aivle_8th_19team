@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LoginPage } from "./components/LoginPage";
@@ -148,6 +147,10 @@ export default function App() {
                   <Route path="/order/production" element={<ProductionPage />} />
                   <Route path="/order/process" element={<ProcessPage />} />
                   <Route path="/order" element={<Navigate to="/order/orders" replace />} />
+
+                  {/* Policy Routes */}
+                  <Route path="/terms" element={<TermsOfServicePage />} />
+                  <Route path="/privacy" element={<PrivacyPolicyPage />} />
 
                   {/* 없는 경로 처리 */}
                   <Route path="*" element={<Navigate to="/press" replace />} />

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Factory, Cpu, Box, Droplet, Settings, LayoutDashboard, LogOut, User, ClipboardList } from 'lucide-react';
+import { Factory, Cpu, Box, Droplet, Settings, LayoutDashboard, LogOut, User, ClipboardList, Cube } from 'lucide-react';
 import { MenuType } from '../App';
 
 interface SidebarProps {
@@ -17,6 +17,7 @@ export function Sidebar({ username, onLogout }: SidebarProps) {
     { path: '/body', label: '차체 조립', icon: Box },
     { path: '/paint', label: '도장 품질', icon: Droplet },
     { path: '/facility', label: '설비', icon: Settings },
+    { path: '/digital-twin', label: '디지털 트윈', icon: Cube },
     { path: '/board', label: '게시판', icon: ClipboardList },
   ];
 

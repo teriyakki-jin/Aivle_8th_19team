@@ -24,7 +24,6 @@ import {
   XCircle,
 } from "lucide-react";
 
-// 아이콘 매핑 (Context에서는 아이콘을 저장하지 않으므로)
 const STAGE_ICONS: Record<string, any> = {
   press: Hammer,
   body: Car,
@@ -41,10 +40,6 @@ function formatSecToMMSS(sec: number) {
   return `${mm}:${ss}`;
 }
 
-/**
- * ✅ 신호등(초록) 느낌: 깜빡 + 발광(글로우)
- * Tailwind animate-* 의존 X. CSS keyframes로 확실하게 동작.
- */
 const trafficCss = `
 @keyframes greenBlinkGlow {
   0%   { opacity: 0.35; filter: drop-shadow(0 0 0px rgba(34,197,94,0)); }
@@ -57,7 +52,6 @@ const trafficCss = `
 }
 `;
 
-// ✅ 주문 카드 우측 배지에서 쓰는 "신호등 초록 불" (빛 번짐 포함)
 function TrafficGreenLight({ size = 10 }: { size?: number }) {
   const px = `${size}px`;
   return (
@@ -67,16 +61,14 @@ function TrafficGreenLight({ size = 10 }: { size?: number }) {
       aria-label="running"
       title="공정 진행 중"
     >
-      {/* 내부 코어 */}
       <span
         className="traffic-green rounded-full"
         style={{
           width: px,
           height: px,
-          background: "rgb(34 197 94)", // green-500
+          background: "rgb(34 197 94)",
         }}
       />
-      {/* 바깥 은은한 글로우 */}
       <span
         className="absolute rounded-full"
         style={{
@@ -91,7 +83,6 @@ function TrafficGreenLight({ size = 10 }: { size?: number }) {
   );
 }
 
-// ✅ 공정 "끝(완료)" 표시용: 안 빛나는 빨간 불빛(고정)
 function TrafficRedLight({ size = 10 }: { size?: number }) {
   const px = `${size}px`;
   return (
@@ -100,7 +91,7 @@ function TrafficRedLight({ size = 10 }: { size?: number }) {
       style={{
         width: px,
         height: px,
-        background: "rgb(239 68 68)", // red-500
+        background: "rgb(239 68 68)",
       }}
       aria-label="completed"
       title="공정 완료"
@@ -108,13 +99,7 @@ function TrafficRedLight({ size = 10 }: { size?: number }) {
   );
 }
 
-function StageProgressBar({
-  startedAt,
-  duration,
-}: {
-  startedAt: number;
-  duration: number;
-}) {
+function StageProgressBar({ startedAt, duration }: { startedAt: number; duration: number }) {
   const [progress, setProgress] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
 
@@ -132,16 +117,9 @@ function StageProgressBar({
   return (
     <div className="w-full flex flex-col items-center gap-0.5">
       <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-blue-500 transition-all duration-100"
-          style={{ width: `${progress}%` }}
-        />
+        <div className="h-full bg-blue-500 transition-all duration-100" style={{ width: `${progress}%` }} />
       </div>
-
-      {/* ✅ 경과 글씨 더 작게 */}
-      <span className="text-[7px] text-slate-400 leading-none">
-        경과 {formatSecToMMSS(elapsedSec)}
-      </span>
+      <span className="text-[7px] text-slate-400 leading-none">경과 {formatSecToMMSS(elapsedSec)}</span>
     </div>
   );
 }
@@ -157,11 +135,7 @@ function StageElapsed({ startedAt }: { startedAt: number }) {
     return () => clearInterval(t);
   }, [startedAt]);
 
-  return (
-    <span className="text-[7px] text-slate-400 leading-none">
-      경과 {formatSecToMMSS(elapsedSec)}
-    </span>
-  );
+  return <span className="text-[7px] text-slate-400 leading-none">경과 {formatSecToMMSS(elapsedSec)}</span>;
 }
 
 function StageIcon({
@@ -191,8 +165,6 @@ function StageIcon({
       </div>
     );
   }
-
-  // 단계 아이콘 running 상태는 기존처럼 유지(우측 상단 신호등 초록불)
   if (result.status === "running") {
     return (
       <div className={`${baseClass} bg-slate-700 text-white relative`}>
@@ -203,7 +175,6 @@ function StageIcon({
       </div>
     );
   }
-
   if (result.status === "error") {
     return (
       <div className={`${baseClass} bg-red-500 text-white`}>
@@ -213,9 +184,7 @@ function StageIcon({
   }
 
   return (
-    <div
-      className={`${baseClass} ${isActive ? "bg-slate-300" : "bg-slate-200"} text-slate-500`}
-    >
+    <div className={`${baseClass} ${isActive ? "bg-slate-300" : "bg-slate-200"} text-slate-500`}>
       <Icon className="w-6 h-6" />
     </div>
   );
@@ -247,43 +216,29 @@ function PipelineView({
             >
               <StageIcon stage={stage} result={result} isActive={isActive} />
 
-              <div
-                className={`mt-2 text-xs font-semibold ${
-                  isActive ? "text-blue-600" : "text-slate-700"
-                }`}
-              >
+              <div className={`mt-2 text-xs font-semibold ${isActive ? "text-blue-600" : "text-slate-700"}`}>
                 {stage.name}
               </div>
-              <div className="text-[10px] text-slate-400 text-center">
-                {stage.description}
-              </div>
+              <div className="text-[10px] text-slate-400 text-center">{stage.description}</div>
 
-              {/* ✅ 결과 표시: "정상" -> "완료" */}
               {result.status === "completed" && (
                 <div
                   className={`mt-1 px-2 py-0.5 rounded text-[10px] font-medium ${
-                    result.hasAnomaly
-                      ? "bg-orange-100 text-orange-700"
-                      : "bg-green-100 text-green-700"
+                    result.hasAnomaly ? "bg-orange-100 text-orange-700" : "bg-green-100 text-green-700"
                   }`}
                 >
                   {result.hasAnomaly ? "완료 (이상)" : "완료"}
                 </div>
               )}
 
-              {/* ✅ running: 재시도 문구/횟수 제거 -> 항상 공정 중 */}
               {result.status === "running" && (
                 <div className="mt-1 flex flex-col items-center gap-1">
                   <div className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700">
                     공정 중...
                   </div>
 
-                  {/* ✅ 경과 시간만 작게 표시 */}
                   {result.estimatedDuration && result.startedAt ? (
-                    <StageProgressBar
-                      startedAt={result.startedAt}
-                      duration={result.estimatedDuration}
-                    />
+                    <StageProgressBar startedAt={result.startedAt} duration={result.estimatedDuration} />
                   ) : result.startedAt ? (
                     <StageElapsed startedAt={result.startedAt} />
                   ) : null}
@@ -334,11 +289,7 @@ function ProductionCard({
   const isWaiting = production.stageResults.every((r) => r.status === "waiting");
 
   return (
-    <div
-      className={`bg-white rounded-xl border shadow-sm overflow-hidden ${
-        hasAnyAnomaly ? "border-orange-300" : ""
-      }`}
-    >
+    <div className={`bg-white rounded-xl border shadow-sm overflow-hidden ${hasAnyAnomaly ? "border-orange-300" : ""}`}>
       <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div
@@ -370,9 +321,7 @@ function ProductionCard({
           </div>
 
           <div>
-            <div className="font-semibold text-slate-900">
-              주문 #{production.orderId}
-            </div>
+            <div className="font-semibold text-slate-900">주문 #{production.orderId}</div>
             <div className="text-xs text-slate-500">
               모델 {production.vehicleModelId} · {production.orderQty}대
             </div>
@@ -380,7 +329,6 @@ function ProductionCard({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* ✅ 완료(정상/이상)일 때: 배지에 "빨간 불빛(고정)" 추가 */}
           {isCompleted && !hasAnyAnomaly ? (
             <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700 inline-flex items-center gap-2">
               <TrafficRedLight size={10} />
@@ -392,15 +340,12 @@ function ProductionCard({
               생산 완료 (이상 {production.stageResults.filter((r) => r.hasAnomaly).length}건)
             </span>
           ) : isRunning ? (
-            // ✅ running: "신호등 초록 불"로 표시
             <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 inline-flex items-center gap-2">
               <TrafficGreenLight size={10} />
               {stages[production.currentStage]?.name} 공정 중
             </span>
           ) : hasError ? (
-            <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">
-              오류 발생
-            </span>
+            <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">오류 발생</span>
           ) : isWaiting ? (
             <button
               onClick={onStart}
@@ -416,7 +361,6 @@ function ProductionCard({
       <div className="p-4">
         <PipelineView production={production} onStageClick={onStageClick} />
 
-        {/* 시작/완료 시간 */}
         {production.startedAt && (
           <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs text-slate-500">
             <div className="flex items-center gap-4">
@@ -432,7 +376,6 @@ function ProductionCard({
               )}
             </div>
 
-            {/* 이상 감지된 공정 상세 보기 버튼 */}
             {hasAnyAnomaly && (
               <div className="flex gap-2">
                 {production.stageResults.map((r, idx) =>
@@ -464,11 +407,19 @@ export function ProductionPage() {
     refresh();
   }, [refresh]);
 
+  // ✅ 클릭 이동 로직 보정:
+  // - 검사 클릭은 기본 윈드실드로
   const handleStageClick = (_stageId: string, stage: (typeof PIPELINE_STAGES)[0]) => {
+    if (stage.id === "inspection") {
+      navigate("/windshield");
+      return;
+    }
     navigate(stage.detailPage);
   };
 
   const handleViewDetail = (page: string) => {
+    // 검사 “상세” 버튼이 눌리면 기본 page를 따르되,
+    // 필요하면 여기서 검사도 분기 가능
     navigate(page);
   };
 
@@ -482,10 +433,8 @@ export function ProductionPage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* ✅ 신호등 깜빡/발광 CSS 주입 */}
       <style>{trafficCss}</style>
 
-      {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-indigo-100 rounded-lg">
@@ -496,29 +445,49 @@ export function ProductionPage() {
             <p className="text-sm text-slate-500">자동차 제조 공정 파이프라인</p>
           </div>
         </div>
-        <button
-          onClick={refresh}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-slate-50"
-        >
+        <button onClick={refresh} className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-slate-50">
           <RefreshCcw className="w-4 h-4" />
           새로고침
         </button>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
 
-      {/* 공정 범례 */}
+      {/* ✅ 공정 범례: 검사만 2버튼(윈드실드/엔진) */}
       <div className="bg-white rounded-xl border shadow-sm p-4">
-        <div className="text-sm font-semibold text-slate-700 mb-3">
-          공정 단계 (클릭 시 상세 페이지 이동)
-        </div>
+        <div className="text-sm font-semibold text-slate-700 mb-3">공정 단계 (클릭 시 상세 페이지 이동)</div>
         <div className="flex flex-wrap gap-4">
           {PIPELINE_STAGES.map((stage) => {
             const Icon = STAGE_ICONS[stage.id] || ClipboardCheck;
+
+            if (stage.id === "inspection") {
+              return (
+                <div key={stage.id} className="flex items-center gap-2">
+                  <button
+                    onClick={() => navigate("/windshield")}
+                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                  >
+                    <div className="p-1.5 bg-slate-100 rounded-lg">
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium">검사-윈드실드</span>
+                    <ExternalLink className="w-3 h-3 text-slate-400" />
+                  </button>
+
+                  <button
+                    onClick={() => navigate("/engine-vibration")}
+                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                  >
+                    <div className="p-1.5 bg-slate-100 rounded-lg">
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium">검사-엔진</span>
+                    <ExternalLink className="w-3 h-3 text-slate-400" />
+                  </button>
+                </div>
+              );
+            }
+
             return (
               <button
                 key={stage.id}
@@ -536,7 +505,6 @@ export function ProductionPage() {
         </div>
       </div>
 
-      {/* 생산 목록 */}
       <div className="space-y-4">
         {loading ? (
           <div className="bg-white rounded-xl border p-8 text-center text-slate-500">

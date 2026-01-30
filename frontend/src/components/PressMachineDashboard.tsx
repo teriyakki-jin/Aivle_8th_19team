@@ -18,7 +18,9 @@ import {
   Factory,
   Image as ImageIcon,
   RotateCcw,
+  ArrowLeft,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface DefectData {
   predicted_class: string;
@@ -71,6 +73,8 @@ function nowHHMMSS() {
 }
 
 export function PressMachineDashboard() {
+  const navigate = useNavigate();
+
   // ✅ Auto Image
   const [autoImage, setAutoImage] = useState<DefectData | null>(null);
   const [isImageLoading, setIsImageLoading] = useState(false);
@@ -282,6 +286,14 @@ export function PressMachineDashboard() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3 mb-2">
+            {/* 돌아가기 버튼 */}
+            <button
+              onClick={() => navigate("/order/production")}
+              className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+              title="생산 관리로 돌아가기"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
               <Factory className="w-7 h-7 text-white" />
             </div>

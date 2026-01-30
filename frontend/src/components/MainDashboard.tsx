@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, CheckCircle, Clock, TrendingUp, Calendar } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, ArrowLeft, CheckCircle, Clock, TrendingUp, Calendar } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 
 interface DashboardData {
@@ -70,6 +71,7 @@ function addHoursToDate(iso: string | null | undefined, hours: number): string {
 // ===== Component =====
 
 export function MainDashboard() {
+  const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [prediction, setPrediction] = useState<PredictionOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -166,9 +168,18 @@ export function MainDashboard() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">종합 대시보드</h2>
-        <p className="text-gray-600 mt-1">전체 공정 상태 및 리스크 모니터링</p>
+      <div className="mb-8 flex items-center gap-4">
+        <button
+          onClick={() => navigate("/order/production")}
+          className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+          title="생산 관리로 돌아가기"
+        >
+          <ArrowLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">종합 대시보드</h2>
+          <p className="text-gray-600 mt-1">전체 공정 상태 및 리스크 모니터링</p>
+        </div>
       </div>
 
       {/* KPI Cards */}

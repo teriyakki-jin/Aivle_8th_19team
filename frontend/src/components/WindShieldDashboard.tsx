@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import {
+  ArrowLeft,
   Layers,
   Gauge,
   AlertCircle,
@@ -54,6 +56,7 @@ function makeSingleRowCsvBlob(row: string): Blob {
 }
 
 export function WindShieldDashboard() {
+  const navigate = useNavigate();
   const [side, setSide] = useState<Side>("Left");
 
   // ✅ 버튼 없이 "자동 모니터링"으로 동작
@@ -309,7 +312,14 @@ export function WindShieldDashboard() {
       <div className="p-8 bg-gradient-to-br from-gray-50 to-indigo-50 min-h-screen">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate("/order/production")}
+              className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+              title="생산 관리로 돌아가기"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-600" />
+            </button>
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-gradient-to-br from-gray-900 to-gray-700 rounded-xl flex items-center justify-center">
                 <Layers className="w-7 h-7 text-black" />

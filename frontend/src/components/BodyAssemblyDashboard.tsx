@@ -19,7 +19,9 @@ import {
   Activity,
   Layers,
   X,
+  ArrowLeft,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type PartKey = "door" | "bumper" | "headlamp" | "taillamp" | "radiator";
 
@@ -91,6 +93,8 @@ function PassFailPill({ value }: { value: "PASS" | "FAIL" }) {
 }
 
 export function BodyAssemblyDashboard() {
+  const navigate = useNavigate();
+
   // ✅ 버튼 없이 자동 모니터링
   const [systemStatus, setSystemStatus] = useState<
     "WAITING" | "MONITORING" | "ANALYZING"
@@ -317,6 +321,14 @@ export function BodyAssemblyDashboard() {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
+              {/* 돌아가기 버튼 */}
+              <button
+                onClick={() => navigate("/order/production")}
+                className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+                title="생산 관리로 돌아가기"
+              >
+                <ArrowLeft className="w-5 h-5 text-gray-600" />
+              </button>
               <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
                 <Car className="w-7 h-7 text-white" />
               </div>

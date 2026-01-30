@@ -1,10 +1,17 @@
-import { createContext, useContext, useState, useCallback, useRef, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useRef,
+  ReactNode,
+} from "react";
 import { orderApi, OrderDto } from "../api/order";
 
 // ML API 기본 URL (Spring Boot)
 const ML_API_BASE = "http://localhost:3001/api/v1/ml";
 
-// 공정 단계 정의
+// 공정 단계 정의 (✅ 라우트 + 모델 배치 최종)
 const PIPELINE_STAGES = [
   {
     id: "press",
@@ -17,10 +24,10 @@ const PIPELINE_STAGES = [
   {
     id: "body",
     name: "차체",
-    description: "용접 및 차체 조립",
-    mlEndpoints: ["/welding/image/auto", "/body/inspect/batch/auto"],
-    detailPage: "/body",
-    duration: { min: 25000, max: 35000 },
+    description: "용접 품질 검사",
+    mlEndpoints: ["/welding/image/auto"], // ✅ 용접만 유지
+    detailPage: "/welding-image", // ✅ 차체 클릭 시 용접 이미지 페이지로
+    duration: { min: 20000, max: 30000 },
   },
   {
     id: "paint",
@@ -33,18 +40,22 @@ const PIPELINE_STAGES = [
   {
     id: "assembly",
     name: "의장",
-    description: "내장재 및 부품 조립",
-    mlEndpoints: [],
-    detailPage: "/windshield",
-    duration: { min: 15000, max: 25000 },
+    description: "차체 조립 검사",
+    mlEndpoints: [
+      "/body/inspect/batch/auto", // ✅ 의장에 차체조립 배치 auto
+      // 필요하면 단건도 추가 가능:
+      // "/body/inspect/auto",
+    ],
+    detailPage: "/body", // ✅ 차체 조립 페이지
+    duration: { min: 20000, max: 30000 },
   },
   {
     id: "inspection",
     name: "검사",
     description: "최종 품질 검사",
-    mlEndpoints: [],
-    detailPage: "/dashboard",
-    duration: { min: 10000, max: 15000 },
+    mlEndpoints: ["/windshield/auto", "/engine/auto"], // ✅ 검사에 윈드실드+엔진
+    detailPage: "/windshield", // ✅ 기본 진입은 윈드실드
+    duration: { min: 15000, max: 25000 },
   },
 ];
 
@@ -85,18 +96,31 @@ async function callMLApi(endpoint: string, offset: number = 0): Promise<any> {
   }
 }
 
-// ML 결과에서 이상 여부 판단
+// ✅ ML 결과에서 이상 여부 판단 (prediction=1 같은 단순 규칙 제거)
 function checkAnomaly(result: any): boolean {
   if (!result) return false;
+
+  // press vibration 스타일
   if (result.is_anomaly === 1) return true;
-  if (result.status === "DEFECT" || result.status === "FAIL" || result.status === "ABNORMAL") return true;
-  if (result.judgement === "FAIL" || result.judgement === "ABNORMAL") return true;
-  if (result.pass_fail === "FAIL") return true;
-  if (result.prediction === 1) return true;
+
+  // welding/paint 등 status 기반
+  const status = String(result.status ?? "").toUpperCase();
+  if (status === "DEFECT" || status === "FAIL" || status === "ABNORMAL") return true;
+
+  // judgement 기반 (windshield/engine 포함)
+  const judgement = String(result.judgement ?? "").toUpperCase();
+  if (judgement === "FAIL" || judgement === "ABNORMAL") return true;
+
+  // body inspect
+  const passFail = String(result.pass_fail ?? "").toUpperCase();
+  if (passFail === "FAIL") return true;
+
+  // batch 결과(차체조립)
   if (result.results) {
     const parts = Object.values(result.results);
-    return parts.some((p: any) => p?.pass_fail === "FAIL");
+    return parts.some((p: any) => String(p?.pass_fail ?? "").toUpperCase() === "FAIL");
   }
+
   return false;
 }
 
@@ -129,12 +153,12 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
       setProductions((prev) => {
         const newMap = new Map(prev);
         orderList.forEach((o) => {
-          const orderId = o?.id ?? o?.orderId;
+          const orderId = (o as any)?.id ?? (o as any)?.orderId;
           if (orderId && !newMap.has(orderId)) {
             newMap.set(orderId, {
               orderId,
-              vehicleModelId: o?.vehicleModelId ?? o?.modelId ?? 0,
-              orderQty: o?.orderQty ?? o?.quantity ?? 0,
+              vehicleModelId: (o as any)?.vehicleModelId ?? (o as any)?.modelId ?? 0,
+              orderQty: (o as any)?.orderQty ?? (o as any)?.quantity ?? 0,
               currentStage: 0,
               stageResults: PIPELINE_STAGES.map(() => ({ status: "waiting" as StageStatus })),
             });
@@ -151,15 +175,12 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
 
   // 자동 재시도 포함 파이프라인 실행
   const startProduction = useCallback(async (orderId: number) => {
-    // 이미 실행 중이면 무시
     if (runningProductions.current.has(orderId)) {
       console.log(`Production ${orderId} is already running`);
       return;
     }
-
     runningProductions.current.add(orderId);
 
-    // 주문별 랜덤 시작 오프셋 생성 (0~99 사이)
     const baseOffset = Math.floor(Math.random() * 100);
     console.log(`Production ${orderId}: Starting with base offset ${baseOffset}`);
 
@@ -176,21 +197,18 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
       return newMap;
     });
 
-    // 각 공정을 순차적으로 실행
     for (let stageIdx = 0; stageIdx < PIPELINE_STAGES.length; stageIdx++) {
       const stage = PIPELINE_STAGES[stageIdx];
       let retryCount = 0;
       let stageSuccess = false;
 
-      // 공정 시작 시간 (재시도해도 유지)
       const stageStartTime = Date.now();
 
-      // 이상 감지 시 자동 재시도 (정상이 될 때까지 무한 재시도)
       while (!stageSuccess) {
-        const stageDuration = stage.duration.min + Math.random() * (stage.duration.max - stage.duration.min);
-        const retryStartTime = Date.now(); // 이번 시도의 시작 시간 (대기 시간 계산용)
+        const stageDuration =
+          stage.duration.min + Math.random() * (stage.duration.max - stage.duration.min);
+        const retryStartTime = Date.now();
 
-        // 현재 단계 실행중으로 표시 (startedAt은 최초 시작 시간 유지)
         setProductions((prev) => {
           const newMap = new Map(prev);
           const production = newMap.get(orderId);
@@ -198,7 +216,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
             production.currentStage = stageIdx;
             production.stageResults[stageIdx] = {
               status: "running",
-              startedAt: stageStartTime, // 재시도해도 최초 시작 시간 유지
+              startedAt: stageStartTime,
               estimatedDuration: stageDuration,
               retryCount,
             };
@@ -207,7 +225,6 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
           return newMap;
         });
 
-        // ML API 호출 (baseOffset + stageIdx * 10 + retryCount로 주문별 다른 입력 사용)
         let hasAnomaly = false;
         const mlResults: any[] = [];
         const totalOffset = baseOffset + stageIdx * 10 + retryCount;
@@ -217,16 +234,14 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
             try {
               const result = await callMLApi(endpoint, totalOffset);
               mlResults.push(result);
-              if (checkAnomaly(result)) {
-                hasAnomaly = true;
-              }
+              if (checkAnomaly(result)) hasAnomaly = true;
             } catch (error) {
               console.error(`Stage ${stage.id} ML call failed:`, error);
+              // 실패는 "이상"으로 치지 않고, 메시지로만 남김
             }
           }
         }
 
-        // 공정 소요 시간 대기 (이번 시도 기준)
         const elapsed = Date.now() - retryStartTime;
         const remainingTime = Math.max(0, stageDuration - elapsed);
         if (remainingTime > 0) {
@@ -234,12 +249,11 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
         }
 
         if (hasAnomaly) {
-          // 이상 감지 - 자동 재시도 (정상이 될 때까지 계속)
           retryCount++;
-          console.log(`Production ${orderId}: Anomaly at ${stage.name}, auto-retry ${retryCount}`);
-          // 정상이 될 때까지 계속 재시도 (stageSuccess = false 유지)
+          console.log(
+            `Production ${orderId}: Anomaly at ${stage.name}, auto-retry ${retryCount}`
+          );
         } else {
-          // 정상 - 다음 단계로
           setProductions((prev) => {
             const newMap = new Map(prev);
             const production = newMap.get(orderId);

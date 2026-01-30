@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCcw, Factory, Image as ImageIcon, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ArrowLeft, RefreshCcw, Factory, Image as ImageIcon, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 /* =====================
    Types
@@ -163,6 +164,7 @@ function JudgeBadge({ judgement }: { judgement: "양품" | "불량" | "대기" }
 ===================== */
 
 export function WeldingImageDashboard() {
+  const navigate = useNavigate();
   const [result, setResult] = useState<WeldingAutoResponse | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -276,7 +278,14 @@ export function WeldingImageDashboard() {
     <div className="p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
       {/* Header (Battery/Press 톤) */}
       <div className="mb-8 flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate("/order/production")}
+            className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+            title="생산 관리로 돌아가기"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
               <Factory className="w-7 h-7 text-white" />

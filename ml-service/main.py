@@ -540,5 +540,194 @@ async def health_check():
         "timestamp": str(__import__('datetime').datetime.now())
     }
 
+# WINDSHIELD AUTO (샘플 CSV 순차 재생)
+# =========================
+import pandas as pd
+import io
+
+# 프론트엔드 public/data 경로 (상대 경로)
+WINDSHIELD_DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend", "public", "data")
+
+windshield_auto_state = {
+    "left_rows": None,
+    "right_rows": None,
+    "left_idx": 0,
+    "right_idx": 0,
+}
+
+def _load_windshield_csv():
+    """윈드실드 샘플 CSV를 로드하여 행 단위로 저장"""
+    left_path = os.path.join(WINDSHIELD_DATA_DIR, "2nd_process_left_data.csv")
+    right_path = os.path.join(WINDSHIELD_DATA_DIR, "2nd_process_right_data.csv")
+
+    if os.path.exists(left_path):
+        df = pd.read_csv(left_path, header=None)
+        windshield_auto_state["left_rows"] = df.values.tolist()
+
+    if os.path.exists(right_path):
+        df = pd.read_csv(right_path, header=None)
+        windshield_auto_state["right_rows"] = df.values.tolist()
+
+@app.post("/api/v1/smartfactory/windshield/auto")
+def predict_windshield_auto(offset: int = 0):
+    """
+    윈드실드 자동 예측 - 샘플 CSV에서 순차적으로 행을 가져와 예측
+    Left/Right 번갈아가며 예측
+    """
+    try:
+        # 첫 호출 시 CSV 로드
+        if windshield_auto_state["left_rows"] is None:
+            _load_windshield_csv()
+
+        left_rows = windshield_auto_state["left_rows"]
+        right_rows = windshield_auto_state["right_rows"]
+
+        if not left_rows and not right_rows:
+            raise HTTPException(status_code=404, detail="No windshield sample CSV found")
+
+        # offset 적용
+        windshield_auto_state["left_idx"] = (windshield_auto_state["left_idx"] + offset) % len(left_rows) if left_rows else 0
+        windshield_auto_state["right_idx"] = (windshield_auto_state["right_idx"] + offset) % len(right_rows) if right_rows else 0
+
+        results = []
+
+        # Left 예측
+        if left_rows:
+            row = left_rows[windshield_auto_state["left_idx"]]
+            csv_bytes = ",".join(map(str, row)).encode("utf-8")
+            pred, judgement = windshield.predict_from_csv("left", csv_bytes)
+            results.append({
+                "side": "left",
+                "prediction": pred,
+                "judgement": judgement,
+                "row_index": windshield_auto_state["left_idx"],
+            })
+            windshield_auto_state["left_idx"] = (windshield_auto_state["left_idx"] + 1) % len(left_rows)
+
+        # Right 예측
+        if right_rows:
+            row = right_rows[windshield_auto_state["right_idx"]]
+            csv_bytes = ",".join(map(str, row)).encode("utf-8")
+            pred, judgement = windshield.predict_from_csv("right", csv_bytes)
+            results.append({
+                "side": "right",
+                "prediction": pred,
+                "judgement": judgement,
+                "row_index": windshield_auto_state["right_idx"],
+            })
+            windshield_auto_state["right_idx"] = (windshield_auto_state["right_idx"] + 1) % len(right_rows)
+
+        # 하나라도 FAIL이면 전체 FAIL
+        overall_pass = all(r["judgement"] == "PASS" for r in results)
+
+        return {
+            "status": "PASS" if overall_pass else "FAIL",
+            "judgement": "PASS" if overall_pass else "FAIL",
+            "results": results,
+            "sequence": {
+                "left_idx": windshield_auto_state["left_idx"],
+                "right_idx": windshield_auto_state["right_idx"],
+                "left_count": len(left_rows) if left_rows else 0,
+                "right_count": len(right_rows) if right_rows else 0,
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =========================
+# ENGINE AUTO (샘플 ARFF 순차 재생)
+# =========================
+import arff
+
+ENGINE_DATA_DIR = WINDSHIELD_DATA_DIR  # 같은 폴더에 있음
+
+engine_auto_state = {
+    "rows": None,
+    "idx": 0,
+}
+
+def _load_engine_arff():
+    """엔진 샘플 ARFF를 로드하여 행 단위로 저장"""
+    arff_path = os.path.join(ENGINE_DATA_DIR, "FordA_TEST.arff")
+
+    if os.path.exists(arff_path):
+        with open(arff_path, "r", encoding="utf-8") as f:
+            obj = arff.load(f)
+            engine_auto_state["rows"] = obj.get("data", [])
+
+@app.post("/api/v1/smartfactory/engine/auto")
+def predict_engine_auto(offset: int = 0):
+    """
+    엔진 진동 자동 예측 - 샘플 ARFF에서 순차적으로 행을 가져와 예측
+    """
+    try:
+        # 첫 호출 시 ARFF 로드
+        if engine_auto_state["rows"] is None:
+            _load_engine_arff()
+
+        rows = engine_auto_state["rows"]
+
+        if not rows:
+            raise HTTPException(status_code=404, detail="No engine sample ARFF found")
+
+        # offset 적용
+        engine_auto_state["idx"] = (engine_auto_state["idx"] + offset) % len(rows)
+
+        # 현재 행 가져오기
+        row = rows[engine_auto_state["idx"]]
+
+        # ARFF 형식으로 변환하여 예측
+        # 마지막 컬럼이 label일 수 있으므로 그대로 전달 (predict_from_arff에서 처리)
+        import numpy as np
+        x = np.array([row], dtype=np.float32)
+
+        # 마지막 컬럼이 label인지 확인하고 제거
+        if x.shape[1] >= 2:
+            last_col = x[:, -1]
+            uniq = set(np.unique(last_col).tolist())
+            if uniq.issubset({0.0, 1.0}) or uniq.issubset({-1.0, 1.0}):
+                x = x[:, :-1]
+
+        # 모델 입력 shape 맞추기
+        if x.ndim == 2:
+            x = x[..., np.newaxis]
+
+        y = engine.model.predict(x, verbose=0)
+
+        # 결과 해석
+        if y.ndim == 2 and y.shape[1] == 1:
+            score = float(y[0, 0])
+            pred = 1 if score >= 0.5 else 0
+        elif y.ndim == 2 and y.shape[1] >= 2:
+            pred = int(np.argmax(y[0]))
+        else:
+            score = float(y.reshape(-1)[0])
+            pred = 1 if score >= 0.5 else 0
+
+        judgement = "NORMAL" if pred == 1 else "ABNORMAL"
+
+        current_idx = engine_auto_state["idx"]
+        engine_auto_state["idx"] = (engine_auto_state["idx"] + 1) % len(rows)
+
+        return {
+            "status": judgement,
+            "judgement": judgement,
+            "prediction": pred,
+            "row_index": current_idx,
+            "sequence": {
+                "idx": engine_auto_state["idx"],
+                "count": len(rows),
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

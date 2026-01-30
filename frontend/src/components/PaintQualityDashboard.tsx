@@ -1,6 +1,7 @@
 // src/components/PaintQualityDashboard.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, CheckCircle2, Paintbrush, Timer, Target } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { AlertTriangle, ArrowLeft, CheckCircle2, Paintbrush, Timer, Target } from "lucide-react";
 
 type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -180,6 +181,7 @@ function CurrentImage({ url }: { url: string }) {
 }
 
 export const PaintQualityDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const firstRunRef = useRef(true);
   const inFlightRef = useRef(false);
 
@@ -299,7 +301,14 @@ export const PaintQualityDashboard: React.FC = () => {
     <div className="p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
       {/* Header (Battery 톤) */}
       <div className="mb-8 flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate("/order/production")}
+            className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+            title="생산 관리로 돌아가기"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
           <div className="flex items-center gap-3 mb-2">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
               <Paintbrush className="w-7 h-7 text-white" />

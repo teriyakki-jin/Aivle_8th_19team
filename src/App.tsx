@@ -10,9 +10,10 @@ import { PaintQualityDashboard } from './components/PaintQualityDashboard';
 import { FacilityDashboard } from './components/FacilityDashboard';
 import { MainDashboard } from './components/MainDashboard';
 import { AIChatbot } from './components/AIChatbot';
+import { DigitalTwinPage } from './components/DigitalTwinPage';
 
 
-export type MenuType = 'main' | 'press' | 'engine' | 'body' | 'paint' | 'facility';
+export type MenuType = 'main' | 'press' | 'engine' | 'body' | 'paint' | 'facility' | 'digitalTwin';
 
 function Layout({ children, username, onLogout }: { children: React.ReactNode, username: string, onLogout: () => void }) {
   return (
@@ -86,6 +87,7 @@ export default function App() {
                 <Route path="/body" element={<BodyAssemblyDashboard />} />
                 <Route path="/paint" element={<PaintQualityDashboard />} />
                 <Route path="/facility" element={<FacilityDashboard />} />
+                <Route path="/digital-twin" element={<DigitalTwinPage />} />
 
               </Routes>
             </Layout>

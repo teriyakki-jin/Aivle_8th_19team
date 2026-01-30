@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle, Clock, TrendingUp, Calendar } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 
 interface DashboardData {
   anomalyData: any[];
@@ -18,6 +19,7 @@ interface DashboardData {
 export function MainDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetch('/api/v1/dashboard/main')
@@ -89,9 +91,18 @@ export function MainDashboard() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900">종합 대시보드</h2>
-        <p className="text-gray-600 mt-1">전체 공정 상태 및 리스크 모니터링</p>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">종합 대시보드</h2>
+          <p className="text-gray-600 mt-1">전체 공정 상태 및 리스크 모니터링</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/digital-twin')}
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+        >
+          디지털 트윈 실행
+        </button>
       </div>
 
       {/* KPI Cards */}

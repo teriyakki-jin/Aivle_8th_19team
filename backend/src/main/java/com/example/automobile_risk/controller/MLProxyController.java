@@ -125,6 +125,40 @@ public class MLProxyController {
     }
 
     /**
+     * 윈드실드 분석 (자동)
+     * POST /api/v1/ml/windshield/auto
+     */
+    @PostMapping("/windshield/auto")
+    public ResponseEntity<JsonNode> analyzeWindshieldAuto(
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+        try {
+            log.info("Windshield auto analysis request - offset: {}", offset);
+            JsonNode result = mlProxyService.analyzeWindshieldAuto(offset);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in windshield auto analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 엔진 진동 분석 (자동)
+     * POST /api/v1/ml/engine/auto
+     */
+    @PostMapping("/engine/auto")
+    public ResponseEntity<JsonNode> analyzeEngineAuto(
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+        try {
+            log.info("Engine auto analysis request - offset: {}", offset);
+            JsonNode result = mlProxyService.analyzeEngineAuto(offset);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in engine auto analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
      * 차체 조립 분석 (자동 배치)
      * POST /api/v1/ml/body/inspect/batch/auto
      */

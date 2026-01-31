@@ -6,6 +6,7 @@ import {
   ProductionItem,
   StageResult,
 } from "../../context/ProductionContext";
+import { vehicleModelApi, VehicleModelDto } from "../../api/vehicleModel";
 import {
   Factory,
   Play,
@@ -275,11 +276,13 @@ function ProductionCard({
   onStart,
   onStageClick,
   onViewDetail,
+  getModelName,
 }: {
   production: ProductionItem;
   onStart: () => void;
   onStageClick: (stageId: string, stage: (typeof PIPELINE_STAGES)[0]) => void;
   onViewDetail: (page: string) => void;
+  getModelName: (modelId: number | string) => string;
 }) {
   const stages = PIPELINE_STAGES;
   const isRunning = production.stageResults.some((r) => r.status === "running");
@@ -323,7 +326,7 @@ function ProductionCard({
           <div>
             <div className="font-semibold text-slate-900">주문 #{production.orderId}</div>
             <div className="text-xs text-slate-500">
-              모델 {production.vehicleModelId} · {production.orderQty}대
+              {getModelName(production.vehicleModelId)} · {production.orderQty}대
             </div>
           </div>
         </div>
@@ -402,9 +405,21 @@ function ProductionCard({
 export function ProductionPage() {
   const navigate = useNavigate();
   const { productions, loading, error, refresh, startProduction } = useProduction();
+  const [vehicleModels, setVehicleModels] = useState<VehicleModelDto[]>([]);
+
+  // 차량 모델 ID -> 이름 매핑
+  const getModelName = (modelId: number | string) => {
+    const id = Number(modelId);
+    const model = vehicleModels.find((m) => m.vehicleModelId === id);
+    return model?.modelName ?? `모델 ${modelId}`;
+  };
 
   useEffect(() => {
     refresh();
+    // 차량 모델 목록 로드
+    vehicleModelApi.list().then((data) => {
+      setVehicleModels(Array.isArray(data) ? data : []);
+    }).catch(console.error);
   }, [refresh]);
 
   // ✅ 클릭 이동 로직 보정:
@@ -453,58 +468,6 @@ export function ProductionPage() {
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg text-sm">{error}</div>}
 
-      {/* ✅ 공정 범례: 검사만 2버튼(윈드실드/엔진) */}
-      <div className="bg-white rounded-xl border shadow-sm p-4">
-        <div className="text-sm font-semibold text-slate-700 mb-3">공정 단계 (클릭 시 상세 페이지 이동)</div>
-        <div className="flex flex-wrap gap-4">
-          {PIPELINE_STAGES.map((stage) => {
-            const Icon = STAGE_ICONS[stage.id] || ClipboardCheck;
-
-            if (stage.id === "inspection") {
-              return (
-                <div key={stage.id} className="flex items-center gap-2">
-                  <button
-                    onClick={() => navigate("/windshield")}
-                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
-                  >
-                    <div className="p-1.5 bg-slate-100 rounded-lg">
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <span className="font-medium">검사-윈드실드</span>
-                    <ExternalLink className="w-3 h-3 text-slate-400" />
-                  </button>
-
-                  <button
-                    onClick={() => navigate("/engine-vibration")}
-                    className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
-                  >
-                    <div className="p-1.5 bg-slate-100 rounded-lg">
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <span className="font-medium">검사-엔진</span>
-                    <ExternalLink className="w-3 h-3 text-slate-400" />
-                  </button>
-                </div>
-              );
-            }
-
-            return (
-              <button
-                key={stage.id}
-                onClick={() => navigate(stage.detailPage)}
-                className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
-              >
-                <div className="p-1.5 bg-slate-100 rounded-lg">
-                  <Icon className="w-4 h-4" />
-                </div>
-                <span className="font-medium">{stage.name}</span>
-                <ExternalLink className="w-3 h-3 text-slate-400" />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       <div className="space-y-4">
         {loading ? (
           <div className="bg-white rounded-xl border p-8 text-center text-slate-500">
@@ -525,6 +488,7 @@ export function ProductionPage() {
               onStart={() => startProduction(production.orderId)}
               onStageClick={handleStageClick}
               onViewDetail={handleViewDetail}
+              getModelName={getModelName}
             />
           ))
         )}

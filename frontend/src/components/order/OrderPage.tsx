@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { orderApi, OrderDto } from "../../api/order";
+import { vehicleModelApi, VehicleModelDto } from "../../api/vehicleModel";
 import { ClipboardList, Plus, RefreshCcw, Trash2 } from "lucide-react";
 import { useProduction } from "../../context/ProductionContext";
 
@@ -158,9 +159,17 @@ function getStatusBadge(
 
 export function OrderPage() {
   const [orders, setOrders] = useState<OrderDto[]>([]);
+  const [vehicleModels, setVehicleModels] = useState<VehicleModelDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const { productions } = useProduction();
+
+  // 차량 모델 ID -> 이름 매핑
+  const getModelName = (modelId: number | string) => {
+    const id = Number(modelId);
+    const model = vehicleModels.find((m) => m.vehicleModelId === id);
+    return model?.modelName ?? `모델 ${modelId}`;
+  };
 
   // 주문의 생산 상태 확인
   const getProductionStatus = (
@@ -182,14 +191,26 @@ export function OrderPage() {
   const [orderDate, setOrderDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [orderQty, setOrderQty] = useState<number>(1);
-  const [vehicleModelId, setVehicleModelId] = useState<string>("");
+  const [vehicleModelName, setVehicleModelName] = useState<string>("");
+
+  // 모델 이름 -> ID 변환
+  const getModelIdByName = (name: string): number | null => {
+    const model = vehicleModels.find(
+      (m) => m.modelName.toLowerCase() === name.trim().toLowerCase()
+    );
+    return model?.vehicleModelId ?? null;
+  };
 
   const refresh = async () => {
     setErr(null);
     setLoading(true);
     try {
-      const data = await orderApi.list();
-      setOrders(Array.isArray(data) ? data : []);
+      const [ordersData, modelsData] = await Promise.all([
+        orderApi.list(),
+        vehicleModelApi.list(),
+      ]);
+      setOrders(Array.isArray(ordersData) ? ordersData : []);
+      setVehicleModels(Array.isArray(modelsData) ? modelsData : []);
     } catch (e: any) {
       setErr(e?.message ?? "주문 목록 조회 실패");
     } finally {
@@ -205,32 +226,48 @@ export function OrderPage() {
     e.preventDefault();
     setErr(null);
 
-    const payload = {
-      orderDate: dateToISO(orderDate),
-      dueDate: dateToISO(dueDate),
-      orderQty: Number(orderQty),
-      vehicleModelId: Number(vehicleModelId),
-    };
-
     if (!orderDate || !dueDate) {
       setErr("주문 날짜/납기 일자를 입력하세요.");
       return;
     }
-    if (!payload.vehicleModelId || Number.isNaN(payload.vehicleModelId)) {
-      setErr("차량 모델 ID는 숫자로 입력하세요.");
+    if (!vehicleModelName.trim()) {
+      setErr("차량 모델명을 입력하세요.");
       return;
     }
-    if (!payload.orderQty || payload.orderQty < 1) {
+    if (!orderQty || orderQty < 1) {
       setErr("주문 수량은 1 이상이어야 합니다.");
       return;
     }
 
     try {
+      // 모델명으로 ID 찾기 (없으면 자동 생성)
+      let modelId = getModelIdByName(vehicleModelName);
+      if (!modelId) {
+        // 새 모델 생성
+        modelId = await vehicleModelApi.create({
+          modelName: vehicleModelName.trim(),
+          segment: "-",
+          fuel: "-",
+          description: "자동 생성",
+          isActive: true,
+        });
+        // 모델 목록 새로고침
+        const modelsData = await vehicleModelApi.list();
+        setVehicleModels(Array.isArray(modelsData) ? modelsData : []);
+      }
+
+      const payload = {
+        orderDate: dateToISO(orderDate),
+        dueDate: dateToISO(dueDate),
+        orderQty: Number(orderQty),
+        vehicleModelId: modelId,
+      };
+
       await orderApi.create(payload);
       setOrderDate("");
       setDueDate("");
       setOrderQty(1);
-      setVehicleModelId("");
+      setVehicleModelName("");
       await refresh();
     } catch (e: any) {
       setErr(e?.message ?? "주문 생성 실패");
@@ -329,13 +366,13 @@ export function OrderPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
-                차량 모델 ID
+                차량 모델
               </label>
               <input
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={vehicleModelId}
-                onChange={(e) => setVehicleModelId(e.target.value)}
-                placeholder="예) 1"
+                value={vehicleModelName}
+                onChange={(e) => setVehicleModelName(e.target.value)}
+                placeholder="예) 아반떼, 소나타"
                 required
               />
             </div>
@@ -411,8 +448,8 @@ export function OrderPage() {
                         <span className="font-mono font-semibold text-slate-900">#{id}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-slate-700">
-                          모델 {getField(o, ["vehicleModelId", "modelId"])}
+                        <span className="text-slate-700 font-medium">
+                          {getModelName(getField(o, ["vehicleModelId", "modelId"]))}
                         </span>
                       </td>
                       <td className="px-4 py-3">

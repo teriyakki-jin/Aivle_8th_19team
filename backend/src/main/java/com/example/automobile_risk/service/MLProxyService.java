@@ -232,6 +232,20 @@ public class MLProxyService {
     }
 
     /**
+     * 윈드실드 분석 (자동)
+     */
+    public JsonNode analyzeWindshieldAuto(int offset) {
+        return callMLServiceWithoutFile("/api/v1/smartfactory/windshield/auto", "windshield", offset);
+    }
+
+    /**
+     * 엔진 진동 분석 (자동)
+     */
+    public JsonNode analyzeEngineAuto(int offset) {
+        return callMLServiceWithoutFile("/api/v1/smartfactory/engine/auto", "engine", offset);
+    }
+
+    /**
      * 차체 조립 분석 (자동 배치)
      */
     public JsonNode analyzeBodyAssemblyBatchAuto(Double confidence, int offset) {

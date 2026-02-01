@@ -27,7 +27,7 @@ export const BoardListPage = () => {
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
-            
+
             const response = await fetch('/api/v1/board', { headers });
             if (response.ok) {
                 const data = await response.json();

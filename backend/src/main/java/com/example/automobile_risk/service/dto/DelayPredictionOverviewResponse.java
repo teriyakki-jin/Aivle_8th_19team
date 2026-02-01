@@ -17,6 +17,17 @@ public class DelayPredictionOverviewResponse {
     private double avgDelayHours;
     private Map<String, Integer> riskDistribution;
     private List<OrderPredictionSummary> orders;
+    private List<ProcessDelayBreakdown> processBreakdown;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ProcessDelayBreakdown {
+        private String process;
+        private double totalDelayHours;
+        private int eventCount;
+    }
 
     @Data
     @Builder

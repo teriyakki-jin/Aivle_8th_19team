@@ -23,4 +23,17 @@ public class RestTemplateConfig {
                 .requestFactory(() -> factory)
                 .build();
     }
+
+    @Bean("mlRestTemplate")
+    public RestTemplate mlRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3000);
+        factory.setReadTimeout(4000);
+
+        return new RestTemplateBuilder()
+                .setConnectTimeout(Duration.ofSeconds(3))
+                .setReadTimeout(Duration.ofSeconds(4))
+                .requestFactory(() -> factory)
+                .build();
+    }
 }

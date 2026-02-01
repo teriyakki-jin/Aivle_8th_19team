@@ -18,7 +18,31 @@
       "Bash(timeout 10 npm run dev:*)",
       "Bash(./gradlew build:*)",
       "Bash(git status:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(npx tsc:*)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(./gradlew tasks:*)",
+      "Bash(wc:*)",
+      "Bash(./gradlew.bat build:*)",
+      "Bash(npx vite build:*)",
+      "Bash(gradlew.bat build:*)",
+      "Bash(cmd /c \"gradlew.bat build -x test\")",
+      "Bash(cmd /c \"cd /d C:\\\\work\\\\Aivle_8th_19team\\\\backend && gradlew.bat build -x test\")",
+      "Bash(cmd.exe /c \"cd /d C:\\\\work\\\\Aivle_8th_19team\\\\backend && gradlew.bat build -x test 2>&1\")",
+      "Bash(powershell.exe -Command \"Set-Location ''C:\\\\work\\\\Aivle_8th_19team\\\\backend''; .\\\\gradlew.bat build -x test 2>&1\")",
+      "Bash(powershell.exe -Command \"Set-Location ''C:\\\\work\\\\Aivle_8th_19team\\\\frontend''; npx tsc --noEmit 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d C:\\\\work\\\\Aivle_8th_19team\\\\frontend && npx tsc --noEmit 2>&1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"Set-Location ''C:\\\\work\\\\Aivle_8th_19team\\\\frontend''; npx tsc --noEmit 2>&1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"Set-Location ''C:\\\\work\\\\Aivle_8th_19team\\\\frontend''; node_modules\\\\.bin\\\\tsc --noEmit 2>&1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"Set-Location ''C:\\\\work\\\\Aivle_8th_19team\\\\frontend''; & node .\\\\node_modules\\\\typescript\\\\bin\\\\tsc --noEmit 2>&1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"Set-Location ''C:\\\\work\\\\Aivle_8th_19team\\\\frontend''; npm run build 2>&1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"Set-Location ''C:\\\\work\\\\Aivle_8th_19team\\\\backend''; .\\\\gradlew.bat build -x test 2>&1\")",
+      "Bash(npx --package typescript tsc --noEmit)",
+      "Bash(cmd /c \"gradlew.bat build -x test 2>&1\")",
+      "Bash(npm run build:*)"
     ]
   }
 }

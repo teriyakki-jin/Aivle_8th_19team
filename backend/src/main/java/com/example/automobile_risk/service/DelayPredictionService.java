@@ -132,6 +132,9 @@ public class DelayPredictionService {
         double maxDelay = 0;
         double totalDelay = 0;
 
+        // 공정별 합산을 위한 맵
+        Map<String, double[]> processAgg = new LinkedHashMap<>(); // [totalDelay, eventCount]
+
         for (Order order : activeOrders) {
             DelayPredictionResponse prediction = predictForOrder(order.getId());
 
@@ -149,9 +152,29 @@ public class DelayPredictionService {
             riskDistribution.merge(prediction.getRiskLevel(), 1, Integer::sum);
             maxDelay = Math.max(maxDelay, prediction.getPredictedDelayHours());
             totalDelay += prediction.getPredictedDelayHours();
+
+            // 공정별 breakdown 합산
+            if (prediction.getProcessBreakdown() != null) {
+                for (DelayPredictionResponse.ProcessDelayDetail pd : prediction.getProcessBreakdown()) {
+                    processAgg.merge(pd.getProcess(),
+                            new double[]{pd.getTotalDelayHours(), pd.getEventCount()},
+                            (a, b) -> new double[]{a[0] + b[0], a[1] + b[1]});
+                }
+            }
         }
 
         double avgDelay = activeOrders.isEmpty() ? 0 : totalDelay / activeOrders.size();
+
+        List<DelayPredictionOverviewResponse.ProcessDelayBreakdown> processBreakdown =
+                processAgg.entrySet().stream()
+                        .map(e -> DelayPredictionOverviewResponse.ProcessDelayBreakdown.builder()
+                                .process(e.getKey())
+                                .totalDelayHours(Math.round(e.getValue()[0] * 100.0) / 100.0)
+                                .eventCount((int) e.getValue()[1])
+                                .build())
+                        .sorted(Comparator.comparingDouble(
+                                DelayPredictionOverviewResponse.ProcessDelayBreakdown::getTotalDelayHours).reversed())
+                        .toList();
 
         return DelayPredictionOverviewResponse.builder()
                 .totalOrders(activeOrders.size())
@@ -159,6 +182,7 @@ public class DelayPredictionService {
                 .avgDelayHours(avgDelay)
                 .riskDistribution(riskDistribution)
                 .orders(summaries)
+                .processBreakdown(processBreakdown)
                 .build();
     }
 

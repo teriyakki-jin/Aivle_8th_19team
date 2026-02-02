@@ -19,6 +19,8 @@ import com.example.automobile_risk.service.dto.OrderDetailResponse;
 import com.example.automobile_risk.service.dto.OrderListResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -196,13 +198,11 @@ public class OrderService {
     /**
      *  6. 주문 목록 조회
      */
-    public List<OrderListResponse> getOrderList() {
+    public Page<OrderListResponse> getOrderList(Pageable pageable) {
 
-        List<Order> orderList = orderRepository.findAll();
+        Page<Order> orderPage = orderRepository.findAll(pageable);
 
-        return orderList.stream()
-                .map(OrderListResponse::from)
-                .collect(Collectors.toList());
+        return orderPage.map(OrderListResponse::from);
     }
 
     /**

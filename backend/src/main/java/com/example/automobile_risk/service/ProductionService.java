@@ -11,6 +11,8 @@ import com.example.automobile_risk.service.dto.ProductionDetailResponse;
 import com.example.automobile_risk.service.dto.ProductionListResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -146,11 +148,12 @@ public class ProductionService {
     /**
      *  9. 생산 목록 조회
      */
-    public List<ProductionListResponse> getProductionList() {
+    public Page<ProductionListResponse> getProductionList(Pageable pageable) {
 
-        return productionRepository.findAll().stream()
-                .map(ProductionListResponse::from)
-                .toList();
+        Page<Production> productionPage = productionRepository.findAll(pageable);
+
+        return productionPage.map(ProductionListResponse::from);
+
     }
 
     /**

@@ -1,7 +1,8 @@
 // src/components/EngineVibrationDashboard.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { OrderSelector } from "./OrderSelector";
 import {
   ArrowLeft,
   Layers,
@@ -64,6 +65,21 @@ function splitArffHeaderAndRows(arffText: string): { header: string; rows: strin
 }
 
 export function EngineVibrationDashboard() {
+  const [searchParams] = useSearchParams();
+  const orderId = searchParams.get("orderId");
+
+  if (!orderId) {
+    return (
+      <OrderSelector processName="엔진 진동 검사">
+        {(selectedOrderId) => <EngineVibrationDashboardContent orderId={selectedOrderId} />}
+      </OrderSelector>
+    );
+  }
+
+  return <EngineVibrationDashboardContent orderId={parseInt(orderId, 10)} />;
+}
+
+function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }) {
   const navigate = useNavigate();
   const DEMO_ARFF_URL = "/data/FordA_TEST.arff";
   const ENGINE_API_URL = "http://localhost:3001/api/v1/ml/engine";

@@ -22,6 +22,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { OrderSelector } from "./OrderSelector";
 
 type PartKey = "door" | "bumper" | "headlamp" | "taillamp" | "radiator";
 
@@ -92,7 +93,7 @@ function PassFailPill({ value }: { value: "PASS" | "FAIL" }) {
   );
 }
 
-export function BodyAssemblyDashboard() {
+function BodyAssemblyDashboardInner() {
   const navigate = useNavigate();
 
   // ✅ 버튼 없이 자동 모니터링
@@ -744,6 +745,14 @@ export function BodyAssemblyDashboard() {
           document.body
         )}
     </>
+  );
+}
+
+export function BodyAssemblyDashboard() {
+  return (
+    <OrderSelector processName="차체 조립">
+      {(_orderId) => <BodyAssemblyDashboardInner />}
+    </OrderSelector>
   );
 }
 

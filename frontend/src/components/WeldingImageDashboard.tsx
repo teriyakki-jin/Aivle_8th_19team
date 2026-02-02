@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, RefreshCcw, Factory, Image as ImageIcon, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { OrderSelector } from "./OrderSelector";
 
 /* =====================
    Types
@@ -164,6 +165,21 @@ function JudgeBadge({ judgement }: { judgement: "양품" | "불량" | "대기" }
 ===================== */
 
 export function WeldingImageDashboard() {
+  const [searchParams] = useSearchParams();
+  const orderId = searchParams.get("orderId");
+
+  if (!orderId) {
+    return (
+      <OrderSelector processName="용접 공정">
+        {(selectedOrderId) => <WeldingImageDashboardContent orderId={selectedOrderId} />}
+      </OrderSelector>
+    );
+  }
+
+  return <WeldingImageDashboardContent orderId={parseInt(orderId, 10)} />;
+}
+
+function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
   const navigate = useNavigate();
   const [result, setResult] = useState<WeldingAutoResponse | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);

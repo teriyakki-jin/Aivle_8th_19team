@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Paintbrush, Timer, Target } from "lucide-react";
+import { OrderSelector } from "./OrderSelector";
 
 type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -180,7 +181,7 @@ function CurrentImage({ url }: { url: string }) {
   );
 }
 
-export const PaintQualityDashboard: React.FC = () => {
+const PaintQualityDashboardInner: React.FC = () => {
   const navigate = useNavigate();
   const firstRunRef = useRef(true);
   const inFlightRef = useRef(false);
@@ -588,6 +589,14 @@ export const PaintQualityDashboard: React.FC = () => {
         </div>
       </Card>
     </div>
+  );
+};
+
+export const PaintQualityDashboard: React.FC = () => {
+  return (
+    <OrderSelector processName="도장 품질">
+      {(_orderId) => <PaintQualityDashboardInner />}
+    </OrderSelector>
   );
 };
 

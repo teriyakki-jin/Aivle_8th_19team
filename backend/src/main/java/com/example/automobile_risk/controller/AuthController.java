@@ -16,8 +16,15 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody LoginRequest request) {
-        authService.register(request);
-        return ResponseEntity.status(201).body("User created successfully");
+        try {
+            authService.register(request);
+            return ResponseEntity.status(201).body("User created successfully");
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("already exists")) {
+                return ResponseEntity.status(409).body(java.util.Map.of("error", "이미 사용 중인 아이디입니다"));
+            }
+            return ResponseEntity.status(500).body(java.util.Map.of("error", "회원가입에 실패했습니다"));
+        }
     }
 
     @PostMapping("/login")

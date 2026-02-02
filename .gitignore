@@ -63,7 +63,16 @@ ml-service/welding_image/sample_images
 node_modules/
 
 # backend
-backend/src/main/resources/application.properties
-backend/src/main/resources/application-prod.properties
-backend/bin/
-**/*.class
+# backend/src/main/resources/application.properties
+# backend/src/main/resources/application-prod.properties
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/.terraform.lock.hcl
+infra/terraform/terraform.tfvars
+
+# Docker
+*.tar
+docker-compose.override.yml

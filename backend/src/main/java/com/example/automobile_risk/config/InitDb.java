@@ -4,6 +4,7 @@ import com.example.automobile_risk.dto.LoginRequest;
 import com.example.automobile_risk.entity.*;
 import com.example.automobile_risk.entity.enumclass.InventoryChangeType;
 import com.example.automobile_risk.entity.enumclass.Unit;
+import com.example.automobile_risk.repository.UserRepository;
 import com.example.automobile_risk.service.AuthService;
 import com.example.automobile_risk.service.ManufacturingOrchestrationService;
 //import com.example.automobile_risk.service.PressFeatureAggregationService;
@@ -40,8 +41,15 @@ public class InitDb {
         private final ManufacturingOrchestrationService manufacturingOrchestrationService;
 //        private final PressFeatureAggregationService pressFeatureAggregationService;
         private final AuthService authService;
+        private final UserRepository userRepository;
 
         public void vehicleModelDbInit() {
+
+            // 이미 초기 데이터가 존재하면 전체 skip
+            if (userRepository.findByUsername("admin").isPresent()) {
+                log.info("Initial data already exists, skipping DB init");
+                return;
+            }
 
             /**
              *  회원가입

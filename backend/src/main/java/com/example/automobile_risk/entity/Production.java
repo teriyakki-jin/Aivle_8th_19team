@@ -24,8 +24,15 @@ public class Production extends BaseTimeEntity {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
 
+    private int plannedQty;
+    private int completedQty;
+
     @Enumerated(EnumType.STRING)
     private ProductionStatus productionStatus;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vehicle_model_id")
+    private VehicleModel vehicleModel;
 
     @OneToMany(mappedBy = "production", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -40,11 +47,17 @@ public class Production extends BaseTimeEntity {
     /**
      *  생산 생성
      */
-    public static Production createProduction(LocalDateTime startDate) {
+    public static Production of(LocalDateTime startDate, int plannedQty, VehicleModel vehicleModel) {
+
+        if (plannedQty <= 0) {
+            throw new IllegalArgumentException("생산 수량은 1 이상이어야 합니다.");
+        }
 
         return Production.builder()
                 .startDate(startDate)
+                .plannedQty(plannedQty)
                 .productionStatus(ProductionStatus.PLANNED)
+                .vehicleModel(vehicleModel)
                 .build();
     }
 

@@ -2,6 +2,7 @@ package com.example.automobile_risk.config;
 
 import com.example.automobile_risk.dto.LoginRequest;
 import com.example.automobile_risk.entity.*;
+import com.example.automobile_risk.entity.enumclass.InventoryChangeType;
 import com.example.automobile_risk.entity.enumclass.Unit;
 import com.example.automobile_risk.service.AuthService;
 import com.example.automobile_risk.service.ManufacturingOrchestrationService;
@@ -135,6 +136,34 @@ public class InitDb {
             em.persist(santafe_GN7_radiatorGrill);
 
             /**
+             *  현 재고
+             */
+            Inventory inventory_headLamp = Inventory.of(headLamp, 100);
+            Inventory inventory_tailLamp = Inventory.of(tailLamp, 100);
+            Inventory inventory_door = Inventory.of(door, 100);
+            Inventory inventory_bumper = Inventory.of(bumper, 100);
+            Inventory inventory_radiatorGrill = Inventory.of(radiatorGrill, 100);
+            em.persist(inventory_headLamp);
+            em.persist(inventory_tailLamp);
+            em.persist(inventory_door);
+            em.persist(inventory_bumper);
+            em.persist(inventory_radiatorGrill);
+
+            /**
+             *  재고 이력
+             */
+            InventoryHistory ih_headLamp_IN_10 = InventoryHistory.of(headLamp, 10, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.IN);
+            InventoryHistory ih_tailLamp_OUT_10 = InventoryHistory.of(tailLamp, -10, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.OUT);
+            InventoryHistory ih_door_OUT_20 = InventoryHistory.of(door, 20, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.IN);
+            InventoryHistory ih_bumper_OUT_10 = InventoryHistory.of(bumper, -10, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.ADJUST);
+            InventoryHistory ih_radiatorGrill_OUT_50 = InventoryHistory.of(radiatorGrill, -50, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.SCRAP);
+            em.persist(ih_headLamp_IN_10);
+            em.persist(ih_tailLamp_OUT_10);
+            em.persist(ih_door_OUT_20);
+            em.persist(ih_bumper_OUT_10);
+            em.persist(ih_radiatorGrill_OUT_50);
+
+            /**
              *  주문
              */
             Order order1 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusDays(7), 10, avante_CN8);
@@ -151,11 +180,11 @@ public class InitDb {
             /**
              *  생산
              */
-            Production production1 = Production.createProduction(LocalDateTime.now());
-            Production production2 = Production.createProduction(LocalDateTime.now());
-            Production production3 = Production.createProduction(LocalDateTime.now());
-            Production production4 = Production.createProduction(LocalDateTime.now());
-            Production production5 = Production.createProduction(LocalDateTime.now());
+            Production production1 = Production.of(LocalDateTime.now(), 1, order1.getVehicleModel());
+            Production production2 = Production.of(LocalDateTime.now(), 1, order1.getVehicleModel());
+            Production production3 = Production.of(LocalDateTime.now(), 1, order2.getVehicleModel());
+            Production production4 = Production.of(LocalDateTime.now(), 1, order4.getVehicleModel() );
+            Production production5 = Production.of(LocalDateTime.now(), 1, order5.getVehicleModel());
             em.persist(production1);
             em.persist(production2);
             em.persist(production3);

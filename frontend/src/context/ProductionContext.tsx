@@ -147,8 +147,9 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
     setError(null);
     setLoading(true);
     try {
-      const data = await orderApi.list();
-      const orderList: OrderDto[] = Array.isArray(data) ? data : [];
+      const data = await orderApi.listAll();
+      // 페이징 응답에서 content 추출
+      const orderList: OrderDto[] = Array.isArray(data) ? data : (data?.content ?? []);
 
       setProductions((prev) => {
         const newMap = new Map(prev);

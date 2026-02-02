@@ -10,6 +10,10 @@ import com.example.automobile_risk.service.dto.ProductionListResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -114,10 +118,17 @@ public class ProductionController {
      *  9. 생산 목록 조회
      */
     @GetMapping
-    public ApiResponse<List<ProductionListResponse>> getProductionList() {
+    public ApiResponse<Page<ProductionListResponse>> getProductionList(
+            @PageableDefault(
+                    page = 0,
+                    size = 10,
+                    sort = "id",
+                    direction = Sort.Direction.DESC
+            ) Pageable pageable
+    ) {
 
-        List<ProductionListResponse> productionListResponseList = productionService.getProductionList();
+        Page<ProductionListResponse> productionList = productionService.getProductionList(pageable);
 
-        return ApiResponse.of(productionListResponseList);
+        return ApiResponse.of(productionList);
     }
 }

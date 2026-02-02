@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { OrderSelector } from "./OrderSelector";
 import {
   ArrowLeft,
   Layers,
@@ -56,6 +57,14 @@ function makeSingleRowCsvBlob(row: string): Blob {
 }
 
 export function WindShieldDashboard() {
+  return (
+    <OrderSelector processName="윈드실드 검사">
+      {(_orderId) => <WindShieldDashboardContent orderId={_orderId} />}
+    </OrderSelector>
+  );
+}
+
+function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
   const navigate = useNavigate();
   const [side, setSide] = useState<Side>("Left");
 

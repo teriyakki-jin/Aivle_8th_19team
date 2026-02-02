@@ -20,7 +20,8 @@ import {
   RotateCcw,
   ArrowLeft,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { OrderSelector } from "./OrderSelector";
 
 interface DefectData {
   predicted_class: string;
@@ -73,6 +74,23 @@ function nowHHMMSS() {
 }
 
 export function PressMachineDashboard() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const orderId = searchParams.get("orderId");
+
+  // orderId가 없으면 주문 선택 화면 표시
+  if (!orderId) {
+    return (
+      <OrderSelector processName="프레스 공정">
+        {(selectedOrderId) => <PressMachineDashboardContent orderId={selectedOrderId} />}
+      </OrderSelector>
+    );
+  }
+
+  return <PressMachineDashboardContent orderId={parseInt(orderId, 10)} />;
+}
+
+function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
   const navigate = useNavigate();
 
   // ✅ Auto Image

@@ -196,7 +196,7 @@ function PipelineView({
   onStageClick,
 }: {
   production: ProductionItem;
-  onStageClick: (stageId: string, stage: (typeof PIPELINE_STAGES)[0]) => void;
+  onStageClick: (stageId: string, stage: (typeof PIPELINE_STAGES)[0], orderId?: number) => void;
 }) {
   const stages = PIPELINE_STAGES;
 
@@ -213,7 +213,7 @@ function PipelineView({
               className={`flex flex-col items-center min-w-[90px] p-2 rounded-lg transition-all ${
                 isClickable ? "cursor-pointer hover:bg-slate-50" : ""
               } ${isActive ? "bg-blue-50" : ""}`}
-              onClick={() => isClickable && onStageClick(stage.id, stage)}
+              onClick={() => isClickable && onStageClick(stage.id, stage, production.orderId)}
             >
               <StageIcon stage={stage} result={result} isActive={isActive} />
 
@@ -280,8 +280,8 @@ function ProductionCard({
 }: {
   production: ProductionItem;
   onStart: () => void;
-  onStageClick: (stageId: string, stage: (typeof PIPELINE_STAGES)[0]) => void;
-  onViewDetail: (page: string) => void;
+  onStageClick: (stageId: string, stage: (typeof PIPELINE_STAGES)[0], orderId?: number) => void;
+  onViewDetail: (page: string, orderId?: number) => void;
   getModelName: (modelId: number | string) => string;
 }) {
   const stages = PIPELINE_STAGES;
@@ -385,7 +385,7 @@ function ProductionCard({
                   r.hasAnomaly ? (
                     <button
                       key={idx}
-                      onClick={() => onViewDetail(stages[idx].detailPage)}
+                      onClick={() => onViewDetail(stages[idx].detailPage, production.orderId)}
                       className="flex items-center gap-1 px-2 py-1 rounded bg-orange-50 text-orange-700 hover:bg-orange-100"
                     >
                       <ExternalLink className="w-3 h-3" />
@@ -424,18 +424,19 @@ export function ProductionPage() {
 
   // ✅ 클릭 이동 로직 보정:
   // - 검사 클릭은 기본 윈드실드로
-  const handleStageClick = (_stageId: string, stage: (typeof PIPELINE_STAGES)[0]) => {
+  // - orderId를 URL 파라미터로 전달
+  const handleStageClick = (_stageId: string, stage: (typeof PIPELINE_STAGES)[0], orderId?: number) => {
+    const orderParam = orderId ? `?orderId=${orderId}` : "";
     if (stage.id === "inspection") {
-      navigate("/windshield");
+      navigate(`/windshield${orderParam}`);
       return;
     }
-    navigate(stage.detailPage);
+    navigate(`${stage.detailPage}${orderParam}`);
   };
 
-  const handleViewDetail = (page: string) => {
-    // 검사 “상세” 버튼이 눌리면 기본 page를 따르되,
-    // 필요하면 여기서 검사도 분기 가능
-    navigate(page);
+  const handleViewDetail = (page: string, orderId?: number) => {
+    const orderParam = orderId ? `?orderId=${orderId}` : "";
+    navigate(`${page}${orderParam}`);
   };
 
   const productionList = Array.from(productions.values()).sort((a, b) => {

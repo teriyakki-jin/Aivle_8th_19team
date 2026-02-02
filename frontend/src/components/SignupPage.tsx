@@ -84,8 +84,16 @@ export const SignupPage = () => {
             if (response.ok) {
                 navigate('/login');
             } else {
-                const data = await response.json();
-                setError(data.error || '회원가입에 실패했습니다');
+                try {
+                    const data = await response.json();
+                    setError(data.error || '회원가입에 실패했습니다');
+                } catch {
+                    if (response.status === 409) {
+                        setError('이미 사용 중인 아이디입니다');
+                    } else {
+                        setError('회원가입에 실패했습니다');
+                    }
+                }
             }
         } catch (err) {
             setError('서버 연결에 실패했습니다');

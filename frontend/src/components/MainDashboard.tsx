@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { AlertTriangle, CheckCircle, Clock, TrendingUp, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, TrendingUp, Calendar, AlertCircle, RefreshCw, Package, ClipboardList, Factory, Activity } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell
 } from 'recharts';
 import { Switch } from '@/components/ui/switch';
 import { useSimulationData } from '@/hooks/useSimulationData';
+import { orderApi, OrderDto } from '../api/order';
+import { productionApi, ProductionDto } from '../api/production';
 
 // ===== Types =====
 
@@ -69,6 +71,24 @@ interface ProcessDelayBreakdownItem {
   eventCount: number;
 }
 
+interface OrderSummary {
+  total: number;
+  created: number;
+  partiallyAllocated: number;
+  fullyAllocated: number;
+  completed: number;
+  cancelled: number;
+}
+
+interface ProductionSummary {
+  total: number;
+  planned: number;
+  inProgress: number;
+  completed: number;
+  stopped: number;
+  cancelled: number;
+}
+
 interface DashboardData {
   anomalyData: any[];
   warningData: any[];
@@ -85,6 +105,8 @@ interface DashboardData {
   currentPrediction?: CurrentPrediction;
   deltaSincePrev?: DeltaSincePrev;
   predictionTrend?: PredictionTrendPoint[];
+  orderSummary?: OrderSummary;
+  productionSummary?: ProductionSummary;
 }
 
 interface PredictionOverview {
@@ -94,6 +116,34 @@ interface PredictionOverview {
   riskDistribution: Record<string, number>;
   orders: any[];
   processBreakdown?: ProcessDelayBreakdownItem[];
+}
+
+interface OrderListItem extends OrderDto {
+  orderId?: number;
+  id?: number;
+  orderStatus?: string;
+  orderQty?: number;
+  vehicleModelName?: string;
+}
+
+interface ProductionListItem extends ProductionDto {
+  productionId?: number;
+  id?: number;
+  productionStatus?: string;
+}
+
+interface OrderPrediction {
+  order_id: number;
+  delay_probability: number;
+  expected_delay_hours: number;
+  risk_level: string;
+  total_score: number;
+  process_scores: Record<string, number>;
+  event_count: number;
+  order_status: string;
+  order_qty: number;
+  vehicle_model: string;
+  actual_delay_hours?: number;
 }
 
 // ===== Helpers =====
@@ -167,8 +217,10 @@ export function MainDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [prevData, setPrevData] = useState<DashboardData | null>(null);
   const [prediction, setPrediction] = useState<PredictionOverview | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [orders, setOrders] = useState<OrderListItem[]>([]);
+  const [productions, setProductions] = useState<ProductionListItem[]>([]);
 
   const [isSimMode, setIsSimMode] = useState(false);
   const sim = useSimulationData(isSimMode);
@@ -178,6 +230,8 @@ export function MainDashboard() {
   const esRef = useRef<EventSource | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const predPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const orderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const productionPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // --- SAFE fetch helper (res.ok 체크 + token/credentials) ---
   const safeFetchJson = useCallback(async (url: string) => {
@@ -201,6 +255,7 @@ export function MainDashboard() {
     try {
       const json = await safeFetchJson('/api/v1/dashboard/main');
       const next = unwrapResponse<DashboardData>(json);
+      console.log('[Dashboard] Fetched:', next);
       setData(prev => {
         setPrevData(prev);
         return next;
@@ -217,11 +272,37 @@ export function MainDashboard() {
   const fetchPrediction = useCallback(async () => {
     try {
       const json = await safeFetchJson('/api/v1/delay-prediction/overview');
-      setPrediction(unwrapResponse<PredictionOverview>(json));
+      const pred = unwrapResponse<PredictionOverview>(json);
+      console.log('[Prediction] Fetched:', pred);
+      setPrediction(pred);
     } catch (err) {
       console.error('Prediction fetch failed:', err);
     }
   }, [safeFetchJson]);
+
+  const fetchOrders = useCallback(async () => {
+    try {
+      const response = await orderApi.listAll();
+      const content: OrderListItem[] = response?.content ?? [];
+      console.log('Orders fetched:', content.length);
+      console.log('Sample order:', content[0]);
+      setOrders(content);
+    } catch (err) {
+      console.error('Order list fetch failed:', err);
+    }
+  }, []);
+
+  const fetchProductions = useCallback(async () => {
+    try {
+      const response = await productionApi.list();
+      const content: ProductionListItem[] = response?.content ?? [];
+      console.log('Productions fetched:', content.length);
+      console.log('Sample production:', content[0]);
+      setProductions(content);
+    } catch (err) {
+      console.error('Production list fetch failed:', err);
+    }
+  }, []);
 
   const handleModeSwitch = useCallback((checked: boolean) => {
     setIsSimMode(checked);
@@ -253,16 +334,31 @@ export function MainDashboard() {
         clearInterval(predPollRef.current);
         predPollRef.current = null;
       }
+      if (orderPollRef.current) {
+        clearInterval(orderPollRef.current);
+        orderPollRef.current = null;
+      }
+      if (productionPollRef.current) {
+        clearInterval(productionPollRef.current);
+        productionPollRef.current = null;
+      }
       return;
     }
 
     // 1) 항상 폴링을 켜서 "SSE 이벤트가 안 와도" 갱신되게 함
     fetchDashboard();
-    pollRef.current = setInterval(fetchDashboard, 15_000);
+    pollRef.current = setInterval(fetchDashboard, 5_000);
 
     // 2) 예측 오버뷰도 폴링
     fetchPrediction();
-    predPollRef.current = setInterval(fetchPrediction, 15_000);
+    predPollRef.current = setInterval(fetchPrediction, 5_000);
+
+    // 3) 주문/생산 목록도 폴링 (order/production 페이지와 동기화)
+    fetchOrders();
+    orderPollRef.current = setInterval(fetchOrders, 5_000);
+
+    fetchProductions();
+    productionPollRef.current = setInterval(fetchProductions, 5_000);
 
     // 3) SSE는 추가로 연결(실시간 푸시)
     if (useSSE && typeof EventSource !== 'undefined') {
@@ -319,8 +415,16 @@ export function MainDashboard() {
         clearInterval(predPollRef.current);
         predPollRef.current = null;
       }
+      if (orderPollRef.current) {
+        clearInterval(orderPollRef.current);
+        orderPollRef.current = null;
+      }
+      if (productionPollRef.current) {
+        clearInterval(productionPollRef.current);
+        productionPollRef.current = null;
+      }
     };
-  }, [isSimMode, useSSE, fetchDashboard, fetchPrediction]);
+  }, [isSimMode, useSSE, fetchDashboard, fetchPrediction, fetchOrders, fetchProductions]);
 
   // ── Loading skeleton ──
   if (activeLoading) {
@@ -343,7 +447,7 @@ export function MainDashboard() {
   }
 
   // ── Error state ──
-  if (!isSimMode && (error || !activeData)) {
+  if (!isSimMode && error && !activeData) {
     return (
       <div className="p-8">
         <div className="bg-red-50 border border-red-200 rounded-xl p-6 flex items-center gap-3">
@@ -366,10 +470,7 @@ export function MainDashboard() {
     );
   }
 
-  if (!activeData) {
-    return null;
-  }
-
+  const currentPrediction = activeData?.currentPrediction;
   const {
     anomalyData = [],
     totalAnomalies = 0,
@@ -378,10 +479,9 @@ export function MainDashboard() {
     originalDeadline: deadlineStr = new Date().toISOString(),
     overallEfficiency = 0,
     productionEfficiency = 0,
-    currentPrediction,
     deltaSincePrev,
     predictionTrend,
-  } = activeData;
+  } = activeData || {};
 
   const delayDays = Math.floor(totalDelayHours / 24);
   const delayHours = Math.floor(totalDelayHours % 24);
@@ -389,8 +489,40 @@ export function MainDashboard() {
   const originalDeadline = new Date(deadlineStr);
   const predictedDeadline = new Date(originalDeadline.getTime() + totalDelayHours * 60 * 60 * 1000);
 
+  // ── 주문 요약 계산 (실시간 데이터 기반) ──
+  const computedOrderSummary: OrderSummary = {
+    total: orders.length,
+    inProgress: orders.filter(o => 
+      o.status === 'PARTIALLY_ALLOCATED' || 
+      o.status === 'FULLY_ALLOCATED'
+    ).length,
+    completed: orders.filter(o => o.status === 'COMPLETED').length,
+    pending: orders.filter(o => o.status === 'CREATED').length,
+    cancelled: orders.filter(o => o.status === 'CANCELLED').length,
+    averageCompletionRate: orders.length > 0 
+      ? Math.round((orders.filter(o => o.status === 'COMPLETED').length / orders.length) * 100) 
+      : 0,
+  };
+
+  // ── 생산 요약 계산 (실시간 데이터 기반, 다양한 상태 처리) ──
+  const computedProductionSummary: ProductionSummary = {
+    total: productions.length,
+    inProgress: productions.filter(p => {
+      const s = p.status?.toUpperCase() || '';
+      return s === 'IN_PROGRESS' || s === 'INPROGRESS' || s === 'RUN' || s === 'START' || s === 'RUNNING';
+    }).length,
+    completed: productions.filter(p => p.status === 'COMPLETED').length,
+    planned: productions.filter(p => p.status === 'PLANNED').length,
+    stopped: productions.filter(p => p.status === 'STOPPED').length,
+    cancelled: productions.filter(p => p.status === 'CANCELLED').length,
+  };
+
+  // ── Resolved 요약 (계산된 값 우선 사용) ──
+  const resolvedOrderSummary = computedOrderSummary;
+  const resolvedProductionSummary = computedProductionSummary;
+
   // ── Risk / delivery status (API 기반) ──
-  const resolvedRiskLevel = currentPrediction?.riskLevel ?? activeData.overallRiskLevel;
+  const resolvedRiskLevel = currentPrediction?.riskLevel ?? activeData?.overallRiskLevel;
   const riskStyle = getRiskStyle(resolvedRiskLevel);
 
   const getDeliveryStatus = () => {
@@ -410,17 +542,17 @@ export function MainDashboard() {
   const efficiencyDelta = prevData ? +(overallEfficiency - prevData.overallEfficiency).toFixed(1) : null;
   const prodEfficiencyDelta = prevData ? +(productionEfficiency - prevData.productionEfficiency).toFixed(1) : null;
 
-  const overallData = (activeData.processStats ?? []).map((ps: ProcessStat) => ({
+  const overallData = (activeData?.processStats ?? []).map((ps: ProcessStat) => ({
     name: ps.name,
     정상: ps.정상,
     경고: ps.경고,
     이상: ps.이상,
   }));
 
-  const deliveryRisk = activeData.historyData ?? [];
+  const deliveryRisk = activeData?.historyData ?? [];
 
   const processStatus = (() => {
-    const stats: ProcessStat[] = activeData.processStats ?? [];
+    const stats: ProcessStat[] = activeData?.processStats ?? [];
     const total정상 = stats.reduce((s: number, p: ProcessStat) => s + p.정상, 0);
     const total경고 = stats.reduce((s: number, p: ProcessStat) => s + p.경고, 0);
     const total이상 = stats.reduce((s: number, p: ProcessStat) => s + p.이상, 0);
@@ -442,7 +574,7 @@ export function MainDashboard() {
       }));
     }
     // 2순위: dashboard/main의 processDelayBreakdown
-    const pdb: ProcessDelayBreakdownItem[] = activeData.processDelayBreakdown ?? [];
+    const pdb: ProcessDelayBreakdownItem[] = activeData?.processDelayBreakdown ?? [];
     if (pdb.length > 0) {
       return pdb.map((b: ProcessDelayBreakdownItem) => ({
         name: processLabel(b.process),
@@ -469,10 +601,78 @@ export function MainDashboard() {
   const deltaColor = deltaMaxH > 0 ? 'text-red-600' : deltaMaxH < 0 ? 'text-green-600' : 'text-gray-400';
   const deltaBgColor = deltaMaxH > 0 ? 'bg-red-50' : deltaMaxH < 0 ? 'bg-green-50' : 'bg-gray-50';
 
-  const sparkData = (predictionTrend ?? []).map((pt: PredictionTrendPoint, i: number) => ({
-    idx: i,
-    val: pt.delayMax,
-  }));
+  // ── 생산 상태별 데이터 분류 ──
+  const productionsInProgress = productions.filter(p => {
+    const s = p.status?.toUpperCase() || '';
+    return s === 'IN_PROGRESS' || s === 'INPROGRESS' || s === 'RUN' || s === 'START' || s === 'RUNNING';
+  });
+  const productionsCompleted = productions.filter(p => p.status === 'COMPLETED');
+  const productionsPending = productions.filter(p => p.status === 'PLANNED');
+
+  // ── 전체 공정 데이터를 기반으로 납기일 계산 ──
+  const getAllDeadlines = () => {
+    const allDeadlines: Date[] = [];
+    
+    // orders 배열에서 대상 납기일 추출
+    orders.forEach(order => {
+      const dueDate = order.dueDate || order.deadline || order.targetDeliveryDate;
+      if (dueDate) {
+        try {
+          allDeadlines.push(new Date(dueDate));
+        } catch (e) {
+          console.warn('Invalid order due date:', dueDate);
+        }
+      }
+    });
+    
+    // productions 배열에서 예정 완료일 추출
+    productionsInProgress.forEach(prod => {
+      const expectedDate = prod.expectedCompletionDate || prod.expectedDate;
+      if (expectedDate) {
+        try {
+          allDeadlines.push(new Date(expectedDate));
+        } catch (e) {
+          console.warn('Invalid production expected date:', expectedDate);
+        }
+      }
+    });
+    
+    return allDeadlines.length > 0 ? allDeadlines : [new Date()];
+  };
+
+  const allDeadlines = getAllDeadlines();
+  const earliestDeadline = allDeadlines.length > 0 
+    ? new Date(Math.min(...allDeadlines.map(d => d.getTime())))
+    : new Date();
+  
+  // ── 예측 납기일 계산 (delay-prediction 데이터 활용) ──
+  const predictedDeadlineFromML = currentPrediction?.estimatedDeliveryDate 
+    ? new Date(currentPrediction.estimatedDeliveryDate)
+    : new Date(earliestDeadline.getTime() + totalDelayHours * 60 * 60 * 1000);
+
+  // ── 지연 요약 정보 ──
+  const productionSummary = {
+    inProgress: productionsInProgress.length,
+    completed: productionsCompleted.length,
+    pending: productionsPending.length,
+  };
+
+  // ── 주문 상태 분포 차트 데이터 ──
+  const orderStatusChart = [
+    { name: '생성', value: resolvedOrderSummary.pending, color: '#94a3b8' },
+    { name: '진행중', value: resolvedOrderSummary.inProgress, color: '#f59e0b' },
+    { name: '완료', value: resolvedOrderSummary.completed, color: '#22c55e' },
+    { name: '취소', value: resolvedOrderSummary.cancelled, color: '#ef4444' },
+  ];
+
+  // ── 생산 상태 분포 차트 데이터 ──
+  const productionStatusChart = [
+    { name: '계획', value: resolvedProductionSummary.planned, color: '#94a3b8' },
+    { name: '진행중', value: resolvedProductionSummary.inProgress, color: '#f59e0b' },
+    { name: '완료', value: resolvedProductionSummary.completed, color: '#22c55e' },
+    { name: '중단', value: resolvedProductionSummary.stopped, color: '#64748b' },
+    { name: '취소', value: resolvedProductionSummary.cancelled, color: '#ef4444' },
+  ];
 
   /** KPI 카드 하단 delta 표시 헬퍼 — delta가 null이면 렌더링하지 않음 */
   const renderDelta = (delta: number | null, unit = '%', positiveIsBad = false) => {
@@ -543,95 +743,88 @@ export function MainDashboard() {
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {/* 전체 가동률 */}
+      {/* 주문/생산 KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {/* 전체 주문 */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">전체 가동률</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{overallEfficiency}%</p>
+              <p className="text-sm text-gray-600">전체 주문</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{resolvedOrderSummary.total}</p>
             </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Package className="w-6 h-6 text-blue-600" />
             </div>
           </div>
-          {renderDelta(efficiencyDelta, '%', false)}
         </div>
 
-        {/* 이상 발생 */}
+        {/* 주문 진행 */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">이상 발생</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{totalAnomalies}건</p>
+              <p className="text-sm text-gray-600">주문 진행</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{resolvedOrderSummary.inProgress}</p>
             </div>
-            <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
+            <div className="p-3 bg-orange-100 rounded-lg">
+              <ClipboardList className="w-6 h-6 text-orange-600" />
             </div>
           </div>
-          {totalWarnings > 0 && (
-            <p className="text-xs text-red-600 mt-4">경고 {totalWarnings}건 포함</p>
-          )}
         </div>
 
-        {/* 예상 지연 시간 */}
+        {/* 주문 완료 */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">예상 지연 시간</p>
-              {currentPrediction ? (
-                <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {currentPrediction.predDelayMaxH.toFixed(1)}h
-                  <span className="text-sm font-normal text-gray-500 ml-1">
-                    ({currentPrediction.predDelayMinH.toFixed(1)}~)
-                  </span>
-                </p>
-              ) : (
-                <p className="text-2xl font-bold text-gray-900 mt-2">
-                  {delayDays > 0 ? `${delayDays}일 ` : ''}{delayHours}시간
-                </p>
-              )}
+              <p className="text-sm text-gray-600">주문 완료</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{resolvedOrderSummary.completed}</p>
             </div>
-            <div className={`w-12 h-12 ${deliveryStatus.icon} rounded-lg flex items-center justify-center`}>
-              <Clock className={`w-6 h-6 ${deliveryStatus.textColor}`} />
+            <div className="p-3 bg-green-100 rounded-lg">
+              <Package className="w-6 h-6 text-green-600" />
             </div>
           </div>
-
-          <div className="flex items-center gap-2 mt-3">
-            <p className={`text-xs ${deliveryStatus.textColor}`}>상태: {deliveryStatus.status}</p>
-            {deltaSincePrev && deltaMaxH !== 0 && (
-              <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${deltaBgColor} ${deltaColor}`}>
-                {deltaSign} {deltaMaxH > 0 ? '+' : ''}{deltaMaxH.toFixed(1)}h
-              </span>
-            )}
-          </div>
-
-          {sparkData.length > 1 && (
-            <div className="mt-2">
-              <ResponsiveContainer width="100%" height={40}>
-                <LineChart data={sparkData}>
-                  <Line type="monotone" dataKey="val" stroke="#6366f1" strokeWidth={1.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
         </div>
 
-        {/* 생산 효율 */}
+        {/* 전체 생산 */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">생산 효율</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">{productionEfficiency}%</p>
+              <p className="text-sm text-gray-600">전체 생산</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{resolvedProductionSummary.total}</p>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-blue-600" />
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <Factory className="w-6 h-6 text-purple-600" />
             </div>
           </div>
-          {renderDelta(prodEfficiencyDelta, '%', false)}
+        </div>
+
+        {/* 생산 진행 */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">생산 진행</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{resolvedProductionSummary.inProgress}</p>
+            </div>
+            <div className="p-3 bg-yellow-100 rounded-lg">
+              <Activity className="w-6 h-6 text-yellow-600" />
+            </div>
+          </div>
+        </div>
+
+        {/* 생산 완료 */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">생산 완료</p>
+              <p className="text-3xl font-bold text-gray-900 mt-2">{resolvedProductionSummary.completed}</p>
+            </div>
+            <div className="p-3 bg-teal-100 rounded-lg">
+              <Factory className="w-6 h-6 text-teal-600" />
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* 기존 KPI Cards */}
 
       {/* Delivery Prediction Card */}
       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-sm p-6 border-2 border-blue-200 mb-8">
@@ -649,25 +842,27 @@ export function MainDashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg p-4 shadow-sm">
-                <p className="text-sm text-gray-600 mb-1">예정 납기일</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {originalDeadline.toLocaleDateString('ko-KR', {
-                    month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                  })}
-                </p>
-              </div>
-
-              <div className="bg-white rounded-lg p-4 shadow-sm">
-                <p className="text-sm text-gray-600 mb-1">예상 납기일</p>
+                <p className="text-sm text-gray-600 mb-1">실제 납기 예측일</p>
                 <p className={`text-lg font-bold ${deliveryStatus.textColor}`}>
-                  {predictedDeadline.toLocaleDateString('ko-KR', {
+                  {predictedDeadlineFromML.toLocaleDateString('ko-KR', {
                     month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
                   })}
                 </p>
+                <p className="text-xs text-gray-500 mt-1">ML 예측 납기</p>
               </div>
 
               <div className="bg-white rounded-lg p-4 shadow-sm">
-                <p className="text-sm text-gray-600 mb-1">총 지연 시간</p>
+                <p className="text-sm text-gray-600 mb-1">예상 납기일 (ML)</p>
+                <p className={`text-lg font-bold ${deliveryStatus.textColor}`}>
+                  {predictedDeadlineFromML.toLocaleDateString('ko-KR', {
+                    month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                  })}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">ML 예측 최종 납기</p>
+              </div>
+
+              <div className="bg-white rounded-lg p-4 shadow-sm">
+                <p className="text-sm text-gray-600 mb-1">초기 대비 지연</p>
                 <p className={`text-lg font-bold ${deliveryStatus.textColor}`}>
                   {totalDelayHours.toFixed(1)}시간
                 </p>
@@ -679,42 +874,27 @@ export function MainDashboard() {
               </div>
             </div>
 
-            <div className="mt-4 p-4 bg-white rounded-lg">
-              <p className="text-sm font-semibold text-gray-700 mb-2">공정별 지연 기여도</p>
-
-              {(currentPrediction?.contributions?.length ?? 0) > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                  {(currentPrediction?.contributions ?? []).map((c: ProcessContribution) => {
-                    const style = getRiskStyle(
-                      c.delayMaxH >= 24 ? 'CRITICAL' : c.delayMaxH >= 12 ? 'HIGH' : c.delayMaxH >= 4 ? 'MEDIUM' : 'LOW'
-                    );
-                    return (
-                      <div key={c.process} className={`text-center p-2 rounded-lg ${style.bg}`}>
-                        <p className="text-xs text-gray-600">{processLabel(c.process)}</p>
-                        <p className={`text-sm font-bold ${style.text}`}>
-                          {c.delayMinH.toFixed(0)}~{c.delayMaxH.toFixed(0)}h
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (anomalyData?.length ?? 0) > 0 ? (
-                <div className="grid grid-cols-5 gap-2">
-                  {(anomalyData ?? []).map((item: any) => {
-                    const delay = (item.count ?? 0) * (item.avgDelayPerIssue ?? 0);
-                    return (
-                      <div key={item.process} className="text-center">
-                        <p className="text-xs text-gray-600">{processLabel(item.process)}</p>
-                        <p className="text-sm font-bold text-gray-900">{delay.toFixed(1)}h</p>
-                        <p className="text-xs text-gray-500">({item.count}건)</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400">지연 기여도 데이터가 없습니다.</p>
-              )}
+            {/* 생산 상태 요약 */}
+            <div className="mt-4 flex gap-3">
+               <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <p className="text-xs text-gray-600 font-semibold">대기 중</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{productionSummary.pending}</p>
+                <p className="text-xs text-gray-700 mt-1">pending</p>
+              </div>
+              <div className="flex-1 bg-gray-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-xs text-yellow-600 font-semibold">생산 진행중</p>
+                <p className="text-2xl font-bold text-yellow-900 mt-1">{productionSummary.inProgress}</p>
+                <p className="text-xs text-yellow-700 mt-1">in progress</p>
+              </div>
+              <div className="flex-1 bg-gray-50 border border-green-200 rounded-lg p-3">
+                <p className="text-xs text-green-600 font-semibold">생산 완료</p>
+                <p className="text-2xl font-bold text-green-900 mt-1">{productionSummary.completed}</p>
+                <p className="text-xs text-green-700 mt-1">completed</p>
+              </div>
+             
             </div>
+
+
 
             {(deltaSincePrev?.drivers?.length ?? 0) > 0 && (
               <div className="mt-4 p-4 bg-white rounded-lg">
@@ -746,82 +926,51 @@ export function MainDashboard() {
         </div>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">공정별 상태 분포</h3>
+      {/* 주문/생산 상태 분포 차트 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* 주문 상태 분포 */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">주문 상태 분포</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={overallData}>
+            <BarChart data={orderStatusChart}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="정상" stackId="a" fill="#22c55e" />
-              <Bar dataKey="경고" stackId="a" fill="#f59e0b" />
-              <Bar dataKey="이상" stackId="a" fill="#ef4444" />
+              <Bar dataKey="value" name="건수">
+                {orderStatusChart.map((entry, index) => (
+                  <Cell key={`cell-order-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
+        {/* 생산 상태 분포 */}
         <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">전체 공정 상태</h3>
+          <h3 className="text-lg font-bold text-gray-900 mb-4">생산 상태 분포</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={processStatus}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                dataKey="value"
-              >
-                {processStatus.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">누적 지연 시간 추이</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={deliveryRisk}>
+            <BarChart data={productionStatusChart}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="날짜" />
-              <YAxis label={{ value: '시간', angle: -90, position: 'insideLeft' }} />
+              <XAxis dataKey="name" />
+              <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="지연시간" stroke="#ef4444" strokeWidth={2} name="누적 지연 (시간)" />
-            </LineChart>
+              <Bar dataKey="value" name="건수">
+                {productionStatusChart.map((entry, index) => (
+                  <Cell key={`cell-production-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">공정별 지연 시간 분포</h3>
-          {delayContribution.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={delayContribution}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis label={{ value: '시간', angle: -90, position: 'insideLeft' }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="지연시간" fill="#f59e0b" name="지연 시간 (h)" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-[300px] flex items-center justify-center text-gray-400 text-sm">
-              지연 시간 데이터가 없습니다.
-            </div>
-          )}
-        </div>
       </div>
+
+      {/* Charts */}
+
+
+
     </div>
   );
 }

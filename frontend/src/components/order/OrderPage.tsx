@@ -209,7 +209,10 @@ export function OrderPage() {
         orderApi.list(),
         vehicleModelApi.list(),
       ]);
-      setOrders(Array.isArray(ordersData) ? ordersData : []);
+      const sortedOrders = Array.isArray(ordersData)
+        ? [...ordersData].sort((a, b) => (a.orderId ?? a.id ?? 0) - (b.orderId ?? b.id ?? 0))
+        : [];
+      setOrders(sortedOrders);
       setVehicleModels(Array.isArray(modelsData) ? modelsData : []);
     } catch (e: any) {
       setErr(e?.message ?? "주문 목록 조회 실패");

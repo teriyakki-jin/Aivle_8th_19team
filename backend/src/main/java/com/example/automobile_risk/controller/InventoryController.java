@@ -55,4 +55,12 @@ public class InventoryController {
     public ApiResponse<List<InventoryHistoryResponse>> history(@PathVariable Long partId) {
         return ApiResponse.of(inventoryService.getHistory(partId));
     }
+
+    /**
+     *  5. 재고 전체 조회
+     */
+    @GetMapping
+    public ApiResponse<List<InventoryResponse>> getList() {
+        return ApiResponse.of(inventoryService.getList());
+    }
 }

@@ -443,7 +443,7 @@ export function ProductionPage() {
     const bRunning = b.stageResults.some((r) => r.status === "running");
     if (aRunning && !bRunning) return -1;
     if (!aRunning && bRunning) return 1;
-    return b.orderId - a.orderId;
+    return a.orderId - b.orderId;
   });
 
   return (

@@ -30,7 +30,8 @@ public class MlOrchestrationService {
             "welding",         "/api/v1/smartfactory/welding/auto",
             "windshield",      "/api/v1/smartfactory/windshield/auto",
             "engine",          "/api/v1/smartfactory/engine/auto",
-            "body_inspect",    "/api/v1/smartfactory/body/auto"
+            "body_inspect",    "/api/v1/smartfactory/body/auto",
+            "delay_prediction", "/api/v1/delay/prediction/overview"
     );
 
     public MlOrchestrationService(

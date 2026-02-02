@@ -16,6 +16,9 @@ import com.example.automobile_risk.repository.ProcessRepository;
 import com.example.automobile_risk.entity.Order;
 import com.example.automobile_risk.entity.enumclass.OrderStatus;
 import com.example.automobile_risk.repository.OrderRepository;
+import com.example.automobile_risk.repository.ProductionRepository;
+import com.example.automobile_risk.entity.Production;
+import com.example.automobile_risk.entity.enumclass.ProductionStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,6 +67,7 @@ public class DashboardService {
     private final DefectDelayRuleEngine defectDelayRuleEngine;
     private final DashboardPredictionSnapshotRepository dashboardSnapshotRepository;
     private final OrderRepository orderRepository;
+    private final ProductionRepository productionRepository;
     private final ObjectMapper objectMapper;
 
     // ── ML Cache ──
@@ -113,6 +117,8 @@ public class DashboardService {
         List<Anomaly> warnings = anomalyRepository.findByType("warning");
         List<DashboardHistory> history = historyRepository.findAllByOrderByIdAsc();
         List<ProcessEvent> allEvents = processEventRepository.findAll();
+        List<Order> orders = orderRepository.findAll();
+        List<Production> productions = productionRepository.findAll();
 
         // ── Legacy base counts ──
         int legacyAnomalies = anomalies.stream().mapToInt(Anomaly::getCount).sum();
@@ -253,6 +259,30 @@ public class DashboardService {
                 })
                 .collect(Collectors.toList());
 
+            // ── order summary ──
+            Map<OrderStatus, Long> orderCounts = orders.stream()
+                .collect(Collectors.groupingBy(Order::getOrderStatus, Collectors.counting()));
+            DashboardResponse.OrderSummary orderSummary = DashboardResponse.OrderSummary.builder()
+                .total(orders.size())
+                .created(orderCounts.getOrDefault(OrderStatus.CREATED, 0L).intValue())
+                .partiallyAllocated(orderCounts.getOrDefault(OrderStatus.PARTIALLY_ALLOCATED, 0L).intValue())
+                .fullyAllocated(orderCounts.getOrDefault(OrderStatus.FULLY_ALLOCATED, 0L).intValue())
+                .completed(orderCounts.getOrDefault(OrderStatus.COMPLETED, 0L).intValue())
+                .cancelled(orderCounts.getOrDefault(OrderStatus.CANCELLED, 0L).intValue())
+                .build();
+
+            // ── production summary ──
+            Map<ProductionStatus, Long> productionCounts = productions.stream()
+                .collect(Collectors.groupingBy(Production::getProductionStatus, Collectors.counting()));
+            DashboardResponse.ProductionSummary productionSummary = DashboardResponse.ProductionSummary.builder()
+                .total(productions.size())
+                .planned(productionCounts.getOrDefault(ProductionStatus.PLANNED, 0L).intValue())
+                .inProgress(productionCounts.getOrDefault(ProductionStatus.IN_PROGRESS, 0L).intValue())
+                .completed(productionCounts.getOrDefault(ProductionStatus.COMPLETED, 0L).intValue())
+                .stopped(productionCounts.getOrDefault(ProductionStatus.STOPPED, 0L).intValue())
+                .cancelled(productionCounts.getOrDefault(ProductionStatus.CANCELLED, 0L).intValue())
+                .build();
+
         // ── processDelayBreakdown from ML contributions, with DelayPredictionService fallback ──
         List<DashboardResponse.ProcessDelayBreakdown> processDelayBreakdown = new ArrayList<>();
         if (processed != null && !processed.getContributions().isEmpty()) {
@@ -374,6 +404,8 @@ public class DashboardService {
                 .processStats(processStats)
                 .processDelayBreakdown(processDelayBreakdown)
                 .overallRiskLevel(overallRiskLevel)
+                .orderSummary(orderSummary)
+                .productionSummary(productionSummary)
                 .currentPrediction(currentPrediction)
                 .deltaSincePrev(deltaSincePrev)
                 .predictionTrend(predictionTrend)

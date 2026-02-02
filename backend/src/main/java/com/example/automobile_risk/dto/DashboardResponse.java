@@ -21,6 +21,8 @@ public class DashboardResponse {
     private List<ProcessStat> processStats;
     private List<ProcessDelayBreakdown> processDelayBreakdown;
     private String overallRiskLevel;
+    private OrderSummary orderSummary;
+    private ProductionSummary productionSummary;
 
     // Real-time ML prediction fields
     private DashboardPredictionDto.CurrentPrediction currentPrediction;
@@ -69,5 +71,33 @@ public class DashboardResponse {
         private String process;
         private Double totalDelayHours;
         private Integer eventCount;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class OrderSummary {
+        private Integer total;
+        private Integer created;
+        private Integer partiallyAllocated;
+        private Integer fullyAllocated;
+        private Integer completed;
+        private Integer cancelled;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ProductionSummary {
+        private Integer total;
+        private Integer planned;
+        private Integer inProgress;
+        private Integer completed;
+        private Integer stopped;
+        private Integer cancelled;
     }
 }

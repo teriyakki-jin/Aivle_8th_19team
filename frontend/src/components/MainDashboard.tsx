@@ -164,12 +164,10 @@ function SkeletonChart() {
 // ===== Component =====
 
 export function MainDashboard() {
-  const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [prevData, setPrevData] = useState<DashboardData | null>(null);
   const [prediction, setPrediction] = useState<PredictionOverview | null>(null);
   const [loading, setLoading] = useState(true);
-  const [predLoading, setPredLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [isSimMode, setIsSimMode] = useState(false);
@@ -222,8 +220,6 @@ export function MainDashboard() {
       setPrediction(unwrapResponse<PredictionOverview>(json));
     } catch (err) {
       console.error('Prediction fetch failed:', err);
-    } finally {
-      setPredLoading(false);
     }
   }, [safeFetchJson]);
 
@@ -375,13 +371,13 @@ export function MainDashboard() {
   }
 
   const {
-    anomalyData,
-    totalAnomalies,
-    totalWarnings,
-    totalDelayHours,
-    originalDeadline: deadlineStr,
-    overallEfficiency,
-    productionEfficiency,
+    anomalyData = [],
+    totalAnomalies = 0,
+    totalWarnings = 0,
+    totalDelayHours = 0,
+    originalDeadline: deadlineStr = new Date().toISOString(),
+    overallEfficiency = 0,
+    productionEfficiency = 0,
     currentPrediction,
     deltaSincePrev,
     predictionTrend,
@@ -414,7 +410,7 @@ export function MainDashboard() {
   const efficiencyDelta = prevData ? +(overallEfficiency - prevData.overallEfficiency).toFixed(1) : null;
   const prodEfficiencyDelta = prevData ? +(productionEfficiency - prevData.productionEfficiency).toFixed(1) : null;
 
-  const overallData = (activeData.processStats ?? []).map(ps => ({
+  const overallData = (activeData.processStats ?? []).map((ps: ProcessStat) => ({
     name: ps.name,
     정상: ps.정상,
     경고: ps.경고,
@@ -424,10 +420,10 @@ export function MainDashboard() {
   const deliveryRisk = activeData.historyData ?? [];
 
   const processStatus = (() => {
-    const stats = activeData.processStats ?? [];
-    const total정상 = stats.reduce((s, p) => s + p.정상, 0);
-    const total경고 = stats.reduce((s, p) => s + p.경고, 0);
-    const total이상 = stats.reduce((s, p) => s + p.이상, 0);
+    const stats: ProcessStat[] = activeData.processStats ?? [];
+    const total정상 = stats.reduce((s: number, p: ProcessStat) => s + p.정상, 0);
+    const total경고 = stats.reduce((s: number, p: ProcessStat) => s + p.경고, 0);
+    const total이상 = stats.reduce((s: number, p: ProcessStat) => s + p.이상, 0);
     return [
       { name: '정상', value: total정상, color: '#22c55e' },
       { name: '경고', value: total경고, color: '#f59e0b' },
@@ -438,25 +434,25 @@ export function MainDashboard() {
   // ── 공정별 지연 시간 분포 — 4단계 fallback ──
   const delayContribution = (() => {
     // 1순위: currentPrediction.contributions (ML 직접 결과)
-    const contribs = currentPrediction?.contributions ?? [];
+    const contribs: ProcessContribution[] = currentPrediction?.contributions ?? [];
     if (contribs.length > 0) {
-      return contribs.map(c => ({
+      return contribs.map((c: ProcessContribution) => ({
         name: processLabel(c.process),
         지연시간: c.delayMaxH,
       }));
     }
     // 2순위: dashboard/main의 processDelayBreakdown
-    const pdb = activeData.processDelayBreakdown ?? [];
+    const pdb: ProcessDelayBreakdownItem[] = activeData.processDelayBreakdown ?? [];
     if (pdb.length > 0) {
-      return pdb.map(b => ({
+      return pdb.map((b: ProcessDelayBreakdownItem) => ({
         name: processLabel(b.process),
         지연시간: b.totalDelayHours,
       }));
     }
     // 3순위: delay-prediction/overview의 processBreakdown
-    const pb = activePrediction?.processBreakdown ?? [];
+    const pb: ProcessDelayBreakdownItem[] = activePrediction?.processBreakdown ?? [];
     if (pb.length > 0) {
-      return pb.map(b => ({
+      return pb.map((b: ProcessDelayBreakdownItem) => ({
         name: processLabel(b.process),
         지연시간: b.totalDelayHours,
       }));
@@ -473,7 +469,7 @@ export function MainDashboard() {
   const deltaColor = deltaMaxH > 0 ? 'text-red-600' : deltaMaxH < 0 ? 'text-green-600' : 'text-gray-400';
   const deltaBgColor = deltaMaxH > 0 ? 'bg-red-50' : deltaMaxH < 0 ? 'bg-green-50' : 'bg-gray-50';
 
-  const sparkData = (predictionTrend ?? []).map((pt, i) => ({
+  const sparkData = (predictionTrend ?? []).map((pt: PredictionTrendPoint, i: number) => ({
     idx: i,
     val: pt.delayMax,
   }));
@@ -538,9 +534,9 @@ export function MainDashboard() {
           <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0" />
           <span className="text-sm text-yellow-800">
             일부 공정 데이터를 가져오지 못했습니다 (
-            {currentPrediction.sources
-              .filter(s => !s.ok)
-              .map(s => processLabel(s.endpoint))
+            {(currentPrediction?.sources ?? [])
+              .filter((s: SourceStatus) => !s.ok)
+              .map((s: SourceStatus) => processLabel(s.endpoint))
               .join(', ')}
             )
           </span>
@@ -686,9 +682,9 @@ export function MainDashboard() {
             <div className="mt-4 p-4 bg-white rounded-lg">
               <p className="text-sm font-semibold text-gray-700 mb-2">공정별 지연 기여도</p>
 
-              {currentPrediction && currentPrediction.contributions.length > 0 ? (
+              {(currentPrediction?.contributions?.length ?? 0) > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                  {currentPrediction.contributions.map((c) => {
+                  {(currentPrediction?.contributions ?? []).map((c: ProcessContribution) => {
                     const style = getRiskStyle(
                       c.delayMaxH >= 24 ? 'CRITICAL' : c.delayMaxH >= 12 ? 'HIGH' : c.delayMaxH >= 4 ? 'MEDIUM' : 'LOW'
                     );
@@ -702,9 +698,9 @@ export function MainDashboard() {
                     );
                   })}
                 </div>
-              ) : anomalyData.length > 0 ? (
+              ) : (anomalyData?.length ?? 0) > 0 ? (
                 <div className="grid grid-cols-5 gap-2">
-                  {anomalyData.map((item: any) => {
+                  {(anomalyData ?? []).map((item: any) => {
                     const delay = (item.count ?? 0) * (item.avgDelayPerIssue ?? 0);
                     return (
                       <div key={item.process} className="text-center">
@@ -720,11 +716,11 @@ export function MainDashboard() {
               )}
             </div>
 
-            {deltaSincePrev && deltaSincePrev.drivers.length > 0 && (
+            {(deltaSincePrev?.drivers?.length ?? 0) > 0 && (
               <div className="mt-4 p-4 bg-white rounded-lg">
                 <p className="text-sm font-semibold text-gray-700 mb-2">주요 변동 요인 (이전 대비)</p>
                 <div className="space-y-2">
-                  {deltaSincePrev.drivers.map((driver) => {
+                  {(deltaSincePrev?.drivers ?? []).map((driver: DeltaDriver) => {
                     const isUp = driver.delayMaxDelta > 0;
                     return (
                       <div key={driver.process} className="flex items-center justify-between text-sm">

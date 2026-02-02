@@ -42,7 +42,9 @@
       "Bash(powershell.exe -ExecutionPolicy Bypass -Command \"Set-Location ''C:\\\\work\\\\Aivle_8th_19team\\\\backend''; .\\\\gradlew.bat build -x test 2>&1\")",
       "Bash(npx --package typescript tsc --noEmit)",
       "Bash(cmd /c \"gradlew.bat build -x test 2>&1\")",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(node_modules/.bin/tsc:*)"
     ]
   }
 }

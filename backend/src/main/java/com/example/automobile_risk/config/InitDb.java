@@ -1,5 +1,6 @@
 package com.example.automobile_risk.config;
 
+import com.example.automobile_risk.dto.LoginRequest;
 import com.example.automobile_risk.entity.*;
 import com.example.automobile_risk.entity.enumclass.EventSource;
 import com.example.automobile_risk.entity.enumclass.EventType;
@@ -7,6 +8,7 @@ import com.example.automobile_risk.entity.enumclass.Unit;
 import com.example.automobile_risk.repository.DelayRuleRepository;
 import com.example.automobile_risk.repository.ProcessEventRepository;
 import com.example.automobile_risk.repository.VehicleModelRepository;
+import com.example.automobile_risk.service.AuthService;
 import com.example.automobile_risk.service.ManufacturingOrchestrationService;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
@@ -43,8 +45,15 @@ public class InitDb {
         private final VehicleModelRepository vehicleModelRepository;
         private final DelayRuleRepository delayRuleRepository;
         private final ProcessEventRepository processEventRepository;
+        private final AuthService authService;
 
         public void vehicleModelDbInit() {
+
+            /**
+             *  회원가입
+             */
+            LoginRequest admin = new LoginRequest("admin", "1234");
+            authService.register(admin);
 
             // Skip if seed data already exists
             if (vehicleModelRepository.count() > 0) {

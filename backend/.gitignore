@@ -33,6 +33,4 @@ build/
 .vscode/
 
 ### Local config ###
-application-local.properties
-
-main\resources\application.properties
+#src/main/resources/application-prod.properties

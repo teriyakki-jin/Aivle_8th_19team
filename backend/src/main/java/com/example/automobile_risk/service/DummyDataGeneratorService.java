@@ -111,8 +111,11 @@ public class DummyDataGeneratorService {
             // 생산 시작일: 주문일 + 0~2일 후
             LocalDateTime prodStart = orderDate.plusDays(r.nextInt(3));
 
+            // 주문 수량 중 일부 or 전부를 이 production에 배분 (예: 1~orderQty)
+            int allocated = 1 + r.nextInt(orderQty);
+
             // Production 생성 (PLANNED 상태로 시작하는 것이 일반적)
-            Production production = Production.createProduction(prodStart);
+            Production production = Production.of(prodStart, allocated, model);
             em.persist(production);
 
             // 생산을 바로 IN_PROGRESS로 전환 (샘플 데이터에서 진행중 생산처럼 보이게)
@@ -122,9 +125,6 @@ public class DummyDataGeneratorService {
             // ==========================================
             // [STEP 3] Order - Production 연결 (OrderProduction)
             // ==========================================
-
-            // 주문 수량 중 일부 or 전부를 이 production에 배분 (예: 1~orderQty)
-            int allocated = 1 + r.nextInt(orderQty);
 
             // OrderProduction 생성
             // - 내부에서 order.addOrderProduction(op), production.addOrderProduction(op) 같은

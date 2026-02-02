@@ -2,11 +2,12 @@ package com.example.automobile_risk.service;
 
 import com.example.automobile_risk.controller.dto.ProductionCreateForm;
 import com.example.automobile_risk.controller.dto.ProductionUpdateForm;
-import com.example.automobile_risk.entity.Production;
+import com.example.automobile_risk.entity.*;
+import com.example.automobile_risk.entity.enumclass.InventoryChangeType;
+import com.example.automobile_risk.exception.BomNotFoundException;
 import com.example.automobile_risk.exception.ProductionNotFoundException;
-import com.example.automobile_risk.repository.ProcessExecutionRepository;
-import com.example.automobile_risk.repository.ProductionRepository;
-import com.example.automobile_risk.repository.ProductionVehicleRepository;
+import com.example.automobile_risk.exception.VehicleModelNotFoundException;
+import com.example.automobile_risk.repository.*;
 import com.example.automobile_risk.service.dto.ProductionDetailResponse;
 import com.example.automobile_risk.service.dto.ProductionListResponse;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,10 @@ public class ProductionService {
 
     private final ProductionRepository productionRepository;
     private final ProcessExecutionRepository processExecutionRepository;
+    private final BomRepository bomRepository;
+    private final VehicleModelRepository vehicleModelRepository;
+    private final InventoryRepository inventoryRepository;
+    private final InventoryHistoryRepository inventoryHistoryRepository;
 
     /**
      *  1. 생산 생성
@@ -34,7 +39,10 @@ public class ProductionService {
     @Transactional
     public Long createProduction(ProductionCreateForm form) {
 
-        Production production = Production.createProduction(form.getStartDate());
+        VehicleModel vehicleModel = vehicleModelRepository.findById(form.getVehicleModelId())
+                .orElseThrow(() -> new VehicleModelNotFoundException(form.getVehicleModelId()));
+
+        Production production = Production.of(form.getStartDate(), form.getPlannedQty(), vehicleModel);
 
         Production savedProduction = productionRepository.save(production);
 
@@ -75,9 +83,60 @@ public class ProductionService {
     @Transactional
     public Long startProduction(Long productionId) {
 
+        // 생산 조회
         Production production = productionRepository.findById(productionId)
                 .orElseThrow(() -> new ProductionNotFoundException(productionId));
 
+        VehicleModel vehicleModel = production.getVehicleModel();
+        int plannedQty = production.getPlannedQty();
+
+        // 차량 기준 BOM 조회
+        List<Bom> bomList = bomRepository.findByVehicleModel(vehicleModel);
+
+        if (bomList.isEmpty()) {
+            throw new BomNotFoundException("BOM이 존재하지 않습니다.");
+        }
+
+        // 재고 충분 여부 사전 검증
+        for (Bom bom : bomList) {
+            int requiredTotal = bom.getRequiredQty() * plannedQty;
+
+            Inventory inventory = inventoryRepository.findByPartId(bom.getPart().getId())
+                    .orElseThrow(() -> new IllegalStateException("재고 없음 : " + bom.getPart().getPartName()));
+
+            if (inventory.getCurrentQty() < requiredTotal) {
+                throw new IllegalStateException(
+                        String.format(
+                                "재고 부족 [%s] 필요:%d / 현재:%d",
+                                bom.getPart().getPartName(),
+                                requiredTotal,
+                                inventory.getCurrentQty()
+                        )
+                );
+            }
+        }
+
+        // 4. 재고 차감 + 이력 기록
+        for (Bom bom : bomList) {
+            int requiredTotal = bom.getRequiredQty() * plannedQty;
+
+            Inventory inventory = inventoryRepository.findByPartId(bom.getPart().getId())
+                    .orElseThrow(() -> new IllegalStateException("재고 없음 : " + bom.getPart().getPartName()));
+
+            inventory.adjust(-requiredTotal);
+
+            InventoryHistory history = InventoryHistory.of(
+                    bom.getPart(),
+                    -requiredTotal,
+                    inventory.getCurrentQty(),
+                    LocalDateTime.now(),
+                    InventoryChangeType.OUT
+            );
+
+            inventoryHistoryRepository.save(history);
+        }
+
+        // 5. 생산 시작
         production.start();
 
         return production.getId();

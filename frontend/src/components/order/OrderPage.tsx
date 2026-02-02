@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { orderApi, OrderDto } from "../../api/order";
+import { orderApi, OrderDto, PageResponse } from "../../api/order";
 import { vehicleModelApi, VehicleModelDto } from "../../api/vehicleModel";
-import { ClipboardList, Plus, RefreshCcw, Trash2 } from "lucide-react";
+import { ClipboardList, Plus, RefreshCcw, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useProduction } from "../../context/ProductionContext";
 
 function safeId(o: any) {
@@ -164,6 +164,12 @@ export function OrderPage() {
   const [err, setErr] = useState<string | null>(null);
   const { productions } = useProduction();
 
+  // 페이징 상태
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+  const pageSize = 10;
+
   // 차량 모델 ID -> 이름 매핑
   const getModelName = (modelId: number | string) => {
     const id = Number(modelId);
@@ -201,23 +207,31 @@ export function OrderPage() {
     return model?.vehicleModelId ?? null;
   };
 
-  const refresh = async () => {
+  const refresh = async (page = currentPage) => {
     setErr(null);
     setLoading(true);
     try {
-      const [ordersData, modelsData] = await Promise.all([
-        orderApi.list(),
+      const [pageData, modelsData] = await Promise.all([
+        orderApi.list(page, pageSize),
         vehicleModelApi.list(),
       ]);
-      const sortedOrders = Array.isArray(ordersData)
-        ? [...ordersData].sort((a, b) => (a.orderId ?? a.id ?? 0) - (b.orderId ?? b.id ?? 0))
-        : [];
-      setOrders(sortedOrders);
+      // 페이징 응답 처리
+      const pageResponse = pageData as PageResponse<OrderDto>;
+      setOrders(pageResponse.content ?? []);
+      setTotalPages(pageResponse.totalPages ?? 0);
+      setTotalElements(pageResponse.totalElements ?? 0);
+      setCurrentPage(pageResponse.number ?? 0);
       setVehicleModels(Array.isArray(modelsData) ? modelsData : []);
     } catch (e: any) {
       setErr(e?.message ?? "주문 목록 조회 실패");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const goToPage = (page: number) => {
+    if (page >= 0 && page < totalPages) {
+      refresh(page);
     }
   };
 
@@ -306,7 +320,7 @@ export function OrderPage() {
           </div>
         </div>
         <button
-          onClick={refresh}
+          onClick={() => refresh()}
           className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-slate-50 transition-colors"
         >
           <RefreshCcw className="w-4 h-4" />
@@ -487,6 +501,48 @@ export function OrderPage() {
             </tbody>
           </table>
         </div>
+
+        {/* 페이징 UI */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 px-2">
+            <div className="text-sm text-slate-600">
+              총 {totalElements}건 중 {currentPage * pageSize + 1}-{Math.min((currentPage + 1) * pageSize, totalElements)}건
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(0)}
+                disabled={currentPage === 0}
+                className="px-3 py-1 text-sm rounded border hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                처음
+              </button>
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 0}
+                className="p-1 rounded border hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="px-3 py-1 text-sm">
+                {currentPage + 1} / {totalPages}
+              </span>
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage >= totalPages - 1}
+                className="p-1 rounded border hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => goToPage(totalPages - 1)}
+                disabled={currentPage >= totalPages - 1}
+                className="px-3 py-1 text-sm rounded border hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                마지막
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

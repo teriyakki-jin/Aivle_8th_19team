@@ -8,3 +8,5 @@ python-multipart
 tensorflow
 liac-arff
 ultralytics
+sqlalchemy
+psycopg2-binary

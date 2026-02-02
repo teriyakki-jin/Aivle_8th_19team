@@ -11,6 +11,8 @@ import {
   ShieldCheck,
   ShoppingCart,
   ArrowLeftRight,
+  Hammer,
+  Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -40,8 +42,8 @@ export function Sidebar({ username, onLogout }: SidebarProps) {
   const processMenuItems = useMemo(
     () => [
       { path: "/dashboard", label: "메인 대시보드", icon: LayoutDashboard },
-      { path: "/press", label: "프레스 머신", icon: Factory },
-      { path: "/welding-image", label: "용접(이미지)", icon: Factory },
+      { path: "/press", label: "프레스 머신", icon: Hammer },
+      { path: "/welding-image", label: "용접(이미지)", icon: Zap },
       { path: "/windshield", label: "윈드실드", icon: ShieldCheck },
       { path: "/engine-vibration", label: "엔진 진동", icon: Cpu },
       { path: "/body", label: "차체 조립", icon: Box },

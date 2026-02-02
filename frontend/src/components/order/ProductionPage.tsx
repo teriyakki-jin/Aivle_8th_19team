@@ -154,8 +154,8 @@ function StageIcon({
 
   if (result.status === "completed" && !result.hasAnomaly) {
     return (
-      <div className={`${baseClass} bg-green-500 text-white`}>
-        <CheckCircle2 className="w-6 h-6" />
+      <div className="w-12 h-12 flex items-center justify-center">
+        <CheckCircle2 className="w-8 h-8 text-green-500" />
       </div>
     );
   }

@@ -99,4 +99,15 @@ public class InventoryService {
                 .map(InventoryHistoryResponse::from)
                 .toList();
     }
+
+    /**
+     *  재고 전체 조회
+     */
+    public List<InventoryResponse> getList() {
+
+        return inventoryRepository.findAll()
+                .stream()
+                .map(InventoryResponse::from)
+                .toList();
+    }
 }

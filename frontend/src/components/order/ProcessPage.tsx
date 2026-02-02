@@ -34,9 +34,12 @@ export function ProcessPage() {
         productionApi.list(),
         orderApi.list()
       ]);
-      setOps(Array.isArray(opList) ? opList : []);
-      setProductions(Array.isArray(prodList) ? prodList : []);
-      setOrders(Array.isArray(orderList) ? orderList : []);
+      const opsContent = Array.isArray(opList) ? opList : (opList as any)?.content ?? [];
+      const prodContent = Array.isArray(prodList) ? prodList : (prodList as any)?.content ?? [];
+      const orderContent = Array.isArray(orderList) ? orderList : (orderList as any)?.content ?? [];
+      setOps(opsContent);
+      setProductions(prodContent);
+      setOrders(orderContent);
     } catch (e: any) {
       setErr(e?.message ?? "공정 조회 실패");
     } finally {

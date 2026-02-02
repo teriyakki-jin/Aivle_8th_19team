@@ -2,14 +2,10 @@ package com.example.automobile_risk.config;
 
 import com.example.automobile_risk.dto.LoginRequest;
 import com.example.automobile_risk.entity.*;
-import com.example.automobile_risk.entity.enumclass.EventSource;
-import com.example.automobile_risk.entity.enumclass.EventType;
 import com.example.automobile_risk.entity.enumclass.Unit;
-import com.example.automobile_risk.repository.DelayRuleRepository;
-import com.example.automobile_risk.repository.ProcessEventRepository;
-import com.example.automobile_risk.repository.VehicleModelRepository;
 import com.example.automobile_risk.service.AuthService;
 import com.example.automobile_risk.service.ManufacturingOrchestrationService;
+//import com.example.automobile_risk.service.PressFeatureAggregationService;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +28,6 @@ public class InitDb {
     public void init() {
         initService.vehicleModelDbInit();
         initService.OrderAndProductionDbInit();
-        initService.delayPredictionDbInit();
     }
 
     @Component
@@ -42,9 +37,7 @@ public class InitDb {
 
         private final EntityManager em;
         private final ManufacturingOrchestrationService manufacturingOrchestrationService;
-        private final VehicleModelRepository vehicleModelRepository;
-        private final DelayRuleRepository delayRuleRepository;
-        private final ProcessEventRepository processEventRepository;
+//        private final PressFeatureAggregationService pressFeatureAggregationService;
         private final AuthService authService;
 
         public void vehicleModelDbInit() {
@@ -54,12 +47,6 @@ public class InitDb {
              */
             LoginRequest admin = new LoginRequest("admin", "1234");
             authService.register(admin);
-
-            // Skip if seed data already exists
-            if (vehicleModelRepository.count() > 0) {
-                log.info("Seed data already exists, skipping vehicleModelDbInit");
-                return;
-            }
 
             /**
              *  차량 모델
@@ -192,72 +179,72 @@ public class InitDb {
             /**
              *  공정 타입
              */
-            ProcessType press = ProcessType.createProcessType("프레스", 1, true);
-            ProcessType welding = ProcessType.createProcessType("용접", 2, true);
-            ProcessType assembly = ProcessType.createProcessType("조립", 3, true);
-            ProcessType painting = ProcessType.createProcessType("도장", 4, true);
+            ProcessType stamping = ProcessType.createProcessType("프레스", 1, true);
+            ProcessType welding = ProcessType.createProcessType("차체조립(용접)", 2, true);
+            ProcessType paint= ProcessType.createProcessType("도장", 3, true);
+            ProcessType assembly = ProcessType.createProcessType("의장", 4, true);
             ProcessType inspection = ProcessType.createProcessType("검수", 5, true);
-            em.persist(press);
+            em.persist(stamping);
             em.persist(welding);
             em.persist(assembly);
-            em.persist(painting);
+            em.persist(paint);
             em.persist(inspection);
 
             /**
              *  설비
              */
-            Equipment pressEquipment_1 = Equipment.createEquipment("프레스 1호기", press);
-            Equipment pressEquipment_2 = Equipment.createEquipment("프레스 2호기", press);
+            Equipment stampingEquipment_1 = Equipment.createEquipment("프레스 1호기", stamping);
+            Equipment stampingEquipment_2 = Equipment.createEquipment("프레스 2호기", stamping);
             Equipment weldingEquipment_1 = Equipment.createEquipment("용접 1호기", welding);
             Equipment assemblyEquipment_1 = Equipment.createEquipment("조립 1호기", assembly);
-            Equipment paintingEquipment_1 = Equipment.createEquipment("도장 1호기", painting);
+            Equipment paintEquipment_1 = Equipment.createEquipment("도장 1호기", paint);
             Equipment inspectionEquipment_1 = Equipment.createEquipment("검수 1호기", inspection);
-            em.persist(pressEquipment_1);
-            em.persist(pressEquipment_2);
+            em.persist(stampingEquipment_1);
+            em.persist(stampingEquipment_2);
             em.persist(weldingEquipment_1);
+            em.persist(paintEquipment_1);
             em.persist(assemblyEquipment_1);
-            em.persist(paintingEquipment_1);
             em.persist(inspectionEquipment_1);
 
             /**
              *  공정 수행
              */
-            ProcessExecution processExecution_press = ProcessExecution.createEntity(LocalDateTime.now(), 1, production1, press, pressEquipment_1);
-            ProcessExecution processExecution_assembly = ProcessExecution.createEntity(LocalDateTime.now(), 1, production1, assembly, assemblyEquipment_1);
-            ProcessExecution processExecution_welding = ProcessExecution.createEntity(LocalDateTime.now(), 1, production1, welding, weldingEquipment_1);
-            ProcessExecution processExecution_painting = ProcessExecution.createEntity(LocalDateTime.now(), 1, production1, painting, paintingEquipment_1);
-            ProcessExecution processExecution_inspection = ProcessExecution.createEntity(LocalDateTime.now(), 1, production1, inspection, inspectionEquipment_1);
-            em.persist(processExecution_press);
-            em.persist(processExecution_assembly);
+            ProcessExecution processExecution_stamping = ProcessExecution.createEntity(LocalDateTime.now(), 1, production1, stamping, stampingEquipment_1);
+            ProcessExecution processExecution_welding = ProcessExecution.createEntity(LocalDateTime.now(), 2, production1, welding, weldingEquipment_1);
+            ProcessExecution processExecution_paint = ProcessExecution.createEntity(LocalDateTime.now(), 3, production1, paint, paintEquipment_1);
+            ProcessExecution processExecution_assembly = ProcessExecution.createEntity(LocalDateTime.now(), 4, production1, assembly, assemblyEquipment_1);
+            ProcessExecution processExecution_inspection = ProcessExecution.createEntity(LocalDateTime.now(), 5, production1, inspection, inspectionEquipment_1);
+            em.persist(processExecution_stamping);
             em.persist(processExecution_welding);
-            em.persist(processExecution_painting);
+            em.persist(processExecution_paint);
+            em.persist(processExecution_assembly);
             em.persist(processExecution_inspection);
 
             // 프레스 공정 가동
-            processExecution_press.operate();
+            processExecution_stamping.operate();
 
             /**
              *  센서 (프레스 공정 컬럼)
              */
-            Sensor sensor1 = Sensor.create("timestamp", Unit.MS, pressEquipment_1);
-            Sensor sensor2 = Sensor.create("ai0_vibration", Unit.HZ, pressEquipment_1);
-            Sensor sensor3 = Sensor.create("ai1_vibration", Unit.HZ, pressEquipment_1);
-            Sensor sensor4 = Sensor.create("ai2_current", Unit.HZ, pressEquipment_1);
-            Sensor sensor5 = Sensor.create("equipment_state", Unit.NONE, pressEquipment_1);
-            em.persist(sensor1);
-            em.persist(sensor2);
-            em.persist(sensor3);
-            em.persist(sensor4);
-            em.persist(sensor5);
+            Sensor sensor1_stampingEquipment_1 = Sensor.create("timestamp", Unit.MS, stampingEquipment_1);
+            Sensor sensor2_stampingEquipment_1 = Sensor.create("ai0_vibration", Unit.HZ, stampingEquipment_1);
+            Sensor sensor3_stampingEquipment_1 = Sensor.create("ai1_vibration", Unit.HZ, stampingEquipment_1);
+            Sensor sensor4_stampingEquipment_1 = Sensor.create("ai2_current", Unit.HZ, stampingEquipment_1);
+            Sensor sensor5_stampingEquipment_1 = Sensor.create("equipment_state", Unit.NONE, stampingEquipment_1);
+            em.persist(sensor1_stampingEquipment_1);
+            em.persist(sensor2_stampingEquipment_1);
+            em.persist(sensor3_stampingEquipment_1);
+            em.persist(sensor4_stampingEquipment_1);
+            em.persist(sensor5_stampingEquipment_1);
 
             /**
              *  센서 데이터 (프레스 공정 컬럼의 데이터)
              */
-            SensorData sensorData1 = SensorData.create(55d, LocalDateTime.now(), sensor1);
-            SensorData sensorData2 = SensorData.create(50d, LocalDateTime.now(), sensor2);
-            SensorData sensorData3 = SensorData.create(51d, LocalDateTime.now(), sensor3);
-            SensorData sensorData4 = SensorData.create(52d, LocalDateTime.now(), sensor4);
-            SensorData sensorData5 = SensorData.create(0d, LocalDateTime.now(), sensor5);
+            SensorData sensorData1 = SensorData.create(55d, LocalDateTime.now(), sensor1_stampingEquipment_1);
+            SensorData sensorData2 = SensorData.create(50d, LocalDateTime.now(), sensor2_stampingEquipment_1);
+            SensorData sensorData3 = SensorData.create(51d, LocalDateTime.now(), sensor3_stampingEquipment_1);
+            SensorData sensorData4 = SensorData.create(52d, LocalDateTime.now(), sensor4_stampingEquipment_1);
+            SensorData sensorData5 = SensorData.create(0d, LocalDateTime.now(), sensor5_stampingEquipment_1);
             em.persist(sensorData1);
             em.persist(sensorData2);
             em.persist(sensorData3);
@@ -265,19 +252,25 @@ public class InitDb {
             em.persist(sensorData5);
 
             // 프레스 공정 완료
-            processExecution_press.complete(LocalDateTime.now());
-
-            // 부품조립 공정 가동 -> 완료
-            processExecution_assembly.operate();
-            processExecution_assembly.complete(LocalDateTime.now());
+            processExecution_stamping.complete(LocalDateTime.now());
+//            pressFeatureAggregationService.generateTimeSeriesFeature(
+//                    processExecution_stamping.getId(),
+//                    stampingEquipment_1.getId(),
+//                    processExecution_stamping.getStartDate(),
+//                    processExecution_stamping.getEndDate()
+//            );
 
             // 용접 공정 가동 -> 완료
             processExecution_welding.operate();
             processExecution_welding.complete(LocalDateTime.now());
 
             // 도장 공정 가동 -> 완료
-            processExecution_painting.operate();
-            processExecution_painting.complete(LocalDateTime.now());
+            processExecution_paint.operate();
+            processExecution_paint.complete(LocalDateTime.now());
+
+            // 의장 공정 가동 -> 완료
+            processExecution_assembly.operate();
+            processExecution_assembly.complete(LocalDateTime.now());
 
             // 검수 공정 가동 -> 완료
             processExecution_inspection.operate();
@@ -303,69 +296,6 @@ public class InitDb {
         }
 
         public void OrderAndProductionDbInit() {
-        }
-
-        public void delayPredictionDbInit() {
-            // Skip if seed data already exists
-            if (delayRuleRepository.count() > 0) {
-                log.info("Delay rule seed data already exists, skipping delayPredictionDbInit");
-                return;
-            }
-
-            String defaultWeights = "{\"0\":0.5,\"1\":1.0,\"2\":1.6,\"3\":2.5}";
-
-            /**
-             *  지연 규칙
-             */
-            delayRuleRepository.save(DelayRule.create("press_minor", "press", 1.0, 0.5, 2.0, defaultWeights, 1.5, 1.3, 50, 1.2, true));
-            delayRuleRepository.save(DelayRule.create("press_major", "press", 4.0, 2.0, 8.0, defaultWeights, 2.0, 1.5, 30, 1.4, true));
-            delayRuleRepository.save(DelayRule.create("welding_crack", "welding", 3.0, 1.5, 6.0, defaultWeights, 1.8, 1.4, 20, 1.3, true));
-            delayRuleRepository.save(DelayRule.create("welding_spatter", "welding", 1.5, 0.5, 3.0, defaultWeights, 1.3, 1.2, 40, 1.1, true));
-            delayRuleRepository.save(DelayRule.create("paint_orange_peel", "paint", 2.5, 1.0, 5.0, defaultWeights, 1.6, 1.4, 25, 1.3, true));
-            delayRuleRepository.save(DelayRule.create("paint_scratch", "paint", 1.5, 0.5, 3.0, defaultWeights, 1.3, 1.2, 40, 1.1, true));
-            delayRuleRepository.save(DelayRule.create("body_gap", "body", 2.0, 1.0, 4.0, defaultWeights, 1.5, 1.3, 30, 1.2, true));
-            delayRuleRepository.save(DelayRule.create("engine_vibration", "engine", 3.5, 1.5, 7.0, defaultWeights, 2.0, 1.5, 15, 1.4, true));
-            delayRuleRepository.save(DelayRule.create("windshield_crack", "windshield", 2.0, 1.0, 4.0, defaultWeights, 1.5, 1.3, 20, 1.2, true));
-
-            log.info("Delay rules seeded: 9 rules");
-
-            /**
-             *  샘플 공정 이벤트
-             */
-            // order1, order2 를 조회
-            List<Order> orders = em.createQuery("select o from Order o order by o.id asc", Order.class)
-                    .getResultList();
-
-            if (orders.size() >= 2) {
-                Order order1 = orders.get(0);
-                Order order2 = orders.get(1);
-
-                // order1: press_minor (severity=1, resolved, qty=10), welding_crack (severity=2, unresolved, lineHold, qty=5)
-                processEventRepository.save(ProcessEvent.create(
-                        order1, "press", EventType.DEFECT, "press_minor", 1,
-                        LocalDateTime.now().minusHours(12), LocalDateTime.now().minusHours(6),
-                        10, false, EventSource.SENSOR
-                ));
-                processEventRepository.save(ProcessEvent.create(
-                        order1, "welding", EventType.BREAKDOWN, "welding_crack", 2,
-                        LocalDateTime.now().minusHours(3), null,
-                        5, true, EventSource.VISION
-                ));
-
-                // order2: paint_orange_peel (severity=1, resolved, qty=15), engine_vibration (severity=2, unresolved, qty=8)
-                processEventRepository.save(ProcessEvent.create(
-                        order2, "paint", EventType.DEFECT, "paint_orange_peel", 1,
-                        LocalDateTime.now().minusHours(8), LocalDateTime.now().minusHours(2),
-                        15, false, EventSource.OPERATOR
-                ));
-                processEventRepository.save(ProcessEvent.create(
-                        order2, "engine", EventType.BREAKDOWN, "engine_vibration", 2,
-                        LocalDateTime.now().minusHours(4), null,
-                        8, false, EventSource.SENSOR
-                ));
-
-                log.info("Sample process events seeded: 4 events for order1 and order2");
-            }
         }
 
         private static VehicleModel createVehicleModel(String modelName, String segment, String fuel, String description, boolean isActive) {

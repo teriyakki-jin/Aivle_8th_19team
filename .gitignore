@@ -63,5 +63,5 @@ ml-service/welding_image/sample_images
 node_modules/
 
 # backend
-backend/src/main/resources/application.properties
-backend/src/main/resources/application-prod.properties
+# backend/src/main/resources/application.properties
+# backend/src/main/resources/application-prod.properties

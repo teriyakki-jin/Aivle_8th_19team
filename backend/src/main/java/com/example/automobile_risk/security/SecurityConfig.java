@@ -50,8 +50,7 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth.requestMatchers("/actuator/**").permitAll() // ALB health check
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                .authorizeHttpRequests(auth -> auth.requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/board/**").permitAll()
                         .requestMatchers("/api/v1/dashboard/**").permitAll() // Dashboard is public as per current FE
                         .requestMatchers("/api/v1/chatbot/**").permitAll() // Chatbot is public

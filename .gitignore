@@ -76,3 +76,5 @@ infra/terraform/terraform.tfvars
 # Docker
 *.tar
 docker-compose.override.yml
+
+*.class

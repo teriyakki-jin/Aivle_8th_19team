@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertTriangle, Clock, AlertCircle, RefreshCw, Package, ClipboardList, CheckCircle, Factory, Activity } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line
@@ -473,8 +473,8 @@ export function MainDashboard() {
     return [];
   })();
 
-  const orderSummary = activeData.orderSummary;
-  const productionSummary = activeData.productionSummary;
+  const orderSummary = activeData?.orderSummary;
+  const productionSummary = activeData?.productionSummary;
   
   const computedOrderSummary = (() => {
     if (!orders || orders.length === 0) return undefined;

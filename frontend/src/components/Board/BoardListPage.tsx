@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, MessageSquare, Eye, Calendar, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { apiUrl } from '../../config/env';
 
 interface Post {
     id: number;
@@ -28,7 +29,7 @@ export const BoardListPage = () => {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch('/api/v1/board', { headers });
+            const response = await fetch(apiUrl('/api/v1/board'), { headers });
             if (response.ok) {
                 const data = await response.json();
                 setPosts(data);

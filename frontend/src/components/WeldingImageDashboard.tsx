@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, RefreshCcw, Factory, Image as ImageIcon, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { OrderSelector } from "./OrderSelector";
+import { ML_API_BASE, ML_IMAGE_BASE } from "../config/env";
 
 /* =====================
    Types
@@ -37,8 +38,8 @@ type HistoryRow = {
    Constants
 ===================== */
 
-const ENDPOINT_AUTO = "http://localhost:3001/api/v1/ml/welding/image/auto";
-const SERVER_BASE = "http://localhost:8000"; // 이미지는 여전히 FastAPI에서 제공
+const ENDPOINT_AUTO = `${ML_API_BASE}/welding/image/auto`;
+const SERVER_BASE = ML_IMAGE_BASE; // 이미지는 ML 서비스에서 제공
 const POLL_MS = 5000;
 
 /* =====================

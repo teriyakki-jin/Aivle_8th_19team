@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Lock, Factory, ChevronDown } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { apiUrl } from '../config/env';
 import {
     Accordion,
     AccordionContent,
@@ -73,7 +74,7 @@ export const SignupPage = () => {
         }
 
         try {
-            const response = await fetch('/api/v1/auth/register', {
+            const response = await fetch(apiUrl('/api/v1/auth/register'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

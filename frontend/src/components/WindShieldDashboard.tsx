@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { OrderSelector } from "./OrderSelector";
+import { ML_API_BASE } from "../config/env";
 import {
   ArrowLeft,
   Layers,
@@ -179,7 +180,7 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
           form.append("file", file);
 
           const res = await fetch(
-            "http://localhost:3001/api/v1/ml/windshield",
+            `${ML_API_BASE}/windshield`,
             {
               method: "POST",
               body: form,

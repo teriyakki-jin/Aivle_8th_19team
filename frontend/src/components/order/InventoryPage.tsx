@@ -1,5 +1,5 @@
-﻿import { useEffect, useState } from "react";
-import { Box, RefreshCcw, History } from "lucide-react";
+﻿import React, { useEffect, useState } from "react";
+import { Box, RefreshCcw, History, CheckCircle2 } from "lucide-react";
 import { inventoryApi, InventoryDto, InventoryHistoryDto } from "../../api/inventory";
 
 function formatDateTime(value?: string) {
@@ -22,7 +22,8 @@ export function InventoryPage() {
 
   const [adjustPartId, setAdjustPartId] = useState("");
   const [adjustQty, setAdjustQty] = useState("");
-  const [adjustType, setAdjustType] = useState<"IN" | "OUT" | "ADJUST" | "SCRAP">("IN");
+  const [adjustType, setAdjustType] =
+    useState<"IN" | "OUT" | "ADJUST" | "SCRAP">("IN");
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [adjustError, setAdjustError] = useState<string | null>(null);
   const [adjustSuccess, setAdjustSuccess] = useState<string | null>(null);
@@ -82,7 +83,8 @@ export function InventoryPage() {
 
     let normalizedQty = qtyNum;
     if (adjustType === "IN") normalizedQty = Math.abs(qtyNum);
-    if (adjustType === "OUT" || adjustType === "SCRAP") normalizedQty = -Math.abs(qtyNum);
+    if (adjustType === "OUT" || adjustType === "SCRAP")
+      normalizedQty = -Math.abs(qtyNum);
 
     setAdjustLoading(true);
     try {
@@ -106,6 +108,7 @@ export function InventoryPage() {
 
   return (
     <div className="p-6 space-y-8">
+      {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-emerald-100 rounded-lg">
@@ -113,7 +116,9 @@ export function InventoryPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">재고 관리</h1>
-            <p className="text-sm text-slate-500">부품별 재고 현황을 확인합니다</p>
+            <p className="text-sm text-slate-500">
+              부품별 재고 현황을 확인합니다
+            </p>
           </div>
         </div>
         <button
@@ -131,14 +136,20 @@ export function InventoryPage() {
         </div>
       )}
 
+      {/* 재고 증감 폼 */}
       <div className="bg-white rounded-xl border shadow-sm">
         <div className="px-4 py-3 border-b bg-slate-50 rounded-t-xl">
           <span className="font-semibold text-slate-700">재고 증감(입출고)</span>
         </div>
+
         <form onSubmit={submitAdjust} className="p-4 space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* 입력 + 버튼 한 줄 */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-end">
+            {/* 부품 ID */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">부품 ID</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                부품 ID
+              </label>
               <input
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 value={adjustPartId}
@@ -147,8 +158,12 @@ export function InventoryPage() {
                 inputMode="numeric"
               />
             </div>
+
+            {/* 수량 */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">수량</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                수량
+              </label>
               <input
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 value={adjustQty}
@@ -156,14 +171,22 @@ export function InventoryPage() {
                 placeholder="예: 10"
                 inputMode="numeric"
               />
-              <p className="mt-1 text-xs text-slate-500">입고/출고는 부호가 자동 처리됩니다.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                입고/출고는 부호가 자동 처리됩니다.
+              </p>
             </div>
+
+            {/* 변경 유형 */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">변경 유형</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                변경 유형
+              </label>
               <select
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 value={adjustType}
-                onChange={(e) => setAdjustType(e.target.value as typeof adjustType)}
+                onChange={(e) =>
+                  setAdjustType(e.target.value as typeof adjustType)
+                }
               >
                 <option value="IN">입고</option>
                 <option value="OUT">출고</option>
@@ -171,30 +194,34 @@ export function InventoryPage() {
                 <option value="SCRAP">폐기</option>
               </select>
             </div>
-            <div className="flex items-end">
+
+            {/* 재고 반영 버튼 */}
+            <div className="flex lg:items-end lg:justify-end mt-6">
               <button
                 type="submit"
                 disabled={adjustLoading}
-                className="w-full px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 h-10 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center justify-center"
               >
-                {adjustLoading ? "처리 중..." : "반영"}
+                {adjustLoading ? "처리 중..." : "재고 반영"}
               </button>
             </div>
           </div>
 
+          {/* 에러 / 성공 메시지: grid 밖으로 분리 */}
           {adjustError && (
-            <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
+            <div className="mt-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
               {adjustError}
             </div>
           )}
           {adjustSuccess && (
-            <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+            <div className="mt-2 animate-pulse text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2">
               {adjustSuccess}
             </div>
           )}
         </form>
       </div>
 
+      {/* 재고 목록 */}
       <div className="bg-white rounded-xl border shadow-sm">
         <div className="px-4 py-3 border-b bg-slate-50 rounded-t-xl">
           <div className="flex items-center justify-between">
@@ -202,6 +229,7 @@ export function InventoryPage() {
             <span className="text-sm text-slate-500">총 {items.length}건</span>
           </div>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b">
@@ -220,25 +248,41 @@ export function InventoryPage() {
                 </th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                  <td
+                    colSpan={4}
+                    className="px-4 py-8 text-center text-slate-500"
+                  >
                     불러오는 중...
                   </td>
                 </tr>
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                  <td
+                    colSpan={4}
+                    className="px-4 py-8 text-center text-slate-500"
+                  >
                     재고 데이터가 없습니다.
                   </td>
                 </tr>
               ) : (
                 items.map((item) => (
-                  <tr key={item.inventoryId} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-slate-900">#{item.partId}</td>
-                    <td className="px-4 py-3 text-slate-700 font-medium">{item.partName}</td>
-                    <td className="px-4 py-3 text-slate-900 font-semibold">{item.currentQty}</td>
+                  <tr
+                    key={item.inventoryId}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
+                    <td className="px-4 py-3 font-mono text-slate-900">
+                      #{item.partId}
+                    </td>
+                    <td className="px-4 py-3 text-slate-700 font-medium">
+                      {item.partName}
+                    </td>
+                    <td className="px-4 py-3 text-slate-900 font-semibold">
+                      {item.currentQty}
+                    </td>
                     <td className="px-4 py-3">
                       <button
                         onClick={() => loadHistory(item.partId)}
@@ -256,11 +300,14 @@ export function InventoryPage() {
         </div>
       </div>
 
+      {/* 이력 테이블 */}
       {selectedPartId && (
         <div className="bg-white rounded-xl border shadow-sm">
           <div className="px-4 py-3 border-b bg-slate-50 rounded-t-xl">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-700">재고 이력 (부품 #{selectedPartId})</span>
+              <span className="font-semibold text-slate-700">
+                재고 이력 (부품 #{selectedPartId})
+              </span>
               <button
                 onClick={() => loadHistory(selectedPartId)}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-slate-50 transition-colors text-sm"
@@ -295,26 +342,44 @@ export function InventoryPage() {
                   </th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-slate-100">
                 {historyLoading ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                    <td
+                      colSpan={4}
+                      className="px-4 py-8 text-center text-slate-500"
+                    >
                       불러오는 중...
                     </td>
                   </tr>
                 ) : history.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                    <td
+                      colSpan={4}
+                      className="px-4 py-8 text-center text-slate-500"
+                    >
                       이력 데이터가 없습니다.
                     </td>
                   </tr>
                 ) : (
                   history.map((h) => (
-                    <tr key={h.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 text-slate-700 font-medium">{h.changeType}</td>
-                      <td className="px-4 py-3 text-slate-900 font-semibold">{h.changeQty}</td>
-                      <td className="px-4 py-3 text-slate-900 font-semibold">{h.afterQty}</td>
-                      <td className="px-4 py-3 text-slate-600 text-sm">{formatDateTime(h.occuredAt)}</td>
+                    <tr
+                      key={h.id}
+                      className="hover:bg-slate-50 transition-colors"
+                    >
+                      <td className="px-4 py-3 text-slate-700 font-medium">
+                        {h.changeType}
+                      </td>
+                      <td className="px-4 py-3 text-slate-900 font-semibold">
+                        {h.changeQty}
+                      </td>
+                      <td className="px-4 py-3 text-slate-900 font-semibold">
+                        {h.afterQty}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 text-sm">
+                        {formatDateTime(h.occuredAt)}
+                      </td>
                     </tr>
                   ))
                 )}

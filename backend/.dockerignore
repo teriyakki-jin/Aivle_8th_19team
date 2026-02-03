@@ -1,6 +1,0 @@
-.gradle
-build
-bin
-.idea
-*.iml
-.env

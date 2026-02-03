@@ -44,7 +44,25 @@
       "Bash(cmd /c \"gradlew.bat build -x test 2>&1\")",
       "Bash(npm run build:*)",
       "Bash(npm run dev:*)",
-      "Bash(node_modules/.bin/tsc:*)"
+      "Bash(node_modules/.bin/tsc:*)",
+      "Bash(git -C /c/work/Aivle_8th_19team ls-files:*)",
+      "Bash(MSYS_NO_PATHCONV=1 aws iam:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(MSYS_NO_PATHCONV=1 gh run list:*)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(python3:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(MSYS_NO_PATHCONV=1 aws elbv2:*)",
+      "Bash(MSYS_NO_PATHCONV=1 aws cloudfront:*)",
+      "Bash(MSYS_NO_PATHCONV=1 aws ec2 authorize-security-group-ingress:*)",
+      "Bash(aws cloudfront get-distribution-config:*)",
+      "Bash(node --version:*)",
+      "Bash(node -e:*)",
+      "Bash(aws cloudfront update-distribution:*)",
+      "Bash(aws cloudfront create-function:*)",
+      "Bash(aws cloudfront create-invalidation:*)"
     ]
   }
 }

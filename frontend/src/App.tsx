@@ -17,6 +17,7 @@ import { BoardDetailPage } from "./components/Board/BoardDetailPage";
 import { OrderPage } from "./components/order/OrderPage";
 import { ProductionPage } from "./components/order/ProductionPage";
 import { ProcessPage } from "./components/order/ProcessPage";
+import { InventoryPage } from "./components/order/InventoryPage";
 import { TermsOfServicePage } from './components/TermsOfServicePage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { ProductionProvider } from "./context/ProductionContext";
@@ -134,6 +135,7 @@ export default function App() {
                   <Route path="/order/orders" element={<OrderPage />} />
                   <Route path="/order/production" element={<ProductionPage />} />
                   <Route path="/order/process" element={<ProcessPage />} />
+                  <Route path="/order/inventory" element={<InventoryPage />} />
                   <Route path="/order" element={<Navigate to="/order/orders" replace />} />
 
                   {/* Policy Routes */}

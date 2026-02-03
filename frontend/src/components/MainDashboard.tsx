@@ -427,6 +427,20 @@ export function MainDashboard() {
     );
   }
 
+  // ── Data guard (API 실패/권한 문제 등) ──
+  if (!activeData) {
+    return (
+      <div className="p-8">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+          <p className="font-semibold text-yellow-800">대시보드 데이터를 불러오지 못했습니다.</p>
+          <p className="text-sm text-yellow-700 mt-1">
+            로그인/권한/서버 응답을 확인해 주세요.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const currentPrediction = activeData?.currentPrediction;
 
   // ── 공정별 지연 시간 분포 — 4단계 fallback ──

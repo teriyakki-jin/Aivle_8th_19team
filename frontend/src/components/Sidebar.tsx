@@ -57,6 +57,7 @@ export function Sidebar({ username, onLogout }: SidebarProps) {
     () => [
       { path: "/order/orders", label: "주문", icon: ShoppingCart },
       { path: "/order/production", label: "생산", icon: Factory },
+      { path: "/order/inventory", label: "재고", icon: Box },
     ],
     []
   );

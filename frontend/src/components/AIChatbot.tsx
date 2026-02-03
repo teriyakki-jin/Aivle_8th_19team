@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
+import { apiUrl } from '../config/env';
 
 interface Message {
   id: string;
@@ -53,7 +54,7 @@ export function AIChatbot() {
     setIsTyping(true);
 
     try {
-      const response = await fetch('/api/v1/chatbot/query', {
+      const response = await fetch(apiUrl('/api/v1/chatbot/query'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: question }),

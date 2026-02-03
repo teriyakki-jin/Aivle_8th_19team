@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Trash2, MessageSquare, Edit, X, Save, Eye } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import { apiUrl } from '../config/env';
 
 interface Post {
     id: number;
@@ -29,7 +30,7 @@ export function BoardDashboard() {
 
     const fetchPosts = async () => {
         try {
-            const res = await fetch('/api/v1/board');
+            const res = await fetch(apiUrl('/api/v1/board'));
             if (res.ok) {
                 const data = await res.json();
                 setPosts(data);
@@ -52,7 +53,7 @@ export function BoardDashboard() {
 
         setLoading(true);
         try {
-            const res = await fetch('/api/v1/board', {
+            const res = await fetch(apiUrl('/api/v1/board'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -85,7 +86,7 @@ export function BoardDashboard() {
 
         setLoading(true);
         try {
-            const res = await fetch(`/api/v1/board/${id}`, {
+            const res = await fetch(apiUrl(`/api/v1/board/${id}`), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -115,7 +116,7 @@ export function BoardDashboard() {
         if (!confirm('정말 삭제하시겠습니까?')) return;
 
         try {
-            const res = await fetch(`/api/v1/board/${id}`, {
+            const res = await fetch(apiUrl(`/api/v1/board/${id}`), {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`

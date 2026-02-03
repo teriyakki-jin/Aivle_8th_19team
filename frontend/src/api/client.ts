@@ -1,5 +1,4 @@
-// ✅ 프록시 쓸 거면 API_BASE는 빈 문자열
-const API_BASE = "";
+import { API_BASE } from "../config/env";
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 

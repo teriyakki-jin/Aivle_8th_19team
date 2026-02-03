@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import { apiUrl } from '../../config/env';
 
 export const BoardWritePage = () => {
     const [title, setTitle] = useState('');
@@ -46,7 +47,7 @@ export const BoardWritePage = () => {
 
         setLoading(true);
         try {
-            const response = await fetch('/api/v1/board', {
+            const response = await fetch(apiUrl('/api/v1/board'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

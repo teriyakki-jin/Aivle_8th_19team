@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { OrderSelector } from "./OrderSelector";
+import { ML_API_BASE, ML_IMAGE_BASE } from "../config/env";
 
 type PartKey = "door" | "bumper" | "headlamp" | "taillamp" | "radiator";
 
@@ -48,8 +49,7 @@ type BatchResponse = {
   results: Record<PartKey, BodyResult | null | any>;
 };
 
-const API_BASE = "http://localhost:8000"; // 이미지용
-const ML_API_BASE = "http://localhost:3001/api/v1/ml";
+const API_BASE = ML_IMAGE_BASE; // 이미지용
 const POLL_MS = 5000;
 
 const PARTS: { key: PartKey; label: string }[] = [

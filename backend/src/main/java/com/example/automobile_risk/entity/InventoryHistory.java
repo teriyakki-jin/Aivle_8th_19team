@@ -56,7 +56,7 @@ public class InventoryHistory extends BaseTimeEntity {
         return InventoryHistory.builder()
                 .part(part)
                 .changeQty(changeQty)
-                .afterQty(afterQty)
+                .afterQty(afterQty + changeQty)
                 .occuredAt(occuredAt)
                 .changeType(changeType)
                 .build();

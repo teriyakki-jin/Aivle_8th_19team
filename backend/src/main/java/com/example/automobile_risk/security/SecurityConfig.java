@@ -57,6 +57,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/**").permitAll() // Chatbot is public
                         .requestMatchers("/swagger-ui/**").permitAll() // Swagger
                         .requestMatchers("/v3/api-docs/**").permitAll() // Swagger
+                        .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/**").permitAll() // 보통 이렇게 열어둠
                         .anyRequest().authenticated());
 
         http.authenticationProvider(authenticationProvider());

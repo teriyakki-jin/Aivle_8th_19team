@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertTriangle, Clock, AlertCircle, RefreshCw, Package, ClipboardList, CheckCircle, Factory, Activity } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line
@@ -426,6 +426,20 @@ export function MainDashboard() {
               다시 시도
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Data guard (API 실패/권한 문제 등) ──
+  if (!activeData) {
+    return (
+      <div className="p-8">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+          <p className="font-semibold text-yellow-800">대시보드 데이터를 불러오지 못했습니다.</p>
+          <p className="text-sm text-yellow-700 mt-1">
+            로그인/권한/서버 응답을 확인해 주세요.
+          </p>
         </div>
       </div>
     );

@@ -4,4 +4,3 @@ bin
 .idea
 *.iml
 .env
-gradle.properties

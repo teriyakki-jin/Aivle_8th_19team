@@ -65,6 +65,8 @@ node_modules/
 # backend
 # backend/src/main/resources/application.properties
 # backend/src/main/resources/application-prod.properties
+backend/bin/
+*.class
 
 # Terraform
 infra/terraform/.terraform/

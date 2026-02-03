@@ -271,6 +271,10 @@ export function MainDashboard() {
       setPrediction(pred);
     } catch (err) {
       console.error('Prediction fetch failed:', err);
+      console.error('Error details:', {
+        message: err instanceof Error ? err.message : String(err),
+        url: '/api/v1/delay-prediction/overview'
+      });
     }
   }, [safeFetchJson]);
 
@@ -304,11 +308,11 @@ export function MainDashboard() {
   useEffect(() => {
     // 1) 항상 폴링을 켜서 "SSE 이벤트가 안 와도" 갱신되게 함
     fetchDashboard();
-    pollRef.current = setInterval(fetchDashboard, 5_000);
+    pollRef.current = setInterval(fetchDashboard, 3_000);
 
     // 2) 예측 오버뷰도 폴링
     fetchPrediction();
-    predPollRef.current = setInterval(fetchPrediction, 5_000);
+    predPollRef.current = setInterval(fetchPrediction, 3_000);
 
     // 3) 주문/생산 목록도 폴링 (order/production 페이지와 동기화)
     fetchOrders();
@@ -473,8 +477,8 @@ export function MainDashboard() {
     return [];
   })();
 
-  const orderSummary = activeData.orderSummary;
-  const productionSummary = activeData.productionSummary;
+  const orderSummary = activeData?.orderSummary;
+  const productionSummary = activeData?.productionSummary;
   
   const computedOrderSummary = (() => {
     if (!orders || orders.length === 0) return undefined;

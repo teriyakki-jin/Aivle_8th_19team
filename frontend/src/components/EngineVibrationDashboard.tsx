@@ -26,6 +26,7 @@ import {
   LineChart,
   Line,
 } from "recharts";
+import { ML_API_BASE } from "../config/env";
 
 type Pred01 = 0 | 1;
 
@@ -82,7 +83,7 @@ export function EngineVibrationDashboard() {
 function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }) {
   const navigate = useNavigate();
   const DEMO_ARFF_URL = "/data/FordA_TEST.arff";
-  const ENGINE_API_URL = "http://localhost:3001/api/v1/ml/engine";
+  const ENGINE_API_URL = `${ML_API_BASE}/engine`;
 
   // ✅ 자동 모니터링(버튼 제거)
   const [systemStatus, setSystemStatus] = useState<"WAITING" | "LOADING_ARFF" | "MONITORING">("LOADING_ARFF");

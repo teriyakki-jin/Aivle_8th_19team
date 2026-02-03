@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { orderApi, OrderDto } from '../api/order';
 import { productionApi, ProductionDto } from '../api/production';
+import { apiUrl } from '../config/env';
 
 // ===== Types =====
 
@@ -231,7 +232,7 @@ export function MainDashboard() {
   const safeFetchJson = useCallback(async (url: string) => {
     const token = localStorage.getItem('token');
 
-    const res = await fetch(url, {
+    const res = await fetch(apiUrl(url), {
       method: 'GET',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       credentials: 'include',
@@ -322,8 +323,8 @@ export function MainDashboard() {
       const token = localStorage.getItem('token');
 
       const sseUrl = token
-        ? `/api/v1/dashboard/stream?token=${encodeURIComponent(token)}`
-        : '/api/v1/dashboard/stream';
+        ? apiUrl(`/api/v1/dashboard/stream?token=${encodeURIComponent(token)}`)
+        : apiUrl('/api/v1/dashboard/stream');
 
       try {
         const es = new EventSource(sseUrl, { withCredentials: true } as any);

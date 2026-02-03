@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import { apiUrl } from '../../config/env';
 
 interface Post {
     id: number;
@@ -60,7 +61,7 @@ export const BoardDetailPage = () => {
                 headers['Authorization'] = `Bearer ${token}`;
             }
 
-            const response = await fetch(`/api/v1/board/${id}`, { headers });
+            const response = await fetch(apiUrl(`/api/v1/board/${id}`), { headers });
             if (response.ok) {
                 const data = await response.json();
                 setPost(data);
@@ -84,7 +85,7 @@ export const BoardDetailPage = () => {
 
         setUpdateLoading(true);
         try {
-            const response = await fetch(`/api/v1/board/${id}`, {
+            const response = await fetch(apiUrl(`/api/v1/board/${id}`), {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -112,7 +113,7 @@ export const BoardDetailPage = () => {
         if (!confirm('정말 이 게시글을 삭제하시겠습니까?')) return;
 
         try {
-            const response = await fetch(`/api/v1/board/${id}`, {
+            const response = await fetch(apiUrl(`/api/v1/board/${id}`), {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`

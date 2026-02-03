@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OrderSelector } from "./OrderSelector";
+import { ML_API_BASE, ML_IMAGE_BASE } from "../config/env";
 
 interface DefectData {
   predicted_class: string;
@@ -54,8 +55,7 @@ const DEFECT_TYPES = [
   "Patches",
 ];
 
-const API_BASE = "http://localhost:8000"; // 이미지용
-const ML_API_BASE = "http://localhost:3001/api/v1/ml";
+const API_BASE = ML_IMAGE_BASE; // 이미지용
 const DEMO_RANDOM_ON_SAME_VALUE = false;
 
 // ✅ 폴링 주기

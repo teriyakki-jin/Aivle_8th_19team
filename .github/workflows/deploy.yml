@@ -111,19 +111,16 @@ jobs:
       - name: Build & push
         working-directory: backend
         run: |
-          set -euo pipefail
-          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
           IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND}"
-          echo "Building $IMAGE:$SHORT_SHA"
-          docker build -t "$IMAGE:$SHORT_SHA" -t "$IMAGE:latest" .
-          docker push "$IMAGE:$SHORT_SHA"
+          docker build -t "$IMAGE:${GITHUB_SHA::7}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${GITHUB_SHA::7}"
           docker push "$IMAGE:latest"
 
       - name: Deploy to ECS
         run: |
           aws ecs update-service \
-            --cluster "$ECS_CLUSTER" \
-            --service "$ECS_BACKEND" \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_BACKEND \
             --force-new-deployment
 
   # ============================================================
@@ -147,19 +144,16 @@ jobs:
       - name: Build & push
         working-directory: ml-service
         run: |
-          set -euo pipefail
-          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
           IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_ML}"
-          echo "Building $IMAGE:$SHORT_SHA"
-          docker build -t "$IMAGE:$SHORT_SHA" -t "$IMAGE:latest" .
-          docker push "$IMAGE:$SHORT_SHA"
+          docker build -t "$IMAGE:${GITHUB_SHA::7}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${GITHUB_SHA::7}"
           docker push "$IMAGE:latest"
 
       - name: Deploy to ECS
         run: |
           aws ecs update-service \
-            --cluster "$ECS_CLUSTER" \
-            --service "$ECS_ML" \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_ML \
             --force-new-deployment
 
   # ============================================================

@@ -18,6 +18,7 @@ from body_assembly import service as body_service
 from welding_image.pipeline import full_pipeline
 from welding_image.schemas import DefectResponse
 import welding_image
+from model_loader import download_models
 
 app = FastAPI(title="ML Service API", version="1.0.0")
 
@@ -59,6 +60,9 @@ def to_public_url(abs_path: str) -> str:
 # =========================
 @app.on_event("startup")
 def startup_event():
+    print("서버 시작: S3 모델 다운로드 확인...")
+    download_models(BASE_DIR)
+
     print("서버 시작: 모델 로딩 중...")
     try:
         windshield.load_windshield_models()
@@ -542,8 +546,11 @@ async def health_check():
 import pandas as pd
 import io
 
-# 프론트엔드 public/data 경로 (상대 경로)
-WINDSHIELD_DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend", "public", "data")
+# 샘플 데이터 경로 (S3에서 다운로드되거나 로컬 fallback)
+WINDSHIELD_DATA_DIR = os.path.join(BASE_DIR, "sample_data")
+# 로컬 개발 시 frontend/public/data fallback
+if not os.path.isdir(WINDSHIELD_DATA_DIR):
+    WINDSHIELD_DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend", "public", "data")
 
 windshield_auto_state = {
     "left_rows": None,

@@ -31,6 +31,7 @@ function enforceRelativeInProd(base: string, fallbackRelative: string) {
  * - path가 절대 URL이면 그대로 반환
  * - base가 비어있으면 path 반환
  * - 중복 슬래시 제거/정리
+ * - ✅ "/api" 중복 방지: base="/api" + path="/api/..." => "/api/..."로 정리
  */
 function joinBase(base: string, path: string) {
   const b = normalizeBase(base);
@@ -39,10 +40,14 @@ function joinBase(base: string, path: string) {
   if (!p) return b || "";
   if (isAbsoluteHttpUrl(p)) return p;
 
-  // base가 없으면 path 그대로 (상대경로 유지)
-  if (!b) return p;
+  // ✅ C번 안전장치: path가 "/api/..."로 오면 앞 "/api"를 제거해 중복 방지
+  // 예) base="/api", path="/api/v1/..." => cleanedPath="/v1/..."
+  const cleanedPath = p.startsWith("/api/") ? p.replace(/^\/api/, "") : p;
 
-  const normalizedPath = p.startsWith("/") ? p : `/${p}`;
+  // base가 없으면 path 그대로 (상대경로 유지)
+  if (!b) return cleanedPath;
+
+  const normalizedPath = cleanedPath.startsWith("/") ? cleanedPath : `/${cleanedPath}`;
   return `${b}${normalizedPath}`;
 }
 

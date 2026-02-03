@@ -7,9 +7,9 @@ import {
   ReactNode,
 } from "react";
 import { orderApi, OrderDto } from "../api/order";
+import { ML_API_BASE } from "../config/env";
 
 // ML API 기본 URL (Spring Boot)
-const ML_API_BASE = "http://localhost:3001/api/v1/ml";
 
 // 공정 단계 정의 (✅ 라우트 + 모델 배치 최종)
 const PIPELINE_STAGES = [

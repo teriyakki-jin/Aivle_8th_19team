@@ -1,10 +1,11 @@
 import type { PaintPredictResponse } from "@/types/paintQuality";
+import { ML_API_BASE, ML_IMAGE_BASE } from "../config/env";
 
 export async function uploadPaintImage(file: File): Promise<PaintPredictResponse> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch(`/ml-api/api/v1/paint`, {
+  const res = await fetch(`${ML_API_BASE}/paint`, {
     method: "POST",
     body: formData,
   });
@@ -17,10 +18,10 @@ export async function uploadPaintImage(file: File): Promise<PaintPredictResponse
   const data = await res.json();
   
   // model/main.py에서 /static/detect/... 경로로 반환됨
-  // 이를 localhost:8000으로 직접 접근할 수 있도록 변환
+  // ML_IMAGE_BASE를 붙여서 브라우저에서 접근 가능하도록 변환
   const transformUrl = (url: string) => {
-    if (url?.startsWith('/static')) {
-      return `http://localhost:8000${url}`;
+    if (url?.startsWith("/static")) {
+      return `${ML_IMAGE_BASE}${url}`;
     }
     return url;
   };

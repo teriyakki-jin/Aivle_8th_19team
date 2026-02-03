@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Paintbrush, Timer, Target } from "lucide-react";
 import { OrderSelector } from "./OrderSelector";
+import { ML_API_BASE, ML_IMAGE_BASE } from "../config/env";
 
 type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -54,8 +55,8 @@ type HistoryItem = {
   defects: DetectedDefect[];
 };
 
-const API_BASE = "http://localhost:8000"; // 이미지용
-const AUTO_ENDPOINT = "http://localhost:3001/api/v1/ml/paint/auto";
+const API_BASE = ML_IMAGE_BASE; // 이미지용
+const AUTO_ENDPOINT = `${ML_API_BASE}/paint/auto`;
 const POLL_MS = 5000;
 
 function cn(...xs: Array<string | false | null | undefined>) {

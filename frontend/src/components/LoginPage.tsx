@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Factory, Lock, User } from 'lucide-react';
+import { apiUrl } from '../config/env';
 
 interface LoginPageProps {
   onLogin: (username: string) => void;
@@ -32,7 +33,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     }
 
     try {
-      const response = await fetch('/api/v1/auth/login', {
+      const response = await fetch(apiUrl('/api/v1/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),

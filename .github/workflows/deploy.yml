@@ -110,13 +110,11 @@ jobs:
 
       - name: Build & push
         working-directory: backend
-        env:
-          ECR_REPO: ${{ env.ECR_BACKEND }}
         run: |
+          set -euo pipefail
           SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
-          IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_BACKEND }}"
-          echo "Image: $IMAGE"
-          echo "Tag: $SHORT_SHA"
+          IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_BACKEND}"
+          echo "Building $IMAGE:$SHORT_SHA"
           docker build -t "$IMAGE:$SHORT_SHA" -t "$IMAGE:latest" .
           docker push "$IMAGE:$SHORT_SHA"
           docker push "$IMAGE:latest"
@@ -149,10 +147,10 @@ jobs:
       - name: Build & push
         working-directory: ml-service
         run: |
+          set -euo pipefail
           SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
-          IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_ML }}"
-          echo "Image: $IMAGE"
-          echo "Tag: $SHORT_SHA"
+          IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_ML}"
+          echo "Building $IMAGE:$SHORT_SHA"
           docker build -t "$IMAGE:$SHORT_SHA" -t "$IMAGE:latest" .
           docker push "$IMAGE:$SHORT_SHA"
           docker push "$IMAGE:latest"

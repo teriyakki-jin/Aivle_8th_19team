@@ -1,11 +1,11 @@
-import { API_BASE } from "../config/env";
+import { apiUrl } from "../config/env";
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
 async function request<T>(method: HttpMethod, path: string, body?: any): Promise<T> {
   const token = localStorage.getItem("token");
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(apiUrl(path), {
     method,
     headers: {
       "Content-Type": "application/json",

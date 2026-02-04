@@ -14,7 +14,7 @@ import java.util.Date;
 @Component
 public class JwtUtils {
 
-    @Value("${app.jwt.secret:your-very-secure-secret-key-that-is-long-enough}")
+    @Value("${app.jwt.secret:${JWT_SECRET:your-very-secure-secret-key-that-is-long-enough}}")
     private String jwtSecret;
 
     @Value("${app.jwt.expirationMs:36000000}")  // 600분 = 10시간 

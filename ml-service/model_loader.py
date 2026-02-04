@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 # Model files relative to ml-service/ root (individual files)
 MODEL_FILES = [
-    "best.pt",
     "paint/best.pt",
     "engine/cnn_best_model.h5",
     "body_assembly/models/bumper_best.pt",
@@ -25,9 +24,6 @@ MODEL_FILES = [
     "welding_image/stage2_best.pt",
     "windshield/svm_left_model.pkl",
     "windshield/svm_right_model.pkl",
-    "battery/best_model.pkl",
-    "battery/label_encoder.pkl",
-    "battery/scaler.pkl",
 ]
 
 # S3 prefixes containing sample images/data (downloaded as directories)

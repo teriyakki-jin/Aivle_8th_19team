@@ -1,5 +1,6 @@
 // frontend/src/services/paintAnalysis.ts
 import http from './http';
+import { apiUrl } from '../config/env';
 
 export interface PaintStatistics {
   totalInspections: number;
@@ -70,7 +71,7 @@ export interface DailyStatistic {
 // 오늘 통계 가져오기 (백엔드 API 연동)
 export async function getTodayStatistics(): Promise<PaintStatistics> {
   try {
-    const response = await http.get('/api/paint-analysis/statistics/today');
+    const response = await http.get(apiUrl('/api/paint-analysis/statistics/today'));
     return response.data;
   } catch (error) {
     console.error('Failed to fetch today statistics:', error);
@@ -91,7 +92,7 @@ export async function getTodayStatistics(): Promise<PaintStatistics> {
 // 전체 분석 이력 가져오기
 export async function getAnalysisHistory(): Promise<AnalysisHistory[]> {
   try {
-    const response = await http.get('/api/paint-analysis/history');
+    const response = await http.get(apiUrl('/api/paint-analysis/history'));
     return response.data;
   } catch (error) {
     console.error('Failed to fetch analysis history:', error);
@@ -102,7 +103,7 @@ export async function getAnalysisHistory(): Promise<AnalysisHistory[]> {
 // 특정 분석 결과 상세 조회
 export async function getAnalysisDetail(resultId: string): Promise<AnalysisDetail | null> {
   try {
-    const response = await http.get(`/api/paint-analysis/detail/${resultId}`);
+    const response = await http.get(apiUrl(`/api/paint-analysis/detail/${resultId}`));
     return response.data;
   } catch (error) {
     console.error('Failed to fetch analysis detail:', error);

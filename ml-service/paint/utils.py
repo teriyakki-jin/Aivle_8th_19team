@@ -1,5 +1,5 @@
 import os
+from storage import public_url_for_file
 
 def to_public_url(abs_path: str, base_dir: str) -> str:
-    rel = os.path.relpath(abs_path, base_dir).replace("\\", "/")
-    return f"/static/{rel}"
+    return public_url_for_file(abs_path, base_dir, "paint")

@@ -19,6 +19,7 @@ from welding_image.pipeline import full_pipeline
 from welding_image.schemas import DefectResponse
 import welding_image
 from model_loader import download_models
+from storage import public_url_for_file
 
 app = FastAPI(title="ML Service API", version="1.0.0")
 
@@ -47,12 +48,12 @@ ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 app.mount("/static", StaticFiles(directory=BASE_DIR), name="static")
 
 
-def to_public_url(abs_path: str) -> str:
+def to_public_url(abs_path: str, process: str) -> str:
     """
-    abs_path(절대경로) -> /static/상대경로
+    abs_path(절대경로) -> results/<process>/ 로 업로드한 URL
+    (RESULTS_BUCKET 없으면 /static 폴백)
     """
-    rel = os.path.relpath(abs_path, BASE_DIR).replace("\\", "/")
-    return "/static/" + rel
+    return public_url_for_file(abs_path, BASE_DIR, process)
 
 
 # =========================
@@ -159,12 +160,12 @@ async def _welding_predict_core(file: UploadFile) -> DefectResponse:
     result = full_pipeline(temp_path)
 
     # ✅ 원본 이미지 URL
-    original_url = to_public_url(temp_path)
+    original_url = to_public_url(temp_path, "welding")
 
     # ✅ 결과 이미지 URL (runs/predict에 저장된 경로를 /static/... 으로 노출)
     result_url = None
     if result.get("result_image_path"):
-        result_url = to_public_url(result["result_image_path"])
+        result_url = to_public_url(result["result_image_path"], "welding")
 
     return DefectResponse(
         status=result["status"],
@@ -194,11 +195,11 @@ async def predict_welding_auto():
         result = welding_image.predict_welding_image_auto()
 
         original_abs = result.get("original_image_path")
-        original_url = to_public_url(original_abs) if original_abs else None
+        original_url = to_public_url(original_abs, "welding") if original_abs else None
 
         result_url = None
         if result.get("result_image_path"):
-            result_url = to_public_url(result["result_image_path"])
+            result_url = to_public_url(result["result_image_path"], "welding")
 
         # DefectResponse 스키마 + 추가필드(source/sequence/note)
         return {
@@ -315,8 +316,8 @@ async def body_inspect(
             "part": pred["part"],
             "pass_fail": pred["pass_fail"],
             "detections": pred["detections"],
-            "original_image_url": to_public_url(temp_path),
-            "result_image_url": to_public_url(out_path),
+            "original_image_url": to_public_url(temp_path, "body_assembly"),
+            "result_image_url": to_public_url(out_path, "body_assembly"),
         }
 
     except HTTPException:
@@ -367,8 +368,8 @@ async def body_inspect_batch(
                 "part": pred["part"],
                 "pass_fail": pred["pass_fail"],
                 "detections": pred["detections"],
-                "original_image_url": to_public_url(temp_path),
-                "result_image_url": to_public_url(out_path),
+                "original_image_url": to_public_url(temp_path, "body_assembly"),
+                "result_image_url": to_public_url(out_path, "body_assembly"),
             }
 
         return {"results": results}
@@ -396,8 +397,8 @@ async def body_inspect_auto(
             "part": pred["part"],
             "pass_fail": pred["pass_fail"],
             "detections": pred["detections"],
-            "original_image_url": to_public_url(original_abs) if original_abs else None,
-            "result_image_url": to_public_url(out_path),
+            "original_image_url": to_public_url(original_abs, "body_assembly") if original_abs else None,
+            "result_image_url": to_public_url(out_path, "body_assembly"),
             "source": pred.get("source"),
             "sequence": pred.get("sequence"),
         }
@@ -425,8 +426,8 @@ async def body_inspect_batch_auto(
                     "part": pred["part"],
                     "pass_fail": pred["pass_fail"],
                     "detections": pred["detections"],
-                    "original_image_url": to_public_url(original_abs) if original_abs else None,
-                    "result_image_url": to_public_url(out_path),
+                    "original_image_url": to_public_url(original_abs, "body_assembly") if original_abs else None,
+                    "result_image_url": to_public_url(out_path, "body_assembly"),
                     "source": pred.get("source"),
                     "sequence": pred.get("sequence"),
                 }

@@ -85,8 +85,7 @@ const RAW_ML_API_BASE = import.meta.env.VITE_ML_API_BASE || "";
 
 const ML_API_BASE = enforceRelativeInProd(
   RAW_ML_API_BASE ||
-    (import.meta.env.DEV ? DEV_DEFAULT_ML_API_BASE : "") ||
-    API_BASE,
+    (import.meta.env.DEV ? DEV_DEFAULT_ML_API_BASE : PROD_DEFAULT_ML_API_BASE),
   import.meta.env.DEV ? DEV_DEFAULT_ML_API_BASE : PROD_DEFAULT_ML_API_BASE
 );
 

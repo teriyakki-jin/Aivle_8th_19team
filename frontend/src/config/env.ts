@@ -40,9 +40,12 @@ function joinBase(base: string, path: string) {
   if (!p) return b || "";
   if (isAbsoluteHttpUrl(p)) return p;
 
-  // ✅ C번 안전장치: path가 "/api/..."로 오면 앞 "/api"를 제거해 중복 방지
+  // ✅ C번 안전장치: base가 "/api"일 때만 path의 "/api"를 제거해 중복 방지
   // 예) base="/api", path="/api/v1/..." => cleanedPath="/v1/..."
-  const cleanedPath = p.startsWith("/api/") ? p.replace(/^\/api/, "") : p;
+  const stripApiPrefix = b === "/api" || b.endsWith("/api");
+  const cleanedPath = stripApiPrefix && p.startsWith("/api/")
+    ? p.replace(/^\/api/, "")
+    : p;
 
   // base가 없으면 path 그대로 (상대경로 유지)
   if (!b) return cleanedPath;

@@ -1,5 +1,28 @@
-// ✅ 프록시 쓸 거면 API_BASE는 빈 문자열
-const API_BASE = "";
+// API Base URL - 환경에 따라 동적 설정
+const getApiBase = (): string => {
+  // 개발 환경에서는 프록시 사용
+  if (import.meta.env.DEV) {
+    return "";
+  }
+  
+  // 프로덕션 환경에서는 환경변수 또는 현재 도메인 기반으로 설정
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (apiBase) {
+    return apiBase;
+  }
+  
+  // CloudFront URL에서 백엔드 URL 추론
+  const currentHost = window.location.host;
+  if (currentHost.includes('cloudfront.net')) {
+    // CloudFront 도메인인 경우 백엔드 ALB 또는 API Gateway URL로 변경
+    // 실제 백엔드 URL로 교체 필요
+    return import.meta.env.VITE_BACKEND_URL || 'https://your-backend-alb-url.amazonaws.com';
+  }
+  
+  return "";
+};
+
+const API_BASE = getApiBase();
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 

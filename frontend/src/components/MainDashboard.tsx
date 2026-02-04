@@ -235,7 +235,6 @@ export function MainDashboard() {
     const res = await fetch(apiUrl(url), {
       method: 'GET',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      credentials: 'include',
     });
 
     if (!res.ok) {
@@ -327,7 +326,7 @@ export function MainDashboard() {
         : apiUrl('/api/v1/dashboard/stream');
 
       try {
-        const es = new EventSource(sseUrl, { withCredentials: true } as any);
+        const es = new EventSource(sseUrl);
         esRef.current = es;
 
         const handleSSEData = (raw: string) => {

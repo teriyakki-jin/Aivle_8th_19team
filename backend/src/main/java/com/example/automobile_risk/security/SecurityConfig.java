@@ -53,9 +53,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth.requestMatchers("/actuator/**").permitAll() // ALB health check
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/board/**").permitAll()
+                        .requestMatchers("/dashboard/**").permitAll()   // Dashboard is public as per current FE
                         .requestMatchers("/api/v1/dashboard/**").permitAll() // Dashboard is public as per current FE
                         .requestMatchers("/api/v1/chatbot/**").permitAll() // Chatbot is public
-                        .requestMatchers("/api/v1/**").permitAll() // Chatbot is public
+                        .requestMatchers("/api/v1/**").permitAll() // 모두 열어둠
                         .requestMatchers("/swagger-ui/**").permitAll() // Swagger
                         .requestMatchers("/v3/api-docs/**").permitAll() // Swagger
                         .requestMatchers("/actuator/health").permitAll()

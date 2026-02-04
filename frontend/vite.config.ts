@@ -63,7 +63,7 @@ export default defineConfig(({ mode }) => {
       open: true,
       proxy: {
         '/api': {
-          target: 'http://localhost:3001',
+          target: 'http://automobile-risk-prod-alb-1328935863.ap-northeast-2.elb.amazonaws.com',
           changeOrigin: true,
         },
         '/ml-api': {

@@ -6,6 +6,7 @@ import {
 import { orderApi, OrderDto } from '../api/order';
 import { productionApi, ProductionDto } from '../api/production';
 import { apiUrl } from '../config/env';
+import { debugAwsEnvironment, validateToken, handleAuthError } from '../utils/auth';
 
 // ===== Types =====
 
@@ -228,8 +229,20 @@ export function MainDashboard() {
   const orderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const productionPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // AWS 환경에서 디버깅 정보 출력
+  useEffect(() => {
+    if (import.meta.env.PROD) {
+      debugAwsEnvironment();
+    }
+  }, []);
+
   // --- SAFE fetch helper (res.ok 체크 + token/credentials) ---
   const safeFetchJson = useCallback(async (url: string) => {
+    // 토큰 유효성 검증
+    if (!validateToken()) {
+      throw new Error('Authentication failed - token invalid or expired');
+    }
+
     const token = localStorage.getItem('token');
 
     const res = await fetch(apiUrl(url), {
@@ -240,6 +253,14 @@ export function MainDashboard() {
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
+      
+      // 인증 오류 처리
+      if (res.status === 401 || res.status === 403) {
+        console.warn('[API] Authentication failed:', res.status, text);
+        handleAuthError();
+        throw new Error(`Authentication failed (${res.status}): Please login again`);
+      }
+      
       throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
     }
 

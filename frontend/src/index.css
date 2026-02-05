@@ -1618,3 +1618,168 @@ html {
     transform: none;
   }
 }
+
+/* Swiss Design meets Automotive Engineering - Theme Overrides */
+:root {
+  --primary: oklch(0.55 0.15 250);
+  --primary-foreground: oklch(0.98 0.01 250);
+  --sidebar-primary: oklch(0.55 0.15 250);
+  --sidebar-primary-foreground: oklch(0.98 0.01 250);
+
+  --chart-1: oklch(0.75 0.12 250);
+  --chart-2: oklch(0.65 0.14 250);
+  --chart-3: oklch(0.55 0.15 250);
+  --chart-4: oklch(0.45 0.13 250);
+  --chart-5: oklch(0.35 0.10 250);
+
+  --radius: 0.25rem;
+
+  --background: oklch(0.18 0.02 250);
+  --foreground: oklch(0.95 0.01 250);
+
+  --card: oklch(0.22 0.02 250);
+  --card-foreground: oklch(0.95 0.01 250);
+
+  --popover: oklch(0.22 0.02 250);
+  --popover-foreground: oklch(0.95 0.01 250);
+
+  --secondary: oklch(0.45 0.02 250);
+  --secondary-foreground: oklch(0.95 0.01 250);
+
+  --muted: oklch(0.30 0.02 250);
+  --muted-foreground: oklch(0.65 0.02 250);
+
+  --accent: oklch(0.35 0.05 250);
+  --accent-foreground: oklch(0.95 0.01 250);
+
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.98 0.01 250);
+
+  --border: oklch(0.35 0.02 250);
+  --input: oklch(0.35 0.02 250);
+  --ring: oklch(0.55 0.15 250);
+
+  --sidebar: oklch(0.20 0.02 250);
+  --sidebar-foreground: oklch(0.95 0.01 250);
+  --sidebar-accent: oklch(0.35 0.05 250);
+  --sidebar-accent-foreground: oklch(0.95 0.01 250);
+  --sidebar-border: oklch(0.35 0.02 250);
+  --sidebar-ring: oklch(0.55 0.15 250);
+}
+
+.dark {
+  --primary: oklch(0.55 0.15 250);
+  --primary-foreground: oklch(0.98 0.01 250);
+  --sidebar-primary: oklch(0.55 0.15 250);
+  --sidebar-primary-foreground: oklch(0.98 0.01 250);
+  --background: oklch(0.18 0.02 250);
+  --foreground: oklch(0.95 0.01 250);
+  --card: oklch(0.22 0.02 250);
+  --card-foreground: oklch(0.95 0.01 250);
+  --popover: oklch(0.22 0.02 250);
+  --popover-foreground: oklch(0.95 0.01 250);
+  --secondary: oklch(0.45 0.02 250);
+  --secondary-foreground: oklch(0.95 0.01 250);
+  --muted: oklch(0.30 0.02 250);
+  --muted-foreground: oklch(0.65 0.02 250);
+  --accent: oklch(0.35 0.05 250);
+  --accent-foreground: oklch(0.95 0.01 250);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.98 0.01 250);
+  --border: oklch(0.35 0.02 250);
+  --input: oklch(0.35 0.02 250);
+  --ring: oklch(0.55 0.15 250);
+  --chart-1: oklch(0.75 0.12 250);
+  --chart-2: oklch(0.65 0.14 250);
+  --chart-3: oklch(0.55 0.15 250);
+  --chart-4: oklch(0.45 0.13 250);
+  --chart-5: oklch(0.35 0.10 250);
+  --sidebar: oklch(0.20 0.02 250);
+  --sidebar-foreground: oklch(0.95 0.01 250);
+  --sidebar-accent: oklch(0.35 0.05 250);
+  --sidebar-accent-foreground: oklch(0.95 0.01 250);
+  --sidebar-border: oklch(0.35 0.02 250);
+  --sidebar-ring: oklch(0.55 0.15 250);
+}
+
+@layer base {
+  body {
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  code, pre {
+    font-family: "IBM Plex Mono", "Courier New", monospace;
+  }
+}
+
+@layer components {
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+      max-width: 1280px;
+    }
+  }
+
+  .border-precise {
+    border-width: 1px;
+  }
+
+  .text-amber {
+    color: oklch(0.70 0.15 70);
+  }
+
+  .text-forest-green {
+    color: oklch(0.50 0.15 150);
+  }
+
+  .bg-amber {
+    background-color: oklch(0.70 0.15 70);
+  }
+
+  .bg-forest-green {
+    background-color: oklch(0.50 0.15 150);
+  }
+
+  .border-amber {
+    border-color: oklch(0.70 0.15 70);
+  }
+
+  .border-forest-green {
+    border-color: oklch(0.50 0.15 150);
+  }
+}

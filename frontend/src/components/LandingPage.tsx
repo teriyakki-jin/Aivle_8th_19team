@@ -66,9 +66,10 @@ export function LandingPage() {
           backgroundPosition: 'center',
         }}
       >
-        <div className="absolute inset-0 bg-background/95"></div>
+        
+        <div className="absolute inset-0 -z-10 bg-background/60"></div>
         <div className="container relative">
-          <div className="max-w-3xl space-y-6 rounded-md bg-background/70 backdrop-blur-md border border-border/50 p-6 md:p-8">
+          <div className="max-w-3xl space-y-6 rounded-md bg-background/70 backdrop-blur-sm border border-border/50 p-6 md:p-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-sm mb-6">
               <span className="text-xs font-mono text-primary">AI-POWERED SOLUTION</span>
             </div>
@@ -407,7 +408,7 @@ export function LandingPage() {
           backgroundPosition: 'center',
         }}
       >
-        <div className="absolute inset-0 bg-background/95"></div>
+        <div className="absolute inset-0 -z-10 bg-background/60"></div>
         <div className="container relative">
           <div className="max-w-3xl mx-auto text-center space-y-4">
             <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">

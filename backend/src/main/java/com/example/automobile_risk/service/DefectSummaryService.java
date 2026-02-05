@@ -4,6 +4,7 @@ import com.example.automobile_risk.entity.DefectSummarySnapshot;
 import com.example.automobile_risk.entity.Order;
 import com.example.automobile_risk.entity.ProcessEvent;
 import com.example.automobile_risk.entity.Production;
+import com.example.automobile_risk.entity.enumclass.DefectSnapshotStage;
 import com.example.automobile_risk.entity.enumclass.ProductionStatus;
 import com.example.automobile_risk.repository.DefectSummarySnapshotRepository;
 import com.example.automobile_risk.repository.OrderRepository;

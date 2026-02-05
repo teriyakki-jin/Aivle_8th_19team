@@ -69,12 +69,15 @@ type StageResult = {
   startedAt?: number;
   estimatedDuration?: number;
   retryCount?: number;
+  dueDatePrediction?: any;
+  dueDateError?: string;
 };
 
 type ProductionItem = {
   orderId: number;
   vehicleModelId: number;
   orderQty: number;
+  dueDate?: string;
   currentStage: number;
   stageResults: StageResult[];
   startedAt?: string;
@@ -94,6 +97,96 @@ async function callMLApi(endpoint: string, offset: number = 0): Promise<any> {
     console.error(`ML API call failed: ${endpoint}`, error);
     throw error;
   }
+}
+
+async function callDueDateApi(payload: any): Promise<any> {
+  try {
+    const url = `${ML_API_BASE}/duedate`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`DueDate API Error: ${res.status}`);
+    return await res.json();
+  } catch (error) {
+    console.error("DueDate API call failed:", error);
+    throw error;
+  }
+}
+
+const SNAPSHOT_STAGE_BY_ID: Record<string, string> = {
+  press: "PRESS_DONE",
+  body: "WELD_DONE",
+  paint: "PAINT_DONE",
+  assembly: "ASSEMBLY_DONE",
+  inspection: "INSPECTION_DONE",
+};
+
+function toMinutes(ms: number) {
+  return Math.max(0, Math.floor(ms / 60000));
+}
+
+function parseDueDateToLocalEnd(dueDate?: string): Date | null {
+  if (!dueDate) return null;
+  const direct = new Date(dueDate);
+  if (!Number.isNaN(direct.getTime())) return direct;
+  const fallback = new Date(`${dueDate}T23:59:59`);
+  if (Number.isNaN(fallback.getTime())) return null;
+  return fallback;
+}
+
+function buildDueDatePayload(
+  production: ProductionItem,
+  stageId: string,
+  stageHasAnomaly: boolean
+) {
+  const startedAt = production.startedAt ? new Date(production.startedAt).getTime() : Date.now();
+  const elapsedMinutes = toMinutes(Date.now() - startedAt);
+
+  const dueDateEnd = parseDueDateToLocalEnd(production.dueDate);
+  const remainingSlackMinutes = dueDateEnd
+    ? toMinutes(dueDateEnd.getTime() - Date.now())
+    : 300;
+
+  const stopCountTotal = production.stageResults.reduce(
+    (sum, r) => sum + (r?.retryCount ?? 0),
+    0
+  );
+
+  const stageAnomalyMap: Record<string, number | null> = {
+    press: null,
+    body: null,
+    paint: null,
+    assembly: null,
+    inspection: null,
+  };
+
+  // 완료된 단계들의 이상 여부(재시도 발생 여부)를 0/1로 저장
+  PIPELINE_STAGES.forEach((s, idx) => {
+    const r = production.stageResults[idx];
+    if (!r || r.status === "waiting") return;
+    stageAnomalyMap[s.id] = (r.retryCount ?? 0) > 0 ? 1 : 0;
+  });
+
+  // 현재 단계는 이번 결과 기준으로 갱신
+  stageAnomalyMap[stageId] = stageHasAnomaly ? 1 : 0;
+
+  return {
+    order_id: production.orderId,
+    order_qty: production.orderQty,
+    stop_count_total: stopCountTotal,
+    elapsed_minutes: elapsedMinutes,
+    remaining_slack_minutes: remainingSlackMinutes,
+
+    press_anomaly_score: stageAnomalyMap.press,
+    weld_anomaly_score: stageAnomalyMap.body,
+    paint_anomaly_score: stageAnomalyMap.paint,
+    assembly_anomaly_score: stageAnomalyMap.assembly,
+    inspection_anomaly_score: stageAnomalyMap.inspection,
+
+    snapshot_stage: SNAPSHOT_STAGE_BY_ID[stageId] ?? "PRESS_DONE",
+  };
 }
 
 // ✅ ML 결과에서 이상 여부 판단 (prediction=1 같은 단순 규칙 제거)
@@ -139,6 +232,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
   const [productions, setProductions] = useState<Map<number, ProductionItem>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const productionsRef = useRef<Map<number, ProductionItem>>(new Map());
 
   // 실행 중인 생산 추적 (중복 실행 방지)
   const runningProductions = useRef<Set<number>>(new Set());
@@ -155,16 +249,26 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
         const newMap = new Map(prev);
         orderList.forEach((o) => {
           const orderId = (o as any)?.id ?? (o as any)?.orderId;
-          if (orderId && !newMap.has(orderId)) {
+          if (!orderId) return;
+          const dueDate = (o as any)?.dueDate ?? (o as any)?.deadline ?? undefined;
+          if (!newMap.has(orderId)) {
             newMap.set(orderId, {
               orderId,
               vehicleModelId: (o as any)?.vehicleModelId ?? (o as any)?.modelId ?? 0,
               orderQty: (o as any)?.orderQty ?? (o as any)?.quantity ?? 0,
+              dueDate,
               currentStage: 0,
               stageResults: PIPELINE_STAGES.map(() => ({ status: "waiting" as StageStatus })),
             });
+          } else {
+            const existing = newMap.get(orderId)!;
+            existing.orderQty = (o as any)?.orderQty ?? (o as any)?.quantity ?? existing.orderQty;
+            existing.vehicleModelId = (o as any)?.vehicleModelId ?? (o as any)?.modelId ?? existing.vehicleModelId;
+            existing.dueDate = dueDate ?? existing.dueDate;
+            newMap.set(orderId, { ...existing });
           }
         });
+        productionsRef.current = newMap;
         return newMap;
       });
     } catch (e: any) {
@@ -195,6 +299,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
         production.baseOffset = baseOffset;
         newMap.set(orderId, { ...production });
       }
+      productionsRef.current = newMap;
       return newMap;
     });
 
@@ -223,6 +328,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
             };
             newMap.set(orderId, { ...production });
           }
+          productionsRef.current = newMap;
           return newMap;
         });
 
@@ -255,6 +361,20 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
             `Production ${orderId}: Anomaly at ${stage.name}, auto-retry ${retryCount}`
           );
         } else {
+          let dueDatePrediction: any = null;
+          let dueDateError: string | undefined = undefined;
+          try {
+            const production = productionsRef.current.get(orderId);
+
+            if (production) {
+              const payload = buildDueDatePayload(production, stage.id, retryCount > 0);
+              dueDatePrediction = await callDueDateApi(payload);
+            }
+          } catch (e: any) {
+            dueDateError = e?.message ?? "duedate 호출 실패";
+            // duedate 실패는 공정 완료를 막지 않음
+          }
+
           setProductions((prev) => {
             const newMap = new Map(prev);
             const production = newMap.get(orderId);
@@ -262,9 +382,11 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
               production.stageResults[stageIdx] = {
                 status: "completed",
                 mlResults,
-                hasAnomaly: false,
+                hasAnomaly: retryCount > 0,
                 message: retryCount > 0 ? `정상 (${retryCount}회 재시도 후)` : "정상",
                 retryCount,
+                dueDatePrediction,
+                dueDateError,
               };
 
               if (stageIdx === PIPELINE_STAGES.length - 1) {
@@ -273,6 +395,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
 
               newMap.set(orderId, { ...production });
             }
+            productionsRef.current = newMap;
             return newMap;
           });
           stageSuccess = true;

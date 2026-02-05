@@ -1,7 +1,9 @@
 package com.example.automobile_risk.service;
 
+import com.example.automobile_risk.entity.DueDatePrediction;
 import com.example.automobile_risk.entity.MLAnalysisResult;
 import com.example.automobile_risk.repository.MLAnalysisResultRepository;
+import com.example.automobile_risk.service.DueDatePredictionService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ public class MLProxyService {
 
     private final RestTemplate restTemplate;
     private final MLAnalysisResultRepository mlAnalysisResultRepository;
+    private final DueDatePredictionService dueDatePredictionService;
     private final ObjectMapper objectMapper;
 
     @Value("${ml-service.base-url:http://localhost:8000}")
@@ -109,6 +112,36 @@ public class MLProxyService {
     }
 
     /**
+     * JSON 바디로 FastAPI 호출
+     */
+    public JsonNode callMLServiceWithJson(String endpoint, JsonNode body, String serviceType) {
+        try {
+            String url = mlServiceBaseUrl + endpoint;
+            log.info("Calling ML Service (json): {}", url);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<String> requestEntity = new HttpEntity<>(body.toString(), headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    requestEntity,
+                    String.class
+            );
+
+            JsonNode jsonResponse = objectMapper.readTree(response.getBody());
+            saveAnalysisResult(jsonResponse, serviceType);
+
+            return jsonResponse;
+        } catch (Exception e) {
+            log.error("Error calling ML service for {}: {}", serviceType, e.getMessage(), e);
+            throw new RuntimeException("ML 서비스 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * ML 분석 결과를 DB에 저장
      */
     private void saveAnalysisResult(JsonNode jsonResponse, String serviceType) {
@@ -147,6 +180,18 @@ public class MLProxyService {
             }
             if (jsonResponse.has("message")) {
                 result.setMessage(jsonResponse.get("message").asText());
+            }
+
+            // status가 비어있으면 is_anomaly 기반으로 기본값 부여
+            if (result.getStatus() == null || result.getStatus().isBlank()) {
+                Integer isAnomaly = result.getIsAnomaly();
+                if (isAnomaly != null) {
+                    result.setStatus(isAnomaly == 1 ? "ABNORMAL" : "NORMAL");
+                } else if (result.getPrediction() != null) {
+                    result.setStatus(result.getPrediction() == 1 ? "NORMAL" : "ABNORMAL");
+                } else {
+                    result.setStatus("UNKNOWN");
+                }
             }
 
             // 전체 JSON을 additionalInfo에 저장
@@ -277,5 +322,65 @@ public class MLProxyService {
             log.error("Error calling ML service for body assembly: {}", e.getMessage(), e);
             throw new RuntimeException("ML 서비스 호출 실패: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * 납기 지연 예측
+     */
+    public JsonNode analyzeDueDate(JsonNode body) {
+        JsonNode result = callMLServiceWithJson("/api/v1/smartfactory/duedate", body, "duedate");
+        try {
+            DueDatePrediction prediction = buildDueDatePrediction(body, result);
+            dueDatePredictionService.save(prediction);
+        } catch (Exception e) {
+            log.warn("Failed to save due date prediction: {}", e.getMessage());
+        }
+        return result;
+    }
+
+    private DueDatePrediction buildDueDatePrediction(JsonNode body, JsonNode result) {
+        return DueDatePrediction.builder()
+                .orderId(asLong(body.get("order_id")))
+                .orderQty(asInt(body.get("order_qty")))
+                .snapshotStage(asText(body.get("snapshot_stage")))
+                .stopCountTotal(asDouble(body.get("stop_count_total")))
+                .elapsedMinutes(asDouble(body.get("elapsed_minutes")))
+                .remainingSlackMinutes(asDouble(body.get("remaining_slack_minutes")))
+                .pressAnomalyScore(asDouble(body.get("press_anomaly_score")))
+                .weldAnomalyScore(asDouble(body.get("weld_anomaly_score")))
+                .paintAnomalyScore(asDouble(body.get("paint_anomaly_score")))
+                .assemblyAnomalyScore(asDouble(body.get("assembly_anomaly_score")))
+                .inspectionAnomalyScore(asDouble(body.get("inspection_anomaly_score")))
+                .delayFlag(asInt(result.get("delay_flag")))
+                .delayProbability(asDouble(result.get("delay_probability")))
+                .predictedDelayMinutes(asDouble(result.get("predicted_delay_minutes")))
+                .requestJson(body != null ? body.toString() : null)
+                .responseJson(result != null ? result.toString() : null)
+                .build();
+    }
+
+    private Integer asInt(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        if (node.isInt() || node.isLong()) return node.asInt();
+        if (node.isNumber()) return (int) Math.round(node.asDouble());
+        return null;
+    }
+
+    private Long asLong(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        if (node.isLong() || node.isInt()) return node.asLong();
+        if (node.isNumber()) return Math.round(node.asDouble());
+        return null;
+    }
+
+    private Double asDouble(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        if (node.isNumber()) return node.asDouble();
+        return null;
+    }
+
+    private String asText(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        return node.asText();
     }
 }

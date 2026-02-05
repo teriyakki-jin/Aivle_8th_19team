@@ -20,6 +20,12 @@ from welding_image.schemas import DefectResponse
 import welding_image
 from model_loader import download_models
 from storage import public_url_for_file
+from duedate_prediction.model_loader import ModelRegistry as DueDateModelRegistry
+from duedate_prediction.pipeline import predict_pipeline as duedate_predict_pipeline
+from duedate_prediction.schema import (
+    PredictRequest as DueDatePredictRequest,
+    PredictResponse as DueDatePredictResponse,
+)
 
 app = FastAPI(title="ML Service API", version="1.0.0")
 
@@ -72,6 +78,7 @@ def startup_event():
         PAINT_CFG = paint_service.load_paint_model(BASE_DIR)
         body_service.load_body_models(BASE_DIR)
         press.load_press_models()
+        DueDateModelRegistry.load()
 
         print("모델 로딩 완료")
     except Exception:
@@ -444,6 +451,14 @@ async def body_inspect_batch_auto(
 # 납기 예측 API (Delay Prediction API)
 # =========================
 # 주문의 공정 이상이 누적될 경우 최종 납기가 지연될 확률과 예상 지연 시간 예측
+
+@app.post("/api/v1/smartfactory/duedate", response_model=DueDatePredictResponse)
+def predict_duedate(req: DueDatePredictRequest):
+    try:
+        return duedate_predict_pipeline(req)
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/prediction/extract-and-train")
 async def extract_and_train():

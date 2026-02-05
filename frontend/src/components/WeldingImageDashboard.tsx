@@ -17,10 +17,8 @@ type Defect = {
 type WeldingAutoResponse = {
   status: "NORMAL" | "DEFECT";
   defects: Defect[];
-  original_image_url: string | null;
+  original_image_url: string;
   result_image_url: string | null;
-  original_image_base64?: string | null;
-  result_image_base64?: string | null;
   source?: string;
   sequence?: { index_next: number; count: number };
 };
@@ -76,11 +74,6 @@ function confidenceToPct(x: number) {
 function publicUrl(path?: string | null) {
   if (!path) return "";
   return path.startsWith("http") ? path : `${SERVER_BASE}${path}`;
-}
-
-function imageSrc(url?: string | null, b64?: string | null) {
-  if (b64) return `data:image/jpeg;base64,${b64}`;
-  return publicUrl(url);
 }
 
 /* =====================
@@ -214,9 +207,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
   const rate = total === 0 ? 100 : (good / total) * 100;
 
   const mainImage = useMemo(() => {
-    if (result?.result_image_base64) return imageSrc(null, result.result_image_base64);
     if (result?.result_image_url) return publicUrl(result.result_image_url);
-    if (result?.original_image_base64) return imageSrc(null, result.original_image_base64);
     if (result?.original_image_url) return publicUrl(result.original_image_url);
     return "";
   }, [result]);
@@ -252,8 +243,8 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
           judgement: json.status === "DEFECT" ? "불량" : "양품",
           defectType: top?.class ?? "-",
           confidencePct: top ? confidenceToPct(top.confidence) : 99,
-          originalUrl: imageSrc(json.original_image_url, json.original_image_base64),
-          resultUrl: imageSrc(json.result_image_url, json.result_image_base64),
+          originalUrl: publicUrl(json.original_image_url),
+          resultUrl: publicUrl(json.result_image_url),
           source: json.source,
         },
         ...prev,

@@ -11,7 +11,5 @@ class DefectItem(BaseModel):
 class DefectResponse(BaseModel):
     status: str
     defects: List[DefectItem] = []
-    original_image_url: Optional[str] = None
+    original_image_url: str
     result_image_url: Optional[str] = None
-    original_image_base64: Optional[str] = None
-    result_image_base64: Optional[str] = None

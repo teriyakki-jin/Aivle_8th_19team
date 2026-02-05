@@ -8,6 +8,8 @@ import {
 } from "react";
 import { orderApi, OrderDto } from "../api/order";
 import { ML_API_BASE } from "../config/env";
+import { processEventApi } from "../api/processEvent";
+import { defectSummaryApi } from "../api/defectSummary";
 
 // ML API 기본 URL (Spring Boot)
 
@@ -15,46 +17,42 @@ import { ML_API_BASE } from "../config/env";
 const PIPELINE_STAGES = [
   {
     id: "press",
-    name: "프레스",
-    description: "철판 성형 및 스탬핑",
+    name: "\uD504\uB808\uC2A4",
+    description: "\uCCA0\uD310 \uC131\uD615 \uBC0F \uC2A4\uD0EC\uD551",
     mlEndpoints: ["/press/vibration", "/press/image"],
     detailPage: "/press",
     duration: { min: 15000, max: 20000 },
   },
   {
     id: "body",
-    name: "차체",
-    description: "용접 품질 검사",
-    mlEndpoints: ["/welding/image/auto"], // ✅ 용접만 유지
-    detailPage: "/welding-image", // ✅ 차체 클릭 시 용접 이미지 페이지로
+    name: "\uC6A9\uC811",
+    description: "\uC6A9\uC811 \uC2E0\uD638 \uAC10\uC9C0",
+    mlEndpoints: ["/welding/image/auto"],
+    detailPage: "/welding-image",
     duration: { min: 20000, max: 30000 },
   },
   {
     id: "paint",
-    name: "도장",
-    description: "도장 및 코팅",
+    name: "\uB3C4\uC7A5",
+    description: "\uB3C4\uC7A5 \uBC0F \uCF54\uD305",
     mlEndpoints: ["/paint/auto"],
     detailPage: "/paint",
     duration: { min: 20000, max: 30000 },
   },
   {
     id: "assembly",
-    name: "의장",
-    description: "차체 조립 검사",
-    mlEndpoints: [
-      "/body/inspect/batch/auto", // ✅ 의장에 차체조립 배치 auto
-      // 필요하면 단건도 추가 가능:
-      // "/body/inspect/auto",
-    ],
-    detailPage: "/body", // ✅ 차체 조립 페이지
+    name: "\uC870\uB9BD",
+    description: "\uCC28\uCCB4 \uC870\uB9BD \uAC80\uC0AC",
+    mlEndpoints: ["/body/inspect/batch/auto"],
+    detailPage: "/body",
     duration: { min: 20000, max: 30000 },
   },
   {
     id: "inspection",
-    name: "검사",
-    description: "최종 품질 검사",
-    mlEndpoints: ["/windshield/auto", "/engine/auto"], // ✅ 검사에 윈드실드+엔진
-    detailPage: "/windshield", // ✅ 기본 진입은 윈드실드
+    name: "\uAC80\uC0AC",
+    description: "\uCD5C\uC885 \uAC80\uC0AC",
+    mlEndpoints: ["/windshield/auto", "/engine/auto"],
+    detailPage: "/windshield",
     duration: { min: 15000, max: 25000 },
   },
 ];
@@ -250,6 +248,24 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
         }
 
         if (hasAnomaly) {
+          // ProcessEvent를 백엔드에 저장
+          try {
+            await processEventApi.create({
+              orderId,
+              process: stage.name,
+              eventType: 'DEFECT',
+              eventCode: `${stage.id.toUpperCase()}_ANOMALY_${retryCount + 1}`,
+              severity: 2,
+              qtyAffected: 1,
+              lineHold: false,
+              source: 'VISION',
+              message: `${stage.name} 공정에서 이상 감지 (시도 ${retryCount + 1}회)`,
+            });
+            console.log(`ProcessEvent saved for order ${orderId}, stage ${stage.name}`);
+          } catch (err) {
+            console.error('Failed to save ProcessEvent:', err);
+          }
+
           retryCount++;
           console.log(
             `Production ${orderId}: Anomaly at ${stage.name}, auto-retry ${retryCount}`
@@ -278,6 +294,13 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
           stageSuccess = true;
         }
       }
+    }
+
+        try {
+      await defectSummaryApi.createSnapshotByOrder(orderId);
+      console.log(`Defect summary snapshot created for order ${orderId}`);
+    } catch (err) {
+      console.error("Failed to create defect summary snapshot:", err);
     }
 
     runningProductions.current.delete(orderId);

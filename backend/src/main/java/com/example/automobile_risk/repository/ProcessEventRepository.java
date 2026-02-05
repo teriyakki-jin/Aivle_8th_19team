@@ -18,4 +18,7 @@ public interface ProcessEventRepository extends JpaRepository<ProcessEvent, Long
           and pe.resolvedAt is null
     """)
     List<ProcessEvent> findUnresolvedByOrderId(@Param("orderId") Long orderId);
+
+    @Query("select distinct pe.order.id from ProcessEvent pe where pe.order.id is not null")
+    List<Long> findDistinctOrderIds();
 }

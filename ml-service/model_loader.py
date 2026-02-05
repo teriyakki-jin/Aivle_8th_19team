@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 # Model files relative to ml-service/ root (individual files)
 MODEL_FILES = [
     "paint/best.pt",
+    "press/best_cnn_model.keras",
+    "press/best_lstm_ae.keras",
     "engine/cnn_best_model.h5",
     "body_assembly/models/bumper_best.pt",
     "body_assembly/models/door_best.pt",

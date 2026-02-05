@@ -9,5 +9,6 @@ tensorflow
 liac-arff
 ultralytics
 xgboost
+catboost
 sqlalchemy
 psycopg2-binary

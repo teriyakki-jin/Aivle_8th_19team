@@ -6,6 +6,7 @@ import {
 import { orderApi, OrderDto } from '../api/order';
 import { productionApi, ProductionDto } from '../api/production';
 import { apiUrl } from '../config/env';
+import { useProduction } from '../context/ProductionContext';
 
 // ===== Types =====
 
@@ -144,6 +145,20 @@ interface OrderPrediction {
   actual_delay_hours?: number;
 }
 
+interface DueDatePredictionRow {
+  id: number;
+  orderId: number;
+  orderQty: number;
+  snapshotStage: string;
+  stopCountTotal?: number;
+  elapsedMinutes?: number;
+  remainingSlackMinutes?: number;
+  delayFlag: number;
+  delayProbability: number;
+  predictedDelayMinutes: number;
+  createdDate: string;
+}
+
 // ===== Helpers =====
 
 const RISK_STYLES: Record<string, { label: string; bg: string; text: string; border: string; icon: string }> = {
@@ -176,6 +191,23 @@ function formatTimestamp(iso?: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '-';
   return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function formatMinutesToDayHourMinute(value?: number): string {
+  if (value === undefined || value === null || Number.isNaN(value)) return "-";
+  const total = Math.max(0, Math.round(value));
+  if (total < 60) return `${total}분`;
+  const totalHours = Math.floor(total / 60);
+  const m = total % 60;
+  if (totalHours < 24) {
+    return m === 0 ? `${totalHours}시간` : `${totalHours}시간 ${m}분`;
+  }
+  const d = Math.floor(totalHours / 24);
+  const h = totalHours % 24;
+  if (m === 0 && h === 0) return `${d}일`;
+  if (m === 0) return `${d}일 ${h}시간`;
+  if (h === 0) return `${d}일 ${m}분`;
+  return `${d}일 ${h}시간 ${m}분`;
 }
 
 /** ApiResponse envelope 또는 raw 객체를 안전하게 unwrap */
@@ -219,6 +251,8 @@ export function MainDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [productions, setProductions] = useState<ProductionListItem[]>([]);
+  const [dueDateLatest, setDueDateLatest] = useState<DueDatePredictionRow[]>([]);
+  const { productions: productionMap, getStages } = useProduction();
 
   const [useSSE, setUseSSE] = useState(true);
 
@@ -227,6 +261,7 @@ export function MainDashboard() {
   const predPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const orderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const productionPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dueDatePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // --- SAFE fetch helper (res.ok 체크 + token/credentials) ---
   const safeFetchJson = useCallback(async (url: string) => {
@@ -296,6 +331,16 @@ export function MainDashboard() {
     }
   }, []);
 
+  const fetchDueDateLatest = useCallback(async () => {
+    try {
+      const json = await safeFetchJson('/api/v1/duedate-predictions/latest?limit=50');
+      const list = unwrapResponse<DueDatePredictionRow[]>(json) ?? [];
+      setDueDateLatest(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error('DueDate latest fetch failed:', err);
+    }
+  }, [safeFetchJson]);
+
   const activeData = data;
   const activePrediction = prediction;
   const activeLoading = loading;
@@ -316,6 +361,9 @@ export function MainDashboard() {
 
     fetchProductions();
     productionPollRef.current = setInterval(fetchProductions, 5_000);
+
+    fetchDueDateLatest();
+    dueDatePollRef.current = setInterval(fetchDueDateLatest, 5_000);
 
     // 4) SSE는 추가로 연결(실시간 푸시)
     if (useSSE && typeof EventSource !== 'undefined') {
@@ -380,8 +428,12 @@ export function MainDashboard() {
         clearInterval(productionPollRef.current);
         productionPollRef.current = null;
       }
+      if (dueDatePollRef.current) {
+        clearInterval(dueDatePollRef.current);
+        dueDatePollRef.current = null;
+      }
     };
-  }, [useSSE, fetchDashboard, fetchPrediction, fetchOrders, fetchProductions]);
+  }, [useSSE, fetchDashboard, fetchPrediction, fetchOrders, fetchProductions, fetchDueDateLatest]);
 
   // ── Loading skeleton ──
   if (activeLoading) {
@@ -572,6 +624,74 @@ export function MainDashboard() {
     { name: '중지', value: resolvedProductionSummary.stopped },
     { name: '취소', value: resolvedProductionSummary.cancelled },
   ] : [];
+
+  const stageDefs = getStages();
+  const snapshotStageLabel: Record<string, string> = {
+    PRESS_DONE: "프레스",
+    WELD_DONE: "차체(용접)",
+    PAINT_DONE: "도장",
+    ASSEMBLY_DONE: "의장",
+    INSPECTION_DONE: "검사",
+  };
+
+  const dueDateRowsFromContext = Array.from(productionMap.values())
+    .map((p) => {
+      let latestIdx = -1;
+      let latestPred: any = null;
+      let latestErr: string | undefined = undefined;
+      p.stageResults.forEach((r, idx) => {
+        if (r?.dueDatePrediction) {
+          latestIdx = idx;
+          latestPred = r.dueDatePrediction;
+        }
+        if (r?.dueDateError) {
+          latestErr = r.dueDateError;
+        }
+      });
+      if (!latestPred || latestIdx < 0) return null;
+      return {
+        orderId: p.orderId,
+        orderQty: p.orderQty,
+        stageName: stageDefs[latestIdx]?.name ?? `단계 ${latestIdx + 1}`,
+        delayFlag: latestPred.delay_flag,
+        delayProb: latestPred.delay_probability,
+        delayMinutes: latestPred.predicted_delay_minutes,
+        dueDateError: latestErr,
+      };
+    })
+    .filter((v): v is NonNullable<typeof v> => !!v)
+    .sort((a, b) => (a.orderId ?? 0) - (b.orderId ?? 0));
+
+  const dueDateErrors = Array.from(productionMap.values())
+    .map((p) => {
+      const errs = p.stageResults
+        .map((r, idx) => (r?.dueDateError ? { idx, err: r.dueDateError } : null))
+        .filter((v): v is { idx: number; err: string } => !!v);
+      if (errs.length === 0) return null;
+      const last = errs[errs.length - 1];
+      return {
+        orderId: p.orderId,
+        stageName: stageDefs[last.idx]?.name ?? `단계 ${last.idx + 1}`,
+        err: last.err,
+      };
+    })
+    .filter((v): v is NonNullable<typeof v> => !!v)
+    .sort((a, b) => (a.orderId ?? 0) - (b.orderId ?? 0));
+
+  const dueDateRowsFromServer = dueDateLatest.map((row) => ({
+    orderId: row.orderId,
+    orderQty: row.orderQty,
+    stageName: snapshotStageLabel[row.snapshotStage] ?? row.snapshotStage ?? "-",
+    stopCountTotal: row.stopCountTotal,
+    elapsedMinutes: row.elapsedMinutes,
+    remainingSlackMinutes: row.remainingSlackMinutes,
+    delayFlag: row.delayFlag,
+    delayProb: row.delayProbability,
+    delayMinutes: row.predictedDelayMinutes,
+  }));
+
+  const dueDateRows =
+    dueDateRowsFromServer.length > 0 ? dueDateRowsFromServer : dueDateRowsFromContext;
 
 
   return (
@@ -767,145 +887,126 @@ export function MainDashboard() {
         )}
       </div>
 
-      {/* 납기 예측 섹션 */}
-      {activePrediction && (
-        <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Clock className="w-6 h-6 text-blue-600" />
-              <h3 className="text-xl font-bold text-gray-900">납기 예측 분석</h3>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <p className="text-xs text-gray-500">전체 주문</p>
-                <p className="text-lg font-bold text-gray-900">{activePrediction.totalOrders ?? 0}개</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500">최대 예상 지연</p>
-                <p className="text-lg font-bold text-orange-600">{(activePrediction.maxDelayHours ?? 0).toFixed(1)}h</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs text-gray-500">평균 예상 지연</p>
-                <p className="text-lg font-bold text-blue-600">{(activePrediction.avgDelayHours ?? 0).toFixed(1)}h</p>
-              </div>
-            </div>
+      {/* 실시간 납기 예측 (공정 진행 기반) */}
+      <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Clock className="w-6 h-6 text-indigo-600" />
+            <h3 className="text-xl font-bold text-gray-900">실시간 납기 예측</h3>
           </div>
+          <span className="text-xs text-gray-500">각 공정 완료 시 duedate 호출 결과</span>
+        </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* 위험도 분포 (좌측) */}
-            <div>
-              <p className="text-sm font-semibold text-gray-700 mb-3">위험도별 주문 분포</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Object.entries(activePrediction.riskDistribution ?? {}).map(([level, count]) => {
-                  const style = getRiskStyle(level);
-                  const totalOrders = activePrediction.totalOrders || 1;
-                  return (
-                    <div key={level} className={`${style.bg} rounded-lg p-4 border ${style.border}`}>
-                      <p className={`text-sm font-medium ${style.text}`}>{level}</p>
-                      <p className={`text-2xl font-bold ${style.text} mt-1`}>{count}개</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {((count / totalOrders) * 100).toFixed(1)}%
-                      </p>
-                    </div>
-                  );
-                })}
+        {dueDateRows.length > 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            {/* 좌측: 집계 */}
+            <div className="lg:col-span-2">
+              <p className="text-sm font-semibold text-gray-700 mb-3">집계</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <p className="text-xs text-gray-500">표시 중 주문</p>
+                  <p className="text-2xl font-bold text-gray-900">{dueDateRows.length}개</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                  <p className="text-xs text-red-600">지연</p>
+                  <p className="text-2xl font-bold text-red-700">
+                    {dueDateRows.filter(r => Number(r.delayFlag) === 1).length}개
+                  </p>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <p className="text-xs text-green-600">정상</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    {dueDateRows.filter(r => Number(r.delayFlag) !== 1).length}개
+                  </p>
+                </div>
+                <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                  <p className="text-xs text-indigo-600">평균 지연 확률</p>
+                  <p className="text-2xl font-bold text-indigo-700">
+                    {(
+                      dueDateRows.reduce((s, r) => s + Number(r.delayProb ?? 0), 0) /
+                      Math.max(dueDateRows.length, 1) *
+                      100
+                    ).toFixed(0)}%
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* 주문별 예측 결과 테이블 (우측) */}
-            <div className="overflow-x-auto">
-              <p className="text-sm font-semibold text-gray-700 mb-3">주문별 예측 상세</p>
+            {/* 우측: 상세 */}
+            <div className="lg:col-span-3 overflow-x-auto">
+              <p className="text-sm font-semibold text-gray-700 mb-3">실시간 납기 예측 상세</p>
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">주문 ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">차량 모델</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">수량</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">지연 확률</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">예상 지연</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">위험도</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이벤트</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">주문 ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">차량 모델</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">수량</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">현재 공정</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">경과(분)</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">남은 여유(분)</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">중지 누적</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">지연 여부</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">지연 확률</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">예상 지연</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {mergedPredictionOrders.slice(0, 10).map((order: OrderPrediction) => {
-                    const riskStyle = getRiskStyle(order.risk_level);
+                  {dueDateRows.map((row) => {
+                    const prob = Number(row.delayProb ?? 0);
+                    const minutes = Number(row.delayMinutes ?? 0);
+                    const model = orderIndex.get(row.orderId)?.vehicleModelName ?? "-";
                     return (
-                      <tr key={order.order_id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900">#{order.order_id ?? 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{order.vehicle_model ?? 'Unknown'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{order.order_qty ?? 0}</td>
-                        <td className="px-4 py-3 text-sm">
+                      <tr key={row.orderId} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">#{row.orderId}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{model}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{row.orderQty}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{row.stageName}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                          {formatMinutesToDayHourMinute(row.elapsedMinutes)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                          {formatMinutesToDayHourMinute(row.remainingSlackMinutes)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                          {row.stopCountTotal !== undefined ? Math.round(row.stopCountTotal) : "-"}
+                        </td>
+                        <td className="px-4 py-3 text-sm whitespace-nowrap">
                           <span className={`px-2 py-1 text-xs rounded-full ${
-                            order.order_status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                            order.order_status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                            'bg-gray-100 text-gray-700'
+                            Number(row.delayFlag) === 1 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                           }`}>
-                            {order.order_status ?? 'UNKNOWN'}
+                            {Number(row.delayFlag) === 1 ? '지연' : '정상'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className={`h-2 rounded-full ${riskStyle.bg}`}
-                                style={{ width: `${(order.delay_probability ?? 0) * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-xs font-medium text-gray-600">
-                              {((order.delay_probability ?? 0) * 100).toFixed(0)}%
-                            </span>
-                          </div>
+                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{(prob * 100).toFixed(0)}%</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
+                          {formatMinutesToDayHourMinute(minutes)}
                         </td>
-                        <td className="px-4 py-3 text-sm font-medium text-orange-600">
-                          {(order.expected_delay_hours ?? 0).toFixed(1)}h
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${riskStyle.bg} ${riskStyle.text}`}>
-                            {order.risk_level ?? 'UNKNOWN'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{order.event_count ?? 0}건</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-              {mergedPredictionOrders.length > 10 && (
-                <div className="mt-4 text-center">
-                  <p className="text-sm text-gray-500">
-                    상위 10개 주문만 표시 (전체: {mergedPredictionOrders.length}개)
-                  </p>
-                </div>
-              )}
             </div>
           </div>
+        ) : (
+          <div className="h-[140px] flex items-center justify-center text-gray-400 text-sm">
+            아직 납기 예측 결과가 없습니다. 생산을 시작하면 표시됩니다.
+          </div>
+        )}
 
-          {/* 공정별 지연 기여도 (납기 예측 기준) */}
-          {activePrediction.processBreakdown && activePrediction.processBreakdown.length > 0 && (
-            <div className="mt-6">
-              <p className="text-sm font-semibold text-gray-700 mb-3">공정별 지연 기여도 (전체 주문 기준)</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {activePrediction.processBreakdown.map((breakdown: any) => {
-                  const score = breakdown.total_score ?? breakdown.totalDelayHours ?? 0;
-                  const avgScore = breakdown.avg_score ?? 0;
-                  return (
-                    <div key={breakdown.process} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                      <p className="text-xs text-gray-600 mb-1">{processLabel(breakdown.process)}</p>
-                      <p className="text-lg font-bold text-gray-900">{score.toFixed(1)}점</p>
-                      <p className="text-xs text-gray-500">{breakdown.count ?? 0}건</p>
-                      <p className="text-xs text-blue-600 mt-1">
-                        평균 {avgScore.toFixed(1)}점
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
+        {dueDateRows.length === 0 && dueDateErrors.length > 0 && (
+          <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
+            <p className="text-sm font-semibold text-yellow-800 mb-2">duedate 호출 실패 내역</p>
+            <div className="space-y-1 text-xs text-yellow-700">
+              {dueDateErrors.map((e) => (
+                <div key={`${e.orderId}-${e.stageName}`}>
+                  주문 #{e.orderId} · {e.stageName}: {e.err}
+                </div>
+              ))}
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
     </div>
   );

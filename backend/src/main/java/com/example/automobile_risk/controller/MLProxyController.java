@@ -177,6 +177,22 @@ public class MLProxyController {
     }
 
     /**
+     * 납기 지연 예측
+     * POST /api/v1/ml/duedate
+     */
+    @PostMapping("/duedate")
+    public ResponseEntity<JsonNode> analyzeDueDate(@RequestBody JsonNode body) {
+        try {
+            log.info("DueDate prediction request");
+            JsonNode result = mlProxyService.analyzeDueDate(body);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in duedate prediction: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
      * 헬스체크
      * GET /api/v1/ml/health
      */

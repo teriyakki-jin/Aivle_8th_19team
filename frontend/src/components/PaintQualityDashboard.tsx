@@ -29,6 +29,8 @@ type PaintApiResponse = {
     img_name: string | null;
     img_path: string | null; // /static/...
     img_result: string | null; // /static/...
+    img_base64?: string | null;
+    img_result_base64?: string | null;
     defect_type: number;
     defect_score: number; // 0~1
     label_name: string | null;
@@ -71,8 +73,14 @@ function safePercent(n: any, fallback = 0) {
 
 function normalizeUrl(path: string | null | undefined) {
   if (!path) return "";
+  if (path.startsWith("data:")) return path;
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   return `${API_BASE}${path}`;
+}
+
+function imageSrc(url: string | null | undefined, b64?: string | null) {
+  if (b64) return `data:image/jpeg;base64,${b64}`;
+  return normalizeUrl(url);
 }
 
 function statusPill(status: "PASS" | "FAIL") {
@@ -227,8 +235,11 @@ const PaintQualityDashboardInner: React.FC = () => {
         ? 100
         : safePercent(defects[0]?.confidence, Math.round(safePercent(json.data.defect_score, 0) * 100));
 
-    const originalUrl = json.data.img_path || "";
-    const resultUrl = json.data.img_result || json.data.img_path || "";
+    const originalUrl = imageSrc(json.data.img_path, json.data.img_base64);
+    const resultUrl = imageSrc(
+      json.data.img_result || json.data.img_path,
+      json.data.img_result_base64 || json.data.img_base64
+    );
 
     return {
       resultId: json.data.result_id || `unknown_${Date.now()}`,

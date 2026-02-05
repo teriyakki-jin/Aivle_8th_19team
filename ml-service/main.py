@@ -2,7 +2,6 @@ import os
 import shutil
 import uuid
 import traceback
-import base64
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -55,45 +54,6 @@ def to_public_url(abs_path: str, process: str) -> str:
     (RESULTS_BUCKET 없으면 /static 폴백)
     """
     return public_url_for_file(abs_path, BASE_DIR, process)
-
-
-def _safe_unlink(path: str) -> None:
-    try:
-        if path and os.path.exists(path):
-            os.remove(path)
-    except Exception:
-        pass
-
-
-def _b64_from_path_as_jpeg(path: str) -> str | None:
-    if not path or not os.path.exists(path):
-        return None
-    try:
-        import cv2
-
-        img = cv2.imread(path)
-        if img is None:
-            return None
-        ok, buf = cv2.imencode(".jpg", img)
-        if not ok:
-            return None
-        return base64.b64encode(buf.tobytes()).decode("utf-8")
-    except Exception:
-        return None
-
-
-def _b64_from_bgr(img_bgr) -> str | None:
-    if img_bgr is None:
-        return None
-    try:
-        import cv2
-
-        ok, buf = cv2.imencode(".jpg", img_bgr)
-        if not ok:
-            return None
-        return base64.b64encode(buf.tobytes()).decode("utf-8")
-    except Exception:
-        return None
 
 
 # =========================
@@ -199,24 +159,19 @@ async def _welding_predict_core(file: UploadFile) -> DefectResponse:
     # result = {"status": ..., "defects": ..., "result_image_path": ...}
     result = full_pipeline(temp_path)
 
-    # ✅ 이미지 base64 (S3 저장 없이 반환)
-    original_b64 = _b64_from_path_as_jpeg(temp_path)
-    result_b64 = None
-    if result.get("result_image_path"):
-        result_b64 = _b64_from_path_as_jpeg(result["result_image_path"])
+    # ✅ 원본 이미지 URL
+    original_url = to_public_url(temp_path, "welding")
 
-    # ✅ 파일 정리 (저장 방지)
-    _safe_unlink(temp_path)
+    # ✅ 결과 이미지 URL (runs/predict에 저장된 경로를 /static/... 으로 노출)
+    result_url = None
     if result.get("result_image_path"):
-        _safe_unlink(result["result_image_path"])
+        result_url = to_public_url(result["result_image_path"], "welding")
 
     return DefectResponse(
         status=result["status"],
         defects=result["defects"],
-        original_image_url=None,
-        result_image_url=None,
-        original_image_base64=original_b64,
-        result_image_base64=result_b64,
+        original_image_url=original_url,
+        result_image_url=result_url,
     )
 
 
@@ -240,21 +195,18 @@ async def predict_welding_auto():
         result = welding_image.predict_welding_image_auto()
 
         original_abs = result.get("original_image_path")
-        original_b64 = _b64_from_path_as_jpeg(original_abs) if original_abs else None
+        original_url = to_public_url(original_abs, "welding") if original_abs else None
 
-        result_b64 = None
+        result_url = None
         if result.get("result_image_path"):
-            result_b64 = _b64_from_path_as_jpeg(result["result_image_path"])
-            _safe_unlink(result["result_image_path"])
+            result_url = to_public_url(result["result_image_path"], "welding")
 
         # DefectResponse 스키마 + 추가필드(source/sequence/note)
         return {
             "status": result["status"],
             "defects": result["defects"],
-            "original_image_url": None,
-            "result_image_url": None,
-            "original_image_base64": original_b64,
-            "result_image_base64": result_b64,
+            "original_image_url": original_url,
+            "result_image_url": result_url,
             "source": result.get("source"),
             "sequence": result.get("sequence"),
         }
@@ -358,18 +310,14 @@ async def body_inspect(
             f.write(contents)
 
         pred = body_service.predict_part(part.strip().lower(), contents, conf=float(conf))
-        original_b64 = _b64_from_path_as_jpeg(temp_path)
-        result_b64 = _b64_from_bgr(pred.get("annotated_bgr"))
-        _safe_unlink(temp_path)
+        out_path = body_service.save_annotated_image(pred["annotated_bgr"], BASE_DIR, filename_prefix=part)
 
         return {
             "part": pred["part"],
             "pass_fail": pred["pass_fail"],
             "detections": pred["detections"],
-            "original_image_url": None,
-            "result_image_url": None,
-            "original_image_base64": original_b64,
-            "result_image_base64": result_b64,
+            "original_image_url": to_public_url(temp_path, "body_assembly"),
+            "result_image_url": to_public_url(out_path, "body_assembly"),
         }
 
     except HTTPException:
@@ -414,18 +362,14 @@ async def body_inspect_batch(
                 f.write(contents)
 
             pred = body_service.predict_part(part, contents, conf=float(conf))
-            original_b64 = _b64_from_path_as_jpeg(temp_path)
-            result_b64 = _b64_from_bgr(pred.get("annotated_bgr"))
-            _safe_unlink(temp_path)
+            out_path = body_service.save_annotated_image(pred["annotated_bgr"], BASE_DIR, filename_prefix=part)
 
             results[part] = {
                 "part": pred["part"],
                 "pass_fail": pred["pass_fail"],
                 "detections": pred["detections"],
-                "original_image_url": None,
-                "result_image_url": None,
-                "original_image_base64": original_b64,
-                "result_image_base64": result_b64,
+                "original_image_url": to_public_url(temp_path, "body_assembly"),
+                "result_image_url": to_public_url(out_path, "body_assembly"),
             }
 
         return {"results": results}
@@ -446,17 +390,15 @@ async def body_inspect_auto(
     """
     try:
         pred = body_service.predict_part_auto(part.strip().lower(), BASE_DIR, conf=float(conf))
+        out_path = body_service.save_annotated_image(pred["annotated_bgr"], BASE_DIR, filename_prefix=part)
+
         original_abs = pred.get("original_image_path")
-        original_b64 = _b64_from_path_as_jpeg(original_abs) if original_abs else None
-        result_b64 = _b64_from_bgr(pred.get("annotated_bgr"))
         return {
             "part": pred["part"],
             "pass_fail": pred["pass_fail"],
             "detections": pred["detections"],
-            "original_image_url": None,
-            "result_image_url": None,
-            "original_image_base64": original_b64,
-            "result_image_base64": result_b64,
+            "original_image_url": to_public_url(original_abs, "body_assembly") if original_abs else None,
+            "result_image_url": to_public_url(out_path, "body_assembly"),
             "source": pred.get("source"),
             "sequence": pred.get("sequence"),
         }
@@ -477,17 +419,15 @@ async def body_inspect_batch_auto(
         for part in ["door", "bumper", "headlamp", "taillamp", "radiator"]:
             try:
                 pred = body_service.predict_part_auto(part, BASE_DIR, conf=float(conf))
+                out_path = body_service.save_annotated_image(pred["annotated_bgr"], BASE_DIR, filename_prefix=part)
+
                 original_abs = pred.get("original_image_path")
-                original_b64 = _b64_from_path_as_jpeg(original_abs) if original_abs else None
-                result_b64 = _b64_from_bgr(pred.get("annotated_bgr"))
                 results[part] = {
                     "part": pred["part"],
                     "pass_fail": pred["pass_fail"],
                     "detections": pred["detections"],
-                    "original_image_url": None,
-                    "result_image_url": None,
-                    "original_image_base64": original_b64,
-                    "result_image_base64": result_b64,
+                    "original_image_url": to_public_url(original_abs, "body_assembly") if original_abs else None,
+                    "result_image_url": to_public_url(out_path, "body_assembly"),
                     "source": pred.get("source"),
                     "sequence": pred.get("sequence"),
                 }

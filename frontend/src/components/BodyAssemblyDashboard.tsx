@@ -40,8 +40,6 @@ type BodyResult = {
   detections: Detection[];
   original_image_url?: string | null;
   result_image_url?: string | null;
-  original_image_base64?: string | null;
-  result_image_base64?: string | null;
   error?: string;
   source?: string;
   sequence?: { index_next: number; count: number };
@@ -66,11 +64,6 @@ function joinUrl(path?: string | null) {
   if (!path) return "";
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
   return `${API_BASE}${path}`;
-}
-
-function imageSrc(url?: string | null, b64?: string | null) {
-  if (b64) return `data:image/jpeg;base64,${b64}`;
-  return joinUrl(url);
 }
 
 function nowHHMMSS() {
@@ -249,12 +242,10 @@ function BodyAssemblyDashboardInner() {
   const ImgBox = ({
     label,
     src,
-    base64,
     alt,
   }: {
     label: string;
     src?: string | null;
-    base64?: string | null;
     alt: string;
   }) => (
     <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -262,9 +253,9 @@ function BodyAssemblyDashboardInner() {
         {label}
       </div>
       <div className="aspect-[16/9] w-full bg-white">
-        {src || base64 ? (
+        {src ? (
           <img
-            src={imageSrc(src, base64)}
+            src={joinUrl(src)}
             alt={alt}
             className="w-full h-full object-contain object-center p-1"
           />
@@ -317,18 +308,8 @@ function BodyAssemblyDashboardInner() {
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <ImgBox
-            label="원본"
-            src={data?.original_image_url}
-            base64={data?.original_image_base64}
-            alt={`${part}-orig`}
-          />
-          <ImgBox
-            label="결과"
-            src={data?.result_image_url}
-            base64={data?.result_image_base64}
-            alt={`${part}-res`}
-          />
+          <ImgBox label="원본" src={data?.original_image_url} alt={`${part}-orig`} />
+          <ImgBox label="결과" src={data?.result_image_url} alt={`${part}-res`} />
         </div>
       </div>
     );
@@ -681,9 +662,9 @@ function BodyAssemblyDashboardInner() {
                             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                               <div className="px-3 py-2 text-[11px] text-gray-500 border-b border-gray-100">원본</div>
                               <div className="aspect-[16/9] w-full bg-white">
-                                {r.original_image_url || r.original_image_base64 ? (
+                                {r.original_image_url ? (
                                   <img
-                                    src={imageSrc(r.original_image_url, r.original_image_base64)}
+                                    src={joinUrl(r.original_image_url)}
                                     alt="orig"
                                     className="w-full h-full object-contain object-center p-2"
                                   />
@@ -696,9 +677,9 @@ function BodyAssemblyDashboardInner() {
                             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                               <div className="px-3 py-2 text-[11px] text-gray-500 border-b border-gray-100">결과</div>
                               <div className="aspect-[16/9] w-full bg-white">
-                                {r.result_image_url || r.result_image_base64 ? (
+                                {r.result_image_url ? (
                                   <img
-                                    src={imageSrc(r.result_image_url, r.result_image_base64)}
+                                    src={joinUrl(r.result_image_url)}
                                     alt="res"
                                     className="w-full h-full object-contain object-center p-2"
                                   />

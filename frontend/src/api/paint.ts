@@ -27,22 +27,14 @@ export async function uploadPaintImage(file: File): Promise<PaintPredictResponse
   };
   
   // Transform ML service response to match PaintPredictResponse format
-  const dataUrl = (b64?: string | null) => (b64 ? `data:image/jpeg;base64,${b64}` : null);
-
   return {
     status: data.status,
     message: data.message,
     data: data.data ? {
       ...data.data,
-      img_base64: data.data.img_base64 ?? null,
-      img_result_base64: data.data.img_result_base64 ?? null,
-      img_path: data.data.img_path
-        ? transformUrl(data.data.img_path)
-        : dataUrl(data.data.img_base64),
-      img_result: data.data.img_result
-        ? transformUrl(data.data.img_result)
-        : dataUrl(data.data.img_result_base64 ?? data.data.img_base64),
-      label_path: data.data.label_path ? transformUrl(data.data.label_path) : null,
+      img_result: transformUrl(data.data.img_result),
+      img_path: transformUrl(data.data.img_path),
+      label_path: transformUrl(data.data.label_path),
     } : null,
   };
 }

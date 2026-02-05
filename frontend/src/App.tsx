@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { LandingPage } from "./components/LandingPage";
 import { LoginPage } from "./components/LoginPage";
 import { SignupPage } from "./components/SignupPage";
 import { Sidebar } from "./components/Sidebar";
@@ -87,8 +88,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ✅ 앱 시작(루트)하면 무조건 로그인 화면부터 */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        {/* ✅ 앱 시작(루트)하면 랜딩 페이지 먼저 표시 */}
+        <Route
+          path="/"
+          element={
+            isLoggedIn ? (
+              <Navigate to="/dashboard" replace />
+            ) : (
+              <LandingPage />
+            )
+          }
+        />
 
         <Route
           path="/login"

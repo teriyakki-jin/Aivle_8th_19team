@@ -1,10 +1,10 @@
 # paint/service.py
-import os, shutil, uuid, time, requests
+import os, shutil, uuid, time, requests, base64
 from datetime import datetime
 from ultralytics import YOLO
+import cv2
 
 from .constants import CLASS_NAMES, CLASS_NAMES_KO
-from .utils import to_public_url
 
 # =========================
 # Globals
@@ -26,6 +26,41 @@ paint_auto_state = {
     "last_ts": 0.0,
     "last_result": None,   # 직전 응답을 그대로 캐싱
 }
+
+
+def _safe_unlink(path: str) -> None:
+    try:
+        if path and os.path.exists(path):
+            os.remove(path)
+    except Exception:
+        pass
+
+
+def _b64_from_path_as_jpeg(path: str) -> str | None:
+    if not path or not os.path.exists(path):
+        return None
+    try:
+        img = cv2.imread(path)
+        if img is None:
+            return None
+        ok, buf = cv2.imencode(".jpg", img)
+        if not ok:
+            return None
+        return base64.b64encode(buf.tobytes()).decode("utf-8")
+    except Exception:
+        return None
+
+
+def _b64_from_bgr(img_bgr) -> str | None:
+    if img_bgr is None:
+        return None
+    try:
+        ok, buf = cv2.imencode(".jpg", img_bgr)
+        if not ok:
+            return None
+        return base64.b64encode(buf.tobytes()).decode("utf-8")
+    except Exception:
+        return None
 
 
 def load_paint_model(base_dir: str):
@@ -106,29 +141,25 @@ def predict_paint_defect(
         shutil.copyfileobj(file_obj, buffer)
 
     try:
-        # 2) YOLO 추론
+        # 2) YOLO 추론 (파일 저장 없이 메모리에서 처리)
         results = model.predict(
             source=image_path,
             conf=0.25,
-            save=True,
-            project=save_result_dir,
-            name=img_id
+            save=False,
+            verbose=False
         )
         r = results[0]
         inference_time = int((time.time() - start_time) * 1000)
 
-        public_img_path = to_public_url(image_path, base_dir)
-
-        # 결과 이미지 경로 탐색
-        result_img_fs = os.path.join(save_result_dir, img_id, os.path.basename(image_path))
-        if not os.path.exists(result_img_fs):
-            result_dir = os.path.join(save_result_dir, img_id)
-            if os.path.isdir(result_dir):
-                files = [f for f in os.listdir(result_dir) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
-                if files:
-                    result_img_fs = os.path.join(result_dir, files[0])
-
-        public_result_img = to_public_url(result_img_fs, base_dir) if os.path.exists(result_img_fs) else public_img_path
+        original_b64 = _b64_from_path_as_jpeg(image_path)
+        result_b64 = None
+        try:
+            plotted = r.plot() if r is not None else None
+            if plotted is not None:
+                plotted_bgr = cv2.cvtColor(plotted, cv2.COLOR_RGB2BGR)
+                result_b64 = _b64_from_bgr(plotted_bgr)
+        except Exception:
+            result_b64 = None
 
         # 3) 결함 없음
         if len(r.boxes) == 0:
@@ -136,9 +167,9 @@ def predict_paint_defect(
                 "resultId": result_id,
                 "sessionId": f"session_{datetime.now().strftime('%Y%m%d')}",
                 "imageFilename": original_filename,
-                "imagePath": image_path,
-                "imageUrl": public_img_path,
-                "resultImageUrl": public_result_img,
+                "imagePath": None,
+                "imageUrl": None,
+                "resultImageUrl": None,
                 "imageSizeKb": int(os.path.getsize(image_path) / 1024),
                 "status": "PASS",
                 "primaryDefectType": None,
@@ -150,9 +181,7 @@ def predict_paint_defect(
             }
             _save_to_backend(backend_url, backend_data)
 
-            # 원본 삭제(원하면 유지로 변경 가능)
-            if os.path.exists(image_path):
-                os.remove(image_path)
+            _safe_unlink(image_path)
 
             return {
                 "status": "success",
@@ -161,8 +190,10 @@ def predict_paint_defect(
                     "result_id": result_id,
                     "img_id": img_id,
                     "img_name": img_name,
-                    "img_path": public_img_path,
-                    "img_result": public_result_img,
+                    "img_path": None,
+                    "img_result": None,
+                    "img_base64": original_b64,
+                    "img_result_base64": result_b64 or original_b64,
                     "defect_type": -1,
                     "defect_score": 1.0,
                     "label_name": None,
@@ -188,8 +219,6 @@ def predict_paint_defect(
                 conf = float(box.conf)
                 xyxy = box.xyxy[0].tolist()
                 f.write(f"{cls} {conf:.4f} {xyxy}\n")
-
-        public_label_path = to_public_url(label_path_fs, base_dir)
 
         detected_defects = []
         for box in r.boxes:
@@ -224,9 +253,9 @@ def predict_paint_defect(
             "resultId": result_id,
             "sessionId": f"session_{datetime.now().strftime('%Y%m%d')}",
             "imageFilename": original_filename,
-            "imagePath": image_path,
-            "imageUrl": public_img_path,
-            "resultImageUrl": public_result_img,
+            "imagePath": None,
+            "imageUrl": None,
+            "resultImageUrl": None,
             "imageSizeKb": int(os.path.getsize(image_path) / 1024),
             "status": "FAIL",
             "primaryDefectType": CLASS_NAMES[class_id],
@@ -238,8 +267,8 @@ def predict_paint_defect(
         }
         _save_to_backend(backend_url, backend_data)
 
-        if os.path.exists(image_path):
-            os.remove(image_path)
+        _safe_unlink(image_path)
+        _safe_unlink(label_path_fs)
 
         return {
             "status": "success",
@@ -248,12 +277,14 @@ def predict_paint_defect(
                 "result_id": result_id,
                 "img_id": img_id,
                 "img_name": img_name,
-                "img_path": public_img_path,
-                "img_result": public_result_img,
+                "img_path": None,
+                "img_result": None,
+                "img_base64": original_b64,
+                "img_result_base64": result_b64 or original_b64,
                 "defect_type": class_id,
                 "defect_score": round(score, 4),
                 "label_name": label_name,
-                "label_path": public_label_path,
+                "label_path": None,
                 "label_name_text": CLASS_NAMES[class_id],
                 "label_name_ko": CLASS_NAMES_KO[class_id],
                 "inference_time_ms": inference_time,
@@ -262,8 +293,7 @@ def predict_paint_defect(
         }
 
     except Exception:
-        if os.path.exists(image_path):
-            os.remove(image_path)
+        _safe_unlink(image_path)
         raise
 
 
@@ -339,6 +369,8 @@ def predict_paint_defect_auto(*, base_dir: str, save_image_dir: str, save_label_
                 "img_name": None,
                 "img_path": None,
                 "img_result": None,
+                "img_base64": None,
+                "img_result_base64": None,
                 "defect_type": -1,
                 "defect_score": 1.0,
                 "label_name": None,

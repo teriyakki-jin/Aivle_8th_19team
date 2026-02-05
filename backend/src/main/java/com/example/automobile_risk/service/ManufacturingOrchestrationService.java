@@ -1,6 +1,7 @@
 package com.example.automobile_risk.service;
 
 import com.example.automobile_risk.entity.Production;
+import com.example.automobile_risk.entity.enumclass.DefectSnapshotStage;
 import com.example.automobile_risk.entity.ProductionVehicle;
 import com.example.automobile_risk.repository.ProductionVehicleRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +21,20 @@ public class ManufacturingOrchestrationService {
     private final ProductionService productionService;
     private final OrderService orderService;
     private final ProductionVehicleRepository productionVehicleRepository;
+    private final DefectSummaryService defectSummaryService;
 
     @Transactional
     public void completeProduction(Long productionId, LocalDateTime endDate, List<String> serialNumbers) {
 
         // 1. 생산 완료
         productionService.completeProduction(productionId, endDate, serialNumbers);
+
+        LocalDateTime capturedAt = endDate != null ? endDate : LocalDateTime.now();
+        defectSummaryService.captureSnapshotForProduction(
+                productionId,
+                DefectSnapshotStage.COMPLETED,
+                capturedAt
+        );
 
         // 2. 생산 차량 생성
         Production production = productionService.getEntity(productionId);

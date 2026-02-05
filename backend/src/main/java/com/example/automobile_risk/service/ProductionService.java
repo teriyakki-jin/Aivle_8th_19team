@@ -3,6 +3,7 @@ package com.example.automobile_risk.service;
 import com.example.automobile_risk.controller.dto.ProductionCreateForm;
 import com.example.automobile_risk.controller.dto.ProductionUpdateForm;
 import com.example.automobile_risk.entity.*;
+import com.example.automobile_risk.entity.enumclass.DefectSnapshotStage;
 import com.example.automobile_risk.entity.enumclass.InventoryChangeType;
 import com.example.automobile_risk.exception.BomNotFoundException;
 import com.example.automobile_risk.exception.ProductionNotFoundException;
@@ -32,6 +33,7 @@ public class ProductionService {
     private final VehicleModelRepository vehicleModelRepository;
     private final InventoryRepository inventoryRepository;
     private final InventoryHistoryRepository inventoryHistoryRepository;
+    private final DefectSummaryService defectSummaryService;
 
     /**
      *  1. 생산 생성

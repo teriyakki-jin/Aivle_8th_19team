@@ -6,8 +6,7 @@ import com.example.automobile_risk.entity.enumclass.InventoryChangeType;
 import com.example.automobile_risk.entity.enumclass.Unit;
 import com.example.automobile_risk.repository.UserRepository;
 import com.example.automobile_risk.service.AuthService;
-import com.example.automobile_risk.service.ManufacturingOrchestrationService;
-//import com.example.automobile_risk.service.PressFeatureAggregationService;
+import com.example.automobile_risk.service.PressFeatureAggregationService;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +15,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-
 @Slf4j
 @RequiredArgsConstructor
 @Component
@@ -38,8 +34,7 @@ public class InitDb {
     static class InitService {
 
         private final EntityManager em;
-        private final ManufacturingOrchestrationService manufacturingOrchestrationService;
-//        private final PressFeatureAggregationService pressFeatureAggregationService;
+        private final PressFeatureAggregationService pressFeatureAggregationService;
         private final AuthService authService;
         private final UserRepository userRepository;
 
@@ -177,44 +172,12 @@ public class InitDb {
             Order order1 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusDays(7), 10, avante_CN8);
             Order order2 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusDays(7), 5, sonata_DN8);
             Order order3 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusDays(7), 1, grandeur_GN7);
-            Order order4 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusDays(7), 1, tucson_NX4);
-            Order order5 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusDays(7), 1, santafe_MX5);
             em.persist(order1);
             em.persist(order2);
             em.persist(order3);
-            em.persist(order4);
-            em.persist(order5);
 
             /**
              *  생산
-             */
-            Production production1 = Production.of(LocalDateTime.now(), 1, order1.getVehicleModel());
-            Production production2 = Production.of(LocalDateTime.now(), 1, order1.getVehicleModel());
-            Production production3 = Production.of(LocalDateTime.now(), 1, order2.getVehicleModel());
-            Production production4 = Production.of(LocalDateTime.now(), 1, order4.getVehicleModel() );
-            Production production5 = Production.of(LocalDateTime.now(), 1, order5.getVehicleModel());
-            em.persist(production1);
-            em.persist(production2);
-            em.persist(production3);
-            em.persist(production4);
-            em.persist(production5);
-
-            /**
-             *  주문-생산
-             *  생산에 주문 연동
-             */
-            OrderProduction orderProduction1 = OrderProduction.createOrderProduction(order1, production1, 6);
-            OrderProduction orderProduction2 = OrderProduction.createOrderProduction(order1, production2, 4);
-            OrderProduction orderProduction3 = OrderProduction.createOrderProduction(order2, production3, 3);
-            OrderProduction orderProduction4 = OrderProduction.createOrderProduction(order4, production4, 1);
-            OrderProduction orderProduction5 = OrderProduction.createOrderProduction(order5, production5, 1);
-
-            // 생산 시작
-            production1.start();
-            log.info("proudction1 상태 : {}", production1.getProductionStatus());
-
-            /**
-             *  공정 타입
              */
             ProcessType stamping = ProcessType.createProcessType("프레스", 1, true);
             ProcessType welding = ProcessType.createProcessType("차체조립(용접)", 2, true);
@@ -242,94 +205,6 @@ public class InitDb {
             em.persist(paintEquipment_1);
             em.persist(assemblyEquipment_1);
             em.persist(inspectionEquipment_1);
-
-            /**
-             *  공정 수행
-             */
-            ProcessExecution processExecution_stamping = ProcessExecution.createEntity(LocalDateTime.now(), 1, production1, stamping, stampingEquipment_1);
-            ProcessExecution processExecution_welding = ProcessExecution.createEntity(LocalDateTime.now(), 2, production1, welding, weldingEquipment_1);
-            ProcessExecution processExecution_paint = ProcessExecution.createEntity(LocalDateTime.now(), 3, production1, paint, paintEquipment_1);
-            ProcessExecution processExecution_assembly = ProcessExecution.createEntity(LocalDateTime.now(), 4, production1, assembly, assemblyEquipment_1);
-            ProcessExecution processExecution_inspection = ProcessExecution.createEntity(LocalDateTime.now(), 5, production1, inspection, inspectionEquipment_1);
-            em.persist(processExecution_stamping);
-            em.persist(processExecution_welding);
-            em.persist(processExecution_paint);
-            em.persist(processExecution_assembly);
-            em.persist(processExecution_inspection);
-
-            // 프레스 공정 가동
-            processExecution_stamping.operate();
-
-            /**
-             *  센서 (프레스 공정 컬럼)
-             */
-            Sensor sensor1_stampingEquipment_1 = Sensor.create("timestamp", Unit.MS, stampingEquipment_1);
-            Sensor sensor2_stampingEquipment_1 = Sensor.create("ai0_vibration", Unit.HZ, stampingEquipment_1);
-            Sensor sensor3_stampingEquipment_1 = Sensor.create("ai1_vibration", Unit.HZ, stampingEquipment_1);
-            Sensor sensor4_stampingEquipment_1 = Sensor.create("ai2_current", Unit.HZ, stampingEquipment_1);
-            Sensor sensor5_stampingEquipment_1 = Sensor.create("equipment_state", Unit.NONE, stampingEquipment_1);
-            em.persist(sensor1_stampingEquipment_1);
-            em.persist(sensor2_stampingEquipment_1);
-            em.persist(sensor3_stampingEquipment_1);
-            em.persist(sensor4_stampingEquipment_1);
-            em.persist(sensor5_stampingEquipment_1);
-
-            /**
-             *  센서 데이터 (프레스 공정 컬럼의 데이터)
-             */
-            SensorData sensorData1 = SensorData.create(55d, LocalDateTime.now(), sensor1_stampingEquipment_1);
-            SensorData sensorData2 = SensorData.create(50d, LocalDateTime.now(), sensor2_stampingEquipment_1);
-            SensorData sensorData3 = SensorData.create(51d, LocalDateTime.now(), sensor3_stampingEquipment_1);
-            SensorData sensorData4 = SensorData.create(52d, LocalDateTime.now(), sensor4_stampingEquipment_1);
-            SensorData sensorData5 = SensorData.create(0d, LocalDateTime.now(), sensor5_stampingEquipment_1);
-            em.persist(sensorData1);
-            em.persist(sensorData2);
-            em.persist(sensorData3);
-            em.persist(sensorData4);
-            em.persist(sensorData5);
-
-            // 프레스 공정 완료
-            processExecution_stamping.complete(LocalDateTime.now());
-//            pressFeatureAggregationService.generateTimeSeriesFeature(
-//                    processExecution_stamping.getId(),
-//                    stampingEquipment_1.getId(),
-//                    processExecution_stamping.getStartDate(),
-//                    processExecution_stamping.getEndDate()
-//            );
-
-            // 용접 공정 가동 -> 완료
-            processExecution_welding.operate();
-            processExecution_welding.complete(LocalDateTime.now());
-
-            // 도장 공정 가동 -> 완료
-            processExecution_paint.operate();
-            processExecution_paint.complete(LocalDateTime.now());
-
-            // 의장 공정 가동 -> 완료
-            processExecution_assembly.operate();
-            processExecution_assembly.complete(LocalDateTime.now());
-
-            // 검수 공정 가동 -> 완료
-            processExecution_inspection.operate();
-            processExecution_inspection.complete(LocalDateTime.now());
-
-            /**
-             *  생산 완료
-             */
-            // 생산될 차량들 시리얼 넘버 목록
-            List<String> serialNumbers = new ArrayList<>();
-            serialNumbers.add("VIN-20260123-001");
-            serialNumbers.add("VIN-20260123-002");
-            serialNumbers.add("VIN-20260123-003");
-            serialNumbers.add("VIN-20260123-004");
-            serialNumbers.add("VIN-20260123-005");
-            serialNumbers.add("VIN-20260123-006");
-            serialNumbers.add("VIN-20260123-007");
-
-            // 생산 완료
-            manufacturingOrchestrationService.completeProduction(
-                    production1.getId(), LocalDateTime.now().plusDays(6), serialNumbers
-            );
         }
 
         public void OrderAndProductionDbInit() {

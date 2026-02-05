@@ -4,6 +4,7 @@ import com.example.automobile_risk.controller.dto.OrderCreateForm;
 import com.example.automobile_risk.controller.dto.OrderUpdateForm;
 import com.example.automobile_risk.entity.Order;
 import com.example.automobile_risk.entity.VehicleModel;
+import com.example.automobile_risk.entity.enumclass.DefectSnapshotStage;
 import com.example.automobile_risk.entity.enumclass.OrderStatus;
 import com.example.automobile_risk.exception.OrderNotFoundException;
 import com.example.automobile_risk.exception.VehicleModelNotFoundException;
@@ -31,6 +32,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final VehicleModelRepository vehicleModelRepository;
     private final OrderProductionRepository orderProductionRepository;
+    private final DefectSummaryService defectSummaryService;
 
     /**
      *  1. 주문 생성
@@ -98,6 +100,24 @@ public class OrderService {
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         order.complete();
+
+        List<Long> productionIds =
+                orderProductionRepository.findRelatedProductionIdsByOrder(orderId);
+        if (productionIds.isEmpty()) {
+            defectSummaryService.captureSnapshotForOrder(
+                    orderId,
+                    DefectSnapshotStage.COMPLETED,
+                    java.time.LocalDateTime.now()
+            );
+        } else {
+            for (Long productionId : productionIds) {
+                defectSummaryService.captureSnapshotForProduction(
+                        productionId,
+                        DefectSnapshotStage.COMPLETED,
+                        java.time.LocalDateTime.now()
+                );
+            }
+        }
 
         return order.getId();
     }

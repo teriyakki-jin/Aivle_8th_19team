@@ -94,4 +94,15 @@ public class ProcessExecutionController {
 
         return ApiResponse.of(list);
     }
+
+    /**
+     *  7. 생산 기준 공정수행 목록 조회
+     */
+    @GetMapping("/production/{productionId}")
+    public ApiResponse<List<ProcessExecutionListResponse>> getByProduction(@PathVariable Long productionId) {
+
+        List<ProcessExecutionListResponse> list = processExecutionService.getByProduction(productionId);
+
+        return ApiResponse.of(list);
+    }
 }

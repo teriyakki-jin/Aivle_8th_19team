@@ -7,9 +7,7 @@ import {
   ReactNode,
 } from "react";
 import { productionApi, ProductionDto } from "../api/production";
-import { ML_API_BASE } from "../config/env";
-import { processEventApi } from "../api/processEvent";
-import { defectSummaryApi } from "../api/defectSummary";
+import { processExecutionApi, ProcessExecutionDto } from "../api/processExecution";
 
 // ML API 기본 URL (Spring Boot)
 
@@ -61,14 +59,22 @@ type StageStatus = "waiting" | "running" | "completed" | "error";
 
 type StageResult = {
   status: StageStatus;
-  mlResults?: any[];
   hasAnomaly?: boolean;
   message?: string;
   startedAt?: number;
   estimatedDuration?: number;
-  retryCount?: number;
-  dueDatePrediction?: any;
-  dueDateError?: string;
+};
+
+type ProductionStreamEvent = {
+  type: "process_execution" | "production";
+  productionId?: number;
+  orderId?: number;
+  processExecutionId?: number;
+  executionOrder?: number;
+  processExecutionStatus?: "READY" | "IN_PROGRESS" | "COMPLETED" | "STOPPED";
+  startDate?: string;
+  endDate?: string;
+  productionStatus?: string;
 };
 
 type ProductionItem = {
@@ -86,143 +92,18 @@ type ProductionItem = {
   productionStatus?: string;
 };
 
-function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  const token = localStorage.getItem("token");
-  const h: Record<string, string> = { ...extra };
-  if (token) h["Authorization"] = `Bearer ${token}`;
-  return h;
-}
-
-// ML API 호출 함수
-async function callMLApi(endpoint: string, offset: number = 0): Promise<any> {
-  try {
-    const separator = endpoint.includes("?") ? "&" : "?";
-    const url = `${ML_API_BASE}${endpoint}${separator}offset=${offset}`;
-    const res = await fetch(url, { method: "POST", headers: authHeaders() });
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return await res.json();
-  } catch (error) {
-    console.error(`ML API call failed: ${endpoint}`, error);
-    throw error;
+function mapExecutionStatus(status?: ProcessExecutionDto["status"]): StageStatus {
+  switch (status) {
+    case "IN_PROGRESS":
+      return "running";
+    case "COMPLETED":
+      return "completed";
+    case "STOPPED":
+      return "error";
+    case "READY":
+    default:
+      return "waiting";
   }
-}
-
-async function callDueDateApi(payload: any): Promise<any> {
-  try {
-    const url = `${ML_API_BASE}/duedate`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error(`DueDate API Error: ${res.status}`);
-    return await res.json();
-  } catch (error) {
-    console.error("DueDate API call failed:", error);
-    throw error;
-  }
-}
-
-const SNAPSHOT_STAGE_BY_ID: Record<string, string> = {
-  press: "PRESS_DONE",
-  body: "WELD_DONE",
-  paint: "PAINT_DONE",
-  assembly: "ASSEMBLY_DONE",
-  inspection: "INSPECTION_DONE",
-};
-
-function toMinutes(ms: number) {
-  return Math.max(0, Math.floor(ms / 60000));
-}
-
-function parseDueDateToLocalEnd(dueDate?: string): Date | null {
-  if (!dueDate) return null;
-  const direct = new Date(dueDate);
-  if (!Number.isNaN(direct.getTime())) return direct;
-  const fallback = new Date(`${dueDate}T23:59:59`);
-  if (Number.isNaN(fallback.getTime())) return null;
-  return fallback;
-}
-
-function buildDueDatePayload(
-  production: ProductionItem,
-  stageId: string,
-  stageHasAnomaly: boolean
-) {
-  const startedAt = production.startedAt ? new Date(production.startedAt).getTime() : Date.now();
-  const elapsedMinutes = toMinutes(Date.now() - startedAt);
-
-  const dueDateEnd = parseDueDateToLocalEnd(production.dueDate);
-  const remainingSlackMinutes = dueDateEnd
-    ? toMinutes(dueDateEnd.getTime() - Date.now())
-    : 300;
-
-  const stopCountTotal = production.stageResults.reduce(
-    (sum, r) => sum + (r?.retryCount ?? 0),
-    0
-  );
-
-  const stageAnomalyMap: Record<string, number | null> = {
-    press: null,
-    body: null,
-    paint: null,
-    assembly: null,
-    inspection: null,
-  };
-
-  // 완료된 단계들의 이상 여부(재시도 발생 여부)를 0/1로 저장
-  PIPELINE_STAGES.forEach((s, idx) => {
-    const r = production.stageResults[idx];
-    if (!r || r.status === "waiting") return;
-    stageAnomalyMap[s.id] = (r.retryCount ?? 0) > 0 ? 1 : 0;
-  });
-
-  // 현재 단계는 이번 결과 기준으로 갱신
-  stageAnomalyMap[stageId] = stageHasAnomaly ? 1 : 0;
-
-  return {
-    order_id: production.orderId,
-    order_qty: production.orderQty,
-    stop_count_total: stopCountTotal,
-    elapsed_minutes: elapsedMinutes,
-    remaining_slack_minutes: remainingSlackMinutes,
-
-    press_anomaly_score: stageAnomalyMap.press,
-    weld_anomaly_score: stageAnomalyMap.body,
-    paint_anomaly_score: stageAnomalyMap.paint,
-    assembly_anomaly_score: stageAnomalyMap.assembly,
-    inspection_anomaly_score: stageAnomalyMap.inspection,
-
-    snapshot_stage: SNAPSHOT_STAGE_BY_ID[stageId] ?? "PRESS_DONE",
-  };
-}
-
-// ✅ ML 결과에서 이상 여부 판단 (prediction=1 같은 단순 규칙 제거)
-function checkAnomaly(result: any): boolean {
-  if (!result) return false;
-
-  // press vibration 스타일
-  if (result.is_anomaly === 1) return true;
-
-  // welding/paint 등 status 기반
-  const status = String(result.status ?? "").toUpperCase();
-  if (status === "DEFECT" || status === "FAIL" || status === "ABNORMAL") return true;
-
-  // judgement 기반 (windshield/engine 포함)
-  const judgement = String(result.judgement ?? "").toUpperCase();
-  if (judgement === "FAIL" || judgement === "ABNORMAL") return true;
-
-  // body inspect
-  const passFail = String(result.pass_fail ?? "").toUpperCase();
-  if (passFail === "FAIL") return true;
-
-  // batch 결과(차체조립)
-  if (result.results) {
-    const parts = Object.values(result.results);
-    return parts.some((p: any) => String(p?.pass_fail ?? "").toUpperCase() === "FAIL");
-  }
-
-  return false;
 }
 
 interface ProductionContextType {
@@ -231,6 +112,7 @@ interface ProductionContextType {
   error: string | null;
   refresh: () => Promise<void>;
   startProduction: (orderId: number) => Promise<void>;
+  applyStreamEvent: (event: ProductionStreamEvent) => void;
   getStages: () => typeof PIPELINE_STAGES;
 }
 
@@ -252,11 +134,44 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
       const data = await productionApi.list(0, 1000);
       const productionList: ProductionDto[] = Array.isArray(data) ? data : (data?.content ?? []);
 
+      const execMap = new Map<number, ProcessExecutionDto[]>();
+      await Promise.all(
+        productionList.map(async (p) => {
+          if (!p.productionId) return;
+          try {
+            const list = await processExecutionApi.listByProduction(p.productionId);
+            execMap.set(p.productionId, Array.isArray(list) ? list : []);
+          } catch (e) {
+            execMap.set(p.productionId, []);
+          }
+        })
+      );
+
       setProductions((prev) => {
         const newMap = new Map(prev);
         productionList.forEach((p) => {
           const orderId = p.orderId ?? p.productionId;
           if (!orderId) return;
+          const executions = p.productionId ? execMap.get(p.productionId) ?? [] : [];
+          const stageResults: StageResult[] = PIPELINE_STAGES.map(() => ({ status: "waiting" }));
+          executions.forEach((e) => {
+            const order = (e.executionOrder ?? 0) - 1;
+            if (order >= 0 && order < stageResults.length) {
+              stageResults[order] = {
+                status: mapExecutionStatus(e.status),
+                startedAt: e.startDate ? new Date(e.startDate).getTime() : undefined,
+                estimatedDuration:
+                  e.status === "IN_PROGRESS"
+                    ? (p.orderQty ?? p.plannedQty ?? 0) * 5000
+                    : undefined,
+              };
+            }
+          });
+          const runningIdx = stageResults.findIndex((r) => r.status === "running");
+          const completedIdx = stageResults.reduce((idx, r, i) => (r.status === "completed" ? i : idx), -1);
+          const currentStage = runningIdx >= 0 ? runningIdx : Math.max(0, completedIdx);
+          const startedAt = executions[0]?.startDate ?? undefined;
+          const lastCompleted = executions.filter((e) => e.status === "COMPLETED").pop();
           const existing = newMap.get(orderId);
           const dueDate = p.dueDate ?? undefined;
           if (!existing) {
@@ -266,10 +181,12 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
               vehicleModelName: p.vehicleModelName,
               orderQty: p.orderQty ?? p.plannedQty ?? 0,
               dueDate,
-              currentStage: 0,
-              stageResults: PIPELINE_STAGES.map(() => ({ status: "waiting" as StageStatus })),
+              currentStage,
+              stageResults,
               productionId: p.productionId,
               productionStatus: p.productionStatus,
+              startedAt,
+              completedAt: lastCompleted?.endDate,
             });
           } else {
             const next = { ...existing };
@@ -279,6 +196,10 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
             next.dueDate = dueDate ?? next.dueDate;
             next.productionId = p.productionId ?? next.productionId;
             next.productionStatus = p.productionStatus ?? next.productionStatus;
+            next.stageResults = stageResults;
+            next.currentStage = currentStage;
+            next.startedAt = startedAt ?? next.startedAt;
+            next.completedAt = lastCompleted?.endDate ?? next.completedAt;
             newMap.set(orderId, next);
           }
         });
@@ -292,6 +213,58 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const applyStreamEvent = useCallback((event: ProductionStreamEvent) => {
+    setProductions((prev) => {
+      const newMap = new Map(prev);
+      const keyFromOrder = event.orderId ? Number(event.orderId) : null;
+      let targetKey: number | null = null;
+
+      if (keyFromOrder && newMap.has(keyFromOrder)) {
+        targetKey = keyFromOrder;
+      } else if (event.productionId) {
+        for (const [k, v] of newMap.entries()) {
+          if (v.productionId === event.productionId) {
+            targetKey = k;
+            break;
+          }
+        }
+      }
+
+      if (targetKey === null) return prev;
+      const item = newMap.get(targetKey);
+      if (!item) return prev;
+
+      const next = { ...item };
+
+      if (event.type === "process_execution" && event.executionOrder) {
+        const idx = event.executionOrder - 1;
+        if (idx >= 0 && idx < next.stageResults.length) {
+          const status = mapExecutionStatus(event.processExecutionStatus);
+          next.stageResults = [...next.stageResults];
+          next.stageResults[idx] = {
+            ...next.stageResults[idx],
+            status,
+            startedAt: event.startDate ? new Date(event.startDate).getTime() : next.stageResults[idx].startedAt,
+          };
+        }
+      }
+
+      if (event.type === "production") {
+        if (event.productionStatus) next.productionStatus = event.productionStatus;
+        if (event.startDate) next.startedAt = event.startDate;
+        if (event.endDate) next.completedAt = event.endDate;
+      }
+
+      const runningIdx = next.stageResults.findIndex((r) => r.status === "running");
+      const completedIdx = next.stageResults.reduce((idx, r, i) => (r.status === "completed" ? i : idx), -1);
+      next.currentStage = runningIdx >= 0 ? runningIdx : Math.max(0, completedIdx);
+
+      newMap.set(targetKey, next);
+      productionsRef.current = newMap;
+      return newMap;
+    });
+  }, []);
+
   // 자동 재시도 포함 파이프라인 실행
   const startProduction = useCallback(async (orderId: number) => {
     if (runningProductions.current.has(orderId)) {
@@ -300,149 +273,20 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
     }
     runningProductions.current.add(orderId);
 
-    const baseOffset = Math.floor(Math.random() * 100);
-    console.log(`Production ${orderId}: Starting with base offset ${baseOffset}`);
-
-    // 시작 상태로 변경
-    setProductions((prev) => {
-      const newMap = new Map(prev);
-      const production = newMap.get(orderId);
-      if (production) {
-        production.stageResults[0] = { status: "running" };
-        production.startedAt = new Date().toISOString();
-        production.baseOffset = baseOffset;
-        newMap.set(orderId, { ...production });
+    try {
+      const production = productionsRef.current.get(orderId);
+      const productionId = production?.productionId;
+      if (!productionId) {
+        setError("productionId를 찾을 수 없습니다.");
+        return;
       }
-      productionsRef.current = newMap;
-      return newMap;
-    });
-
-    for (let stageIdx = 0; stageIdx < PIPELINE_STAGES.length; stageIdx++) {
-      const stage = PIPELINE_STAGES[stageIdx];
-      let retryCount = 0;
-      let stageSuccess = false;
-
-      const stageStartTime = Date.now();
-
-      while (!stageSuccess) {
-        const stageDuration =
-          stage.duration.min + Math.random() * (stage.duration.max - stage.duration.min);
-        const retryStartTime = Date.now();
-
-        setProductions((prev) => {
-          const newMap = new Map(prev);
-          const production = newMap.get(orderId);
-          if (production) {
-            production.currentStage = stageIdx;
-            production.stageResults[stageIdx] = {
-              status: "running",
-              startedAt: stageStartTime,
-              estimatedDuration: stageDuration,
-              retryCount,
-            };
-            newMap.set(orderId, { ...production });
-          }
-          productionsRef.current = newMap;
-          return newMap;
-        });
-
-        let hasAnomaly = false;
-        const mlResults: any[] = [];
-        const totalOffset = baseOffset + stageIdx * 10 + retryCount;
-
-        if (stage.mlEndpoints.length > 0) {
-          for (const endpoint of stage.mlEndpoints) {
-            try {
-              const result = await callMLApi(endpoint, totalOffset);
-              mlResults.push(result);
-              if (checkAnomaly(result)) hasAnomaly = true;
-            } catch (error) {
-              console.error(`Stage ${stage.id} ML call failed:`, error);
-              // 실패는 "이상"으로 치지 않고, 메시지로만 남김
-            }
-          }
-        }
-
-        const elapsed = Date.now() - retryStartTime;
-        const remainingTime = Math.max(0, stageDuration - elapsed);
-        if (remainingTime > 0) {
-          await new Promise((resolve) => setTimeout(resolve, remainingTime));
-        }
-
-        if (hasAnomaly) {
-          // ProcessEvent를 백엔드에 저장
-          try {
-            await processEventApi.create({
-              orderId,
-              process: stage.name,
-              eventType: 'DEFECT',
-              eventCode: `${stage.id.toUpperCase()}_ANOMALY_${retryCount + 1}`,
-              severity: 2,
-              qtyAffected: 1,
-              lineHold: false,
-              source: 'VISION',
-              message: `${stage.name} 공정에서 이상 감지 (시도 ${retryCount + 1}회)`,
-            });
-            console.log(`ProcessEvent saved for order ${orderId}, stage ${stage.name}`);
-          } catch (err) {
-            console.error('Failed to save ProcessEvent:', err);
-          }
-
-          retryCount++;
-          console.log(
-            `Production ${orderId}: Anomaly at ${stage.name}, auto-retry ${retryCount}`
-          );
-        } else {
-          let dueDatePrediction: any = null;
-          let dueDateError: string | undefined = undefined;
-          try {
-            const production = productionsRef.current.get(orderId);
-
-            if (production) {
-              const payload = buildDueDatePayload(production, stage.id, retryCount > 0);
-              dueDatePrediction = await callDueDateApi(payload);
-            }
-          } catch (e: any) {
-            dueDateError = e?.message ?? "duedate 호출 실패";
-            // duedate 실패는 공정 완료를 막지 않음
-          }
-
-          setProductions((prev) => {
-            const newMap = new Map(prev);
-            const production = newMap.get(orderId);
-            if (production) {
-              production.stageResults[stageIdx] = {
-                status: "completed",
-                mlResults,
-                hasAnomaly: retryCount > 0,
-                message: retryCount > 0 ? `정상 (${retryCount}회 재시도 후)` : "정상",
-                retryCount,
-                dueDatePrediction,
-                dueDateError,
-              };
-
-              if (stageIdx === PIPELINE_STAGES.length - 1) {
-                production.completedAt = new Date().toISOString();
-              }
-
-              newMap.set(orderId, { ...production });
-            }
-            productionsRef.current = newMap;
-            return newMap;
-          });
-          stageSuccess = true;
-        }
-      }
+      await productionApi.start(productionId);
+      await refresh();
+    } catch (e: any) {
+      setError(e?.message ?? "생산 시작 실패");
+    } finally {
+      runningProductions.current.delete(orderId);
     }
-
-        try {
-      await defectSummaryApi.createSnapshotByOrder(orderId);
-      console.log(`Defect summary snapshot created for order ${orderId}`);
-    } catch (err) {
-      console.error("Failed to create defect summary snapshot:", err);
-    }
-
-    runningProductions.current.delete(orderId);
   }, []);
 
   const getStages = useCallback(() => PIPELINE_STAGES, []);
@@ -455,6 +299,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
         error,
         refresh,
         startProduction,
+        applyStreamEvent,
         getStages,
       }}
     >

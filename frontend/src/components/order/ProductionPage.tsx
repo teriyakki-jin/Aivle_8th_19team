@@ -24,6 +24,8 @@ import {
   ExternalLink,
   XCircle,
 } from "lucide-react";
+import { productionApi } from "../../api/production";
+import { apiUrl } from "../../config/env";
 
 const STAGE_ICONS: Record<string, any> = {
   press: Hammer,
@@ -139,6 +141,21 @@ function StageElapsed({ startedAt }: { startedAt: number }) {
   return <span className="text-[7px] text-slate-400 leading-none">경과 {formatSecToMMSS(elapsedSec)}</span>;
 }
 
+function StageRemaining({ startedAt, duration }: { startedAt: number; duration: number }) {
+  const [remainSec, setRemainSec] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const remain = Math.max(0, Math.floor((duration - elapsed) / 1000));
+      setRemainSec(remain);
+    }, 500);
+    return () => clearInterval(t);
+  }, [startedAt, duration]);
+
+  return <span className="text-[7px] text-slate-400 leading-none">남은 {formatSecToMMSS(remainSec)}</span>;
+}
+
 function StageIcon({
   stage,
   result,
@@ -239,7 +256,10 @@ function PipelineView({
                   </div>
 
                   {result.estimatedDuration && result.startedAt ? (
-                    <StageProgressBar startedAt={result.startedAt} duration={result.estimatedDuration} />
+                    <>
+                      <StageProgressBar startedAt={result.startedAt} duration={result.estimatedDuration} />
+                      <StageRemaining startedAt={result.startedAt} duration={result.estimatedDuration} />
+                    </>
                   ) : result.startedAt ? (
                     <StageElapsed startedAt={result.startedAt} />
                   ) : null}
@@ -274,12 +294,16 @@ function PipelineView({
 function ProductionCard({
   production,
   onStart,
+  onStop,
+  onRestart,
   onStageClick,
   onViewDetail,
   getModelName,
 }: {
   production: ProductionItem;
   onStart: () => void;
+  onStop: () => void;
+  onRestart: () => void;
   onStageClick: (stageId: string, stage: (typeof PIPELINE_STAGES)[0], orderId?: number) => void;
   onViewDetail: (page: string, orderId?: number) => void;
   getModelName: (modelId: number | string) => string;
@@ -292,6 +316,7 @@ function ProductionCard({
   const hasAnyAnomaly = production.stageResults.some((r) => r.hasAnomaly);
   const hasError = production.stageResults.some((r) => r.status === "error");
   const isWaiting = production.stageResults.every((r) => r.status === "waiting");
+  const isStopped = production.productionStatus === "STOPPED";
 
   return (
     <div className={`bg-white rounded-xl border shadow-sm overflow-hidden ${hasAnyAnomaly ? "border-orange-300" : ""}`}>
@@ -350,12 +375,27 @@ function ProductionCard({
               생산 완료 (이상 {production.stageResults.filter((r) => r.hasAnomaly).length}건)
             </span>
           ) : isRunning ? (
-            <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 inline-flex items-center gap-2">
-              <TrafficGreenLight size={10} />
-              {stages[production.currentStage]?.name} 공정 중
-            </span>
+            <>
+              <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 inline-flex items-center gap-2">
+                <TrafficGreenLight size={10} />
+                {stages[production.currentStage]?.name} 공정 중
+              </span>
+              <button
+                onClick={onStop}
+                className="px-3 py-1 text-xs font-medium rounded-full bg-red-50 text-red-700 hover:bg-red-100"
+              >
+                중지
+              </button>
+            </>
           ) : hasError ? (
             <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">오류 발생</span>
+          ) : isStopped ? (
+            <button
+              onClick={onRestart}
+              className="px-4 py-1.5 text-xs font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600"
+            >
+              재시작
+            </button>
           ) : isWaiting ? (
             <button
               onClick={onStart}
@@ -411,7 +451,7 @@ function ProductionCard({
 
 export function ProductionPage() {
   const navigate = useNavigate();
-  const { productions, loading, error, refresh, startProduction } = useProduction();
+  const { productions, loading, error, refresh, startProduction, applyStreamEvent } = useProduction();
   const [vehicleModels, setVehicleModels] = useState<VehicleModelDto[]>([]);
 
   // 차량 모델 ID -> 이름 매핑
@@ -428,6 +468,29 @@ export function ProductionPage() {
       setVehicleModels(Array.isArray(data) ? data : []);
     }).catch(console.error);
   }, [refresh]);
+
+  // SSE 스트림 연결
+  useEffect(() => {
+    const source = new EventSource(apiUrl("/api/v1/production/stream"));
+
+    source.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        applyStreamEvent(data);
+      } catch {
+        // ignore
+      }
+    };
+
+    source.onerror = () => {
+      // 연결 문제 시 안전하게 닫고, 다음 수동 새로고침 유도
+      source.close();
+    };
+
+    return () => {
+      source.close();
+    };
+  }, [applyStreamEvent]);
 
   // ✅ 클릭 이동 로직 보정:
   // - 검사 클릭은 기본 윈드실드로
@@ -510,6 +573,16 @@ export function ProductionPage() {
               key={production.orderId}
               production={production}
               onStart={() => startProduction(production.orderId)}
+              onStop={async () => {
+                if (!production.productionId) return;
+                await productionApi.stop(production.productionId);
+                await refresh();
+              }}
+              onRestart={async () => {
+                if (!production.productionId) return;
+                await productionApi.restart(production.productionId);
+                await refresh();
+              }}
               onStageClick={handleStageClick}
               onViewDetail={handleViewDetail}
               getModelName={getModelName}

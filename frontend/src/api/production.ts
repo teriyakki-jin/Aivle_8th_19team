@@ -1,6 +1,17 @@
 import { api } from "./client";
 
-export type ProductionDto = Record<string, any>;
+export type ProductionDto = {
+  productionId: number;
+  startDate?: string;
+  endDate?: string;
+  productionStatus?: string;
+  plannedQty?: number;
+  vehicleModelId?: number;
+  vehicleModelName?: string;
+  orderId?: number;
+  orderQty?: number;
+  dueDate?: string;
+};
 
 export interface PageResponse<T> {
   content: T[];
@@ -13,7 +24,8 @@ export interface PageResponse<T> {
 }
 
 export const productionApi = {
-  list: (page = 0, size = 1000) => api.get<PageResponse<ProductionDto>>(`/api/v1/production?page=${page}&size=${size}&sort=id,asc`),
+  list: (page = 0, size = 1000) =>
+    api.get<PageResponse<ProductionDto>>(`/api/v1/production?page=${page}&size=${size}&sort=id,desc`),
   create: (payload: any) => api.post<ProductionDto>("/api/v1/production", payload),
   start: (id: string | number) => api.patch(`/api/v1/production/${id}/start`),
   stop: (id: string | number) => api.patch(`/api/v1/production/${id}/stop`),

@@ -11,8 +11,10 @@ import com.example.automobile_risk.entity.Equipment;
 import com.example.automobile_risk.entity.Inventory;
 import com.example.automobile_risk.entity.InventoryHistory;
 import com.example.automobile_risk.entity.Order;
+import com.example.automobile_risk.entity.OrderProduction;
 import com.example.automobile_risk.entity.Part;
 import com.example.automobile_risk.entity.ProcessType;
+import com.example.automobile_risk.entity.Production;
 import com.example.automobile_risk.entity.VehicleModel;
 import com.example.automobile_risk.entity.enumclass.InventoryChangeType;
 import com.example.automobile_risk.entity.enumclass.Unit;
@@ -260,7 +262,24 @@ public class InitDb {
             em.persist(order3);
 
             /**
-             *  생산
+             *  생산 (주문과 1:1 연결)
+             */
+            Production production1 = Production.of(order1.getOrderDate(), order1.getOrderQty(), avante_CN8);
+            Production production2 = Production.of(order2.getOrderDate(), order2.getOrderQty(), sonata_DN8);
+            Production production3 = Production.of(order3.getOrderDate(), order3.getOrderQty(), grandeur_GN7);
+            em.persist(production1);
+            em.persist(production2);
+            em.persist(production3);
+
+            OrderProduction op1 = OrderProduction.createOrderProduction(order1, production1, order1.getOrderQty());
+            OrderProduction op2 = OrderProduction.createOrderProduction(order2, production2, order2.getOrderQty());
+            OrderProduction op3 = OrderProduction.createOrderProduction(order3, production3, order3.getOrderQty());
+            em.persist(op1);
+            em.persist(op2);
+            em.persist(op3);
+
+            /**
+             *  공정 타입
              */
             ProcessType stamping = ProcessType.createProcessType("프레스", 1, true);
             ProcessType welding = ProcessType.createProcessType("차체조립(용접)", 2, true);

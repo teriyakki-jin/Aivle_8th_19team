@@ -285,6 +285,8 @@ function ProductionCard({
   getModelName: (modelId: number | string) => string;
 }) {
   const stages = PIPELINE_STAGES;
+  const displayModelName =
+    production.vehicleModelName ?? getModelName(production.vehicleModelId);
   const isRunning = production.stageResults.some((r) => r.status === "running");
   const isCompleted = production.stageResults.every((r) => r.status === "completed");
   const hasAnyAnomaly = production.stageResults.some((r) => r.hasAnomaly);
@@ -326,8 +328,13 @@ function ProductionCard({
           <div>
             <div className="font-semibold text-slate-900">주문 #{production.orderId}</div>
             <div className="text-xs text-slate-500">
-              {getModelName(production.vehicleModelId)} · {production.orderQty}대
+              생산 #{production.productionId ?? "-"} · {displayModelName} · {production.orderQty}대
             </div>
+            {production.dueDate && (
+              <div className="text-[11px] text-slate-400">
+                납기 {new Date(production.dueDate).toLocaleDateString("ko-KR")}
+              </div>
+            )}
           </div>
         </div>
 
@@ -440,11 +447,27 @@ export function ProductionPage() {
   };
 
   const productionList = Array.from(productions.values()).sort((a, b) => {
-    const aRunning = a.stageResults.some((r) => r.status === "running");
-    const bRunning = b.stageResults.some((r) => r.status === "running");
-    if (aRunning && !bRunning) return -1;
-    if (!aRunning && bRunning) return 1;
-    return a.orderId - b.orderId;
+    const statusRank = (s?: string) => {
+      switch (s) {
+        case "IN_PROGRESS":
+          return 0;
+        case "PLANNED":
+          return 1;
+        case "STOPPED":
+          return 2;
+        case "COMPLETED":
+          return 3;
+        case "CANCELLED":
+          return 4;
+        default:
+          return 5;
+      }
+    };
+    const rankDiff = statusRank(a.productionStatus) - statusRank(b.productionStatus);
+    if (rankDiff !== 0) return rankDiff;
+    const aId = a.productionId ?? a.orderId;
+    const bId = b.productionId ?? b.orderId;
+    return bId - aId;
   });
 
   return (

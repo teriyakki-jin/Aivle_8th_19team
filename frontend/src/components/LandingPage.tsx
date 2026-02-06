@@ -179,22 +179,20 @@ export function LandingPage() {
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">실시간 공정 모니터링</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
-                  생산 라인 전체의 센서 데이터를 실시간으로 수집하고 분석합니다. 
-                  온도, 진동, 압력 등의 주요 지표를 대시보드에서 한눈에 확인하고, 
-                  공정별 상태를 색상으로 구분하여 직관적으로 파악할 수 있습니다.
+                  주문별 생산 현황을 실시간으로 한눈에 확인할 수 있으며, 완료된 주문과 생산 완료 상태를 즉시 파악할 수 있습니다.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">다중 센서 데이터 통합 분석</span>
+                    <span className="text-sm">실시간 모니터링</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">공정별 상태 시각화</span>
+                    <span className="text-sm">주문별 생산 상태 확인</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
@@ -263,8 +261,8 @@ export function LandingPage() {
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">공정별 생산 진행 관리 및 상태 시각화</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
-                  프레스, 용접, 도장, 의장 등 각 공정별 생산 진행률과 상태를 실시간으로 추적합니다. 
-                  병목 구간을 즉시 파악하고 생산 효율을 최적화할 수 있습니다.
+                  프레스, 용접, 도장, 의장 등 공정별 진행률과 상태를 실시간으로 추적합니다. 
+                  지연 징후를 빠르게 확인하고 생산 효율을 개선할 수 있습니다.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3">
@@ -277,13 +275,13 @@ export function LandingPage() {
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">병목 구간 자동 감지</span>
+                    <span className="text-sm">지연 징후 빠른 파악</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">직관적인 상태 시각화</span>
+                    <span className="text-sm">상태 대시보드 시각화</span>
                   </li>
                 </ul>
               </div>
@@ -311,28 +309,27 @@ export function LandingPage() {
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">납기 리스크 예측 및 상태 표시</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
-                  각 주문별 납기 지연 가능성을 실시간으로 예측하고 리스크 수준을 색상으로 표시합니다. 
-                  안전(녹색), 주의(황색), 위험(주황색), 심각(빨강색)으로 구분하여 
-                  우선순위 기반 대응이 가능합니다.
+                  각 주문의 지연 여부와 지연 확률, 예상 지연 시간을 실시간으로 제공합니다. 
+                  이를 통해 납기 리스크를 빠르게 파악하고 대응 우선순위를 결정할 수 있습니다
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">실시간 리스크 예측</span>
+                    <span className="text-sm">실시간 납기 예측 제공</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">직관적인 색상 기반 상태 표시</span>
+                    <span className="text-sm">지연 여부·확률 한눈에 확인</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">우선순위 기반 대응 전략</span>
+                    <span className="text-sm">우선 대응 대상 빠른 파악</span>
                   </li>
                 </ul>
               </div>
@@ -389,7 +386,7 @@ export function LandingPage() {
           <div className="max-w-3xl mx-auto text-center mb-12 md:mb-16">
             <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight">사용 방법</h2>
             <p className="text-base md:text-lg text-muted-foreground">
-              간단한 5단계로 시스템을 도입하고 즉시 효과를 확인할 수 있습니다
+              간단한 5단계로 시스템을 도입하고 핵심 기능을 바로 확인할 수 있습니다.
             </p>
           </div>
 
@@ -405,9 +402,8 @@ export function LandingPage() {
                 <div className="flex-1 pt-2">
                   <h3 className="text-xl font-semibold mb-3 tracking-tight">회원 가입 또는 로그인</h3>
                   <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                    플랫폼에 회원 가입하거나 기존 계정으로 로그인합니다. 
-                    간단한 정보 입력으로 계정을 생성할 수 있으며, 
-                    공정 관리자와 생산 관리자로 권한이 분리되어있습니다.
+                    플랫폼에 회원가입하거나 기존 계정으로 로그인하세요. 
+                    간단한 정보 입력만으로 계정을 생성할 수 있으며, 공정 관리자와 생산 관리자로 권한이 구분됩니다.
                   </p>
                 </div>
               </div>
@@ -423,8 +419,7 @@ export function LandingPage() {
                   <h3 className="text-xl font-semibold mb-3 tracking-tight">대시보드에서 전체 현황 확인</h3>
                   <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
                     로그인 후 메인 대시보드에서 전체 생산 현황을 한눈에 확인합니다. 
-                    실시간 KPI, 이상 탐지 현황, 납기 리스크 분포 등 
-                    핵심 지표를 직관적으로 파악할 수 있습니다.
+                    실시간 KPI와 생산/주문 상태, 납기 리스크 정보를 직관적으로 파악할 수 있습니다.
                   </p>
                 </div>
               </div>
@@ -439,9 +434,8 @@ export function LandingPage() {
                 <div className="flex-1 pt-2">
                   <h3 className="text-xl font-semibold mb-3 tracking-tight">좌측 메뉴에서 공정별 페이지 이동</h3>
                   <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                    좌측 네비게이션 메뉴에서 프레스, 용접, 도장, 의장, 검사 등 
-                    각 공정별 상세 페이지로 이동합니다. 
-                    공정별 실시간 모니터링 데이터와 상세 분석 정보를 확인할 수 있습니다.
+                    좌측 메뉴에서 프레스, 용접, 도장, 의장, 검사 등 공정별 상세 페이지로 이동합니다. 
+                    공정별 실시간 모니터링 데이터와 분석 결과를 확인할 수 있습니다.
                   </p>
                 </div>
               </div>
@@ -457,8 +451,7 @@ export function LandingPage() {
                   <h3 className="text-xl font-semibold mb-3 tracking-tight">이상 탐지 결과와 결함 목록 확인</h3>
                   <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
                     각 공정 페이지에서 AI가 탐지한 이상 현황과 결함 목록을 확인합니다. 
-                    탐지된 이상의 심각도, 발생 시간, 원인 분석 등 상세 정보를 
-                    통해 신속한 대응이 가능합니다.
+                    결함 유형, 신뢰도 등 핵심 정보를 통해 빠르게 대응할 수 있습니다.
                   </p>
                 </div>
               </div>
@@ -473,9 +466,8 @@ export function LandingPage() {
                 <div className="flex-1 pt-2">
                   <h3 className="text-xl font-semibold mb-3 tracking-tight">주문/생산/재고 페이지에서 업무 처리 및 상태 점검</h3>
                   <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                    주문 관리, 생산 계획, 재고 현황 페이지에서 전체 업무를 통합 관리합니다. 
-                    주문 상태 업데이트, 생산 진행률 확인, 납기 리스크 모니터링을 
-                    한 곳에서 효율적으로 처리할 수 있습니다.
+                    주문 관리, 생산 진행, 재고 현황을 한 곳에서 관리합니다. 
+                    주문 상태, 생산 진행률, 납기 예측 정보를 확인하며 업무를 처리할 수 있습니다.
                   </p>
                 </div>
               </div>
@@ -506,7 +498,7 @@ export function LandingPage() {
       <footer className="border-t border-precise border-border py-12">
         <div className="container">
           <div className="text-center text-sm text-muted-foreground">
-            <p>© 2026 자동차 공정 관리 시스템.</p>
+            <p>© 자동차 공정 관리 시스템.</p>
           </div>
         </div>
       </footer>

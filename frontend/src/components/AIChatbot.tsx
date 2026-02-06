@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Sparkles } from 'lucide-react';
-import { apiUrl } from '../config/env';
+import { chatbotApiUrl } from '../config/env';
 
 interface Message {
   id: string;
@@ -23,6 +23,28 @@ export function AIChatbot() {
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sessionIdRef = useRef<string>('');
+
+  const getSessionId = () => {
+    if (sessionIdRef.current) return sessionIdRef.current;
+
+    const username = localStorage.getItem('username');
+    if (username) {
+      sessionIdRef.current = `user:${username}`;
+      return sessionIdRef.current;
+    }
+
+    const stored = localStorage.getItem('chatbotSessionId');
+    if (stored) {
+      sessionIdRef.current = stored;
+      return stored;
+    }
+
+    const generated = `guest:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    localStorage.setItem('chatbotSessionId', generated);
+    sessionIdRef.current = generated;
+    return generated;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -54,10 +76,10 @@ export function AIChatbot() {
     setIsTyping(true);
 
     try {
-      const response = await fetch(apiUrl('/api/v1/chatbot/query'), {
+      const response = await fetch(chatbotApiUrl('/api/v1/chatbot/query'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: question }),
+        body: JSON.stringify({ session_id: getSessionId(), message: question }),
       });
 
       if (!response.ok) {

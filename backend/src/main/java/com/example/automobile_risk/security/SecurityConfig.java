@@ -54,6 +54,9 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/**").permitAll() // ALB health check
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/board/**").permitAll()
+                        .requestMatchers("/dashboard/**").permitAll()   // Dashboard is public as per current FE
+                        .requestMatchers("/api/v1/dashboard/**").permitAll() // Dashboard is public as per current FE
+                        .requestMatchers("/api/v1/**").permitAll() // 모두 열어둠
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/vehicle-model/**")
                         .hasAnyRole("ADMIN", "PRODUCTION_MANAGER")
                         .requestMatchers("/dashboard/**").permitAll()   // FE route

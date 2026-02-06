@@ -12,3 +12,5 @@ xgboost
 catboost
 sqlalchemy
 psycopg2-binary
+langchain==0.1.20
+langchain-openai==0.0.8

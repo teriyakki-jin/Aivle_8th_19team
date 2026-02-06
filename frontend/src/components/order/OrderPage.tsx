@@ -29,7 +29,21 @@ function formatDate(dateStr: string | null | undefined) {
 }
 
 function dateToISO(dateStr: string) {
-  return new Date(`${dateStr}T00:00:00`).toISOString();
+  if (!dateStr) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return `${dateStr}T00:00:00`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dateStr)) {
+    return `${dateStr}:00`;
+  }
+  return dateStr;
+}
+
+function toLocalDateTimeValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
+    d.getHours()
+  )}:${pad(d.getMinutes())}`;
 }
 
 /**
@@ -197,15 +211,7 @@ export function OrderPage() {
   const [orderDate, setOrderDate] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [orderQty, setOrderQty] = useState<number>(1);
-  const [vehicleModelName, setVehicleModelName] = useState<string>("");
-
-  // 모델 이름 -> ID 변환
-  const getModelIdByName = (name: string): number | null => {
-    const model = vehicleModels.find(
-      (m) => m.modelName.toLowerCase() === name.trim().toLowerCase()
-    );
-    return model?.vehicleModelId ?? null;
-  };
+  const [vehicleModelId, setVehicleModelId] = useState<number | null>(null);
 
   const refresh = async (page = currentPage) => {
     setErr(null);
@@ -239,6 +245,22 @@ export function OrderPage() {
     refresh();
   }, []);
 
+  useEffect(() => {
+    if (!orderDate) {
+      const now = new Date();
+      setOrderDate(toLocalDateTimeValue(now));
+      const due = new Date(now.getTime());
+      due.setDate(due.getDate() + 7);
+      setDueDate(toLocalDateTimeValue(due));
+    }
+  }, [orderDate]);
+
+  useEffect(() => {
+    if (!vehicleModelId && vehicleModels.length > 0) {
+      setVehicleModelId(vehicleModels[0].vehicleModelId);
+    }
+  }, [vehicleModels, vehicleModelId]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
@@ -247,8 +269,8 @@ export function OrderPage() {
       setErr("주문 날짜/납기 일자를 입력하세요.");
       return;
     }
-    if (!vehicleModelName.trim()) {
-      setErr("차량 모델명을 입력하세요.");
+    if (!vehicleModelId) {
+      setErr("차량 모델을 선택하세요.");
       return;
     }
     if (!orderQty || orderQty < 1) {
@@ -257,34 +279,15 @@ export function OrderPage() {
     }
 
     try {
-      // 모델명으로 ID 찾기 (없으면 자동 생성)
-      let modelId = getModelIdByName(vehicleModelName);
-      if (!modelId) {
-        // 새 모델 생성
-        modelId = await vehicleModelApi.create({
-          modelName: vehicleModelName.trim(),
-          segment: "-",
-          fuel: "-",
-          description: "자동 생성",
-          isActive: true,
-        });
-        // 모델 목록 새로고침
-        const modelsData = await vehicleModelApi.list();
-        setVehicleModels(Array.isArray(modelsData) ? modelsData : []);
-      }
-
       const payload = {
         orderDate: dateToISO(orderDate),
         dueDate: dateToISO(dueDate),
         orderQty: Number(orderQty),
-        vehicleModelId: modelId,
+        vehicleModelId,
       };
 
       await orderApi.create(payload);
-      setOrderDate("");
-      setDueDate("");
       setOrderQty(1);
-      setVehicleModelName("");
       await refresh();
     } catch (e: any) {
       setErr(e?.message ?? "주문 생성 실패");
@@ -350,7 +353,7 @@ export function OrderPage() {
               </label>
               <input
                 className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                type="date"
+                type="datetime-local"
                 value={orderDate}
                 onChange={(e) => setOrderDate(e.target.value)}
                 required
@@ -362,7 +365,7 @@ export function OrderPage() {
               </label>
               <input
                 className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                type="date"
+                type="datetime-local"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
                 required
@@ -385,13 +388,31 @@ export function OrderPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 차량 모델
               </label>
-              <input
-                className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={vehicleModelName}
-                onChange={(e) => setVehicleModelName(e.target.value)}
-                placeholder="예) 아반떼, 소나타"
-                required
-              />
+              {vehicleModels.length === 0 ? (
+                <div className="text-sm text-slate-500 border rounded-lg px-3 py-2">
+                  등록된 차량 모델이 없습니다.
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {vehicleModels.map((m) => {
+                    const active = vehicleModelId === m.vehicleModelId;
+                    return (
+                      <button
+                        key={m.vehicleModelId}
+                        type="button"
+                        onClick={() => setVehicleModelId(m.vehicleModelId)}
+                        className={`px-3 py-2 rounded-full border text-sm transition-colors ${
+                          active
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
+                        }`}
+                      >
+                        {m.modelName}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
           <div className="mt-4 flex justify-end">

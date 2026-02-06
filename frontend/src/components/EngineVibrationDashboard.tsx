@@ -161,7 +161,12 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
           const form = new FormData();
           form.append("file", file);
 
-          const res = await fetch(ENGINE_API_URL, { method: "POST", body: form });
+          const token = localStorage.getItem("token");
+          const res = await fetch(ENGINE_API_URL, {
+            method: "POST",
+            body: form,
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
 
           if (!res.ok) {
             const txt = await res.text().catch(() => "");

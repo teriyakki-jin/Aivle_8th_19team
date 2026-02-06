@@ -219,7 +219,11 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
     setLoading(true);
 
     try {
-      const res = await fetch(ENDPOINT_AUTO, { method: "POST" });
+      const token = localStorage.getItem("token");
+      const res = await fetch(ENDPOINT_AUTO, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) {
         const t = await res.text().catch(() => "");
         throw new Error(`API ${res.status}: ${t || res.statusText}`);

@@ -4,6 +4,7 @@ import com.example.automobile_risk.dto.LoginRequest;
 import com.example.automobile_risk.entity.*;
 import com.example.automobile_risk.entity.enumclass.InventoryChangeType;
 import com.example.automobile_risk.entity.enumclass.Unit;
+import com.example.automobile_risk.entity.enumclass.UserRole;
 import com.example.automobile_risk.repository.UserRepository;
 import com.example.automobile_risk.service.AuthService;
 import com.example.automobile_risk.service.PressFeatureAggregationService;
@@ -49,7 +50,7 @@ public class InitDb {
             /**
              *  회원가입
              */
-            LoginRequest admin = new LoginRequest("admin", "1234");
+            LoginRequest admin = new LoginRequest("admin", "1234", UserRole.ADMIN);
             authService.register(admin);
 
             /**

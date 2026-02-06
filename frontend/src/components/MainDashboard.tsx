@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
-import { AlertTriangle, Clock, AlertCircle, RefreshCw, Package, ClipboardList, CheckCircle, Factory, Activity } from 'lucide-react';
+import { AlertTriangle, Clock, AlertCircle, RefreshCw, Package, CheckCircle, Factory, Activity } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -539,13 +539,10 @@ export function MainDashboard() {
   const resolvedOrderSummary = computedOrderSummary ?? orderSummary;
   const resolvedProductionSummary = computedProductionSummary ?? productionSummary;
 
-  const orderInProgress = resolvedOrderSummary
-    ? (resolvedOrderSummary.created + resolvedOrderSummary.partiallyAllocated + resolvedOrderSummary.fullyAllocated)
-    : undefined;
   const fmtCount = (value?: number) => (value === undefined || value === null ? '—' : `${value}건`);
 
   const orderIndex = new Map<number, OrderListItem>(
-    orders
+    (orders ?? [])
       .map(o => {
         const id = (o.orderId ?? o.id) as number | undefined;
         return id ? [id, o] as [number, OrderListItem] : null;
@@ -567,8 +564,6 @@ export function MainDashboard() {
 
   const orderStatusChart = resolvedOrderSummary ? [
     { name: '생성', value: resolvedOrderSummary.created },
-    { name: '부분할당', value: resolvedOrderSummary.partiallyAllocated },
-    { name: '전체할당', value: resolvedOrderSummary.fullyAllocated },
     { name: '완료', value: resolvedOrderSummary.completed },
     { name: '취소', value: resolvedOrderSummary.cancelled },
   ] : [];
@@ -577,8 +572,6 @@ export function MainDashboard() {
     { name: '계획', value: resolvedProductionSummary.planned },
     { name: '진행', value: resolvedProductionSummary.inProgress },
     { name: '완료', value: resolvedProductionSummary.completed },
-    { name: '중지', value: resolvedProductionSummary.stopped },
-    { name: '취소', value: resolvedProductionSummary.cancelled },
   ] : [];
 
   const stageDefs = getStages();
@@ -590,12 +583,12 @@ export function MainDashboard() {
     INSPECTION_DONE: "검사",
   };
 
-  const dueDateRowsFromContext = Array.from(productionMap.values())
+  const dueDateRowsFromContext = Array.from(productionMap?.values?.() ?? [])
     .map((p) => {
       let latestIdx = -1;
       let latestPred: any = null;
       let latestErr: string | undefined = undefined;
-      p.stageResults.forEach((r, idx) => {
+      (p.stageResults ?? []).forEach((r, idx) => {
         if (r?.dueDatePrediction) {
           latestIdx = idx;
           latestPred = r.dueDatePrediction;
@@ -609,6 +602,9 @@ export function MainDashboard() {
         orderId: p.orderId,
         orderQty: p.orderQty,
         stageName: stageDefs[latestIdx]?.name ?? `단계 ${latestIdx + 1}`,
+        stopCountTotal: undefined as number | undefined,
+        elapsedMinutes: undefined as number | undefined,
+        remainingSlackMinutes: undefined as number | undefined,
         delayFlag: latestPred.delay_flag,
         delayProb: latestPred.delay_probability,
         delayMinutes: latestPred.predicted_delay_minutes,
@@ -618,9 +614,9 @@ export function MainDashboard() {
     .filter((v): v is NonNullable<typeof v> => !!v)
     .sort((a, b) => (a.orderId ?? 0) - (b.orderId ?? 0));
 
-  const dueDateErrors = Array.from(productionMap.values())
+  const dueDateErrors = Array.from(productionMap?.values?.() ?? [])
     .map((p) => {
-      const errs = p.stageResults
+      const errs = (p.stageResults ?? [])
         .map((r, idx) => (r?.dueDateError ? { idx, err: r.dueDateError } : null))
         .filter((v): v is { idx: number; err: string } => !!v);
       if (errs.length === 0) return null;
@@ -634,7 +630,7 @@ export function MainDashboard() {
     .filter((v): v is NonNullable<typeof v> => !!v)
     .sort((a, b) => (a.orderId ?? 0) - (b.orderId ?? 0));
 
-  const dueDateRowsFromServer = dueDateLatest.map((row) => ({
+  const dueDateRowsFromServer = (dueDateLatest ?? []).map((row) => ({
     orderId: row.orderId,
     orderQty: row.orderQty,
     stageName: snapshotStageLabel[row.snapshotStage] ?? row.snapshotStage ?? "-",
@@ -673,7 +669,7 @@ export function MainDashboard() {
               fetchDashboard();
               fetchPrediction();
             }}
-            className="text-xs px-3 py-1.5 rounded border border-gray-200 hover:bg-gray-50"
+            className="text-xs px-3 py-1.5 rounded border border-gray-200 hover:bg-gray-50 text-gray-900"
           >
             수동 새로고침
           </button>
@@ -707,21 +703,6 @@ export function MainDashboard() {
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">취소 {fmtCount(resolvedOrderSummary?.cancelled)}</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">주문 진행</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{fmtCount(orderInProgress)}</p>
-            </div>
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <ClipboardList className="w-5 h-5 text-blue-600" />
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 mt-2">
-            생성 {fmtCount(resolvedOrderSummary?.created)} · 일부 {fmtCount(resolvedOrderSummary?.partiallyAllocated)} · 전체 {fmtCount(resolvedOrderSummary?.fullyAllocated)}
-          </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-200">

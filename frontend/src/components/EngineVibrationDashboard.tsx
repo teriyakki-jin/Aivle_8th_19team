@@ -314,7 +314,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
 
             <div className="inline-flex items-center gap-2 text-sm">
               <span className={`px-3 py-1 rounded-full font-semibold ${statusBadge}`}>{systemStatus}</span>
-              <span className="text-gray-500">Time: {nowHHMMSS()}</span>
+              <span className="text-gray-500">시간: {nowHHMMSS()}</span>
             </div>
           </div>
         </div>
@@ -367,7 +367,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-5 h-5 text-red-600" />
-                      <p className="text-sm font-medium text-gray-600">ABNORMAL History</p>
+                      <p className="text-sm font-medium text-gray-600">이상 이력</p>
                     </div>
                     <div
                       className={`w-2 h-2 rounded-full ${
@@ -384,7 +384,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
               <div className="flex items-center gap-2 mb-2">
                 <Gauge className="w-5 h-5 text-green-600" />
-                <p className="text-sm font-medium text-gray-600">NORMAL Rate</p>
+                <p className="text-sm font-medium text-gray-600">정상 비율</p>
               </div>
               <p className="text-4xl font-bold text-gray-900 mb-2">{stats.normalRate}%</p>
               <p className="text-xs text-green-600 font-medium">누적 NORMAL 비율</p>
@@ -393,7 +393,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
               <div className="flex items-center gap-2 mb-2">
                 <Activity className="w-5 h-5 text-blue-600" />
-                <p className="text-sm font-medium text-gray-600">Total Predicted</p>
+                <p className="text-sm font-medium text-gray-600">총 예측</p>
               </div>
               <p className="text-4xl font-bold text-gray-900 mb-2">{stats.totalCount}</p>
               <p className="text-xs text-blue-600 font-medium">누적 예측 횟수</p>
@@ -407,7 +407,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-indigo-500 rounded-full" />
-                <h3 className="text-lg font-bold text-gray-900">NORMAL/ABNORMAL Trend (초 단위)</h3>
+                <h3 className="text-lg font-bold text-gray-900">정상/이상 추이 (초 단위)</h3>
               </div>
               <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">
                 NORMAL=1 / ABNORMAL=0
@@ -440,7 +440,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full" />
-                <h3 className="text-lg font-bold text-gray-900">NORMAL / ABNORMAL Distribution</h3>
+                <h3 className="text-lg font-bold text-gray-900">정상 / 이상 분포</h3>
               </div>
               <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">누적 기준</span>
             </div>
@@ -498,7 +498,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center gap-2 mb-2">
               <Cpu className="w-5 h-5 text-purple-600" />
-              <p className="text-sm font-medium text-gray-600">Cycle Time</p>
+              <p className="text-sm font-medium text-gray-600">사이클 시간</p>
             </div>
             <p className="text-3xl font-bold text-gray-900">{stats.cycleTime}</p>
             <p className="text-xs text-purple-600 font-medium">스트리밍 주기</p>
@@ -507,7 +507,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center gap-2 mb-2">
               <Activity className="w-5 h-5 text-blue-600" />
-              <p className="text-sm font-medium text-gray-600">Monitoring</p>
+              <p className="text-sm font-medium text-gray-600">모니터링</p>
             </div>
             <p className="text-3xl font-bold text-gray-900">{systemStatus === "MONITORING" ? "ON" : "OFF"}</p>
             <p className="text-xs text-blue-600 font-medium">랜덤 샘플 스트림</p>
@@ -516,7 +516,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-5 h-5 text-red-600" />
-              <p className="text-sm font-medium text-gray-600">ABNORMAL Count</p>
+              <p className="text-sm font-medium text-gray-600">이상 감지 수</p>
             </div>
             <p className="text-3xl font-bold text-gray-900">{stats.abnormalCount}</p>
             <p className="text-xs text-red-600 font-medium">누적 ABNORMAL 건수</p>
@@ -563,7 +563,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                       <div key={index} className="bg-white rounded-2xl p-5 border border-red-100 shadow-sm">
                         <div className="flex items-center justify-between mb-4">
                           <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
-                            DETECTED AT {item.time}
+                            감지 시간: {item.time}
                           </span>
                         </div>
 

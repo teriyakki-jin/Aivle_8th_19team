@@ -18,13 +18,14 @@ import { useEffect, useMemo, useState } from "react";
 
 interface SidebarProps {
   username: string;
+  role: string | null;
   onLogout: () => void;
 }
 
 type AppMode = "process" | "order";
 const MODE_KEY = "app_mode"; // localStorage key
 
-export function Sidebar({ username, onLogout }: SidebarProps) {
+export function Sidebar({ username, role, onLogout }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -37,6 +38,15 @@ export function Sidebar({ username, onLogout }: SidebarProps) {
   useEffect(() => {
     localStorage.setItem(MODE_KEY, mode);
   }, [mode]);
+
+  const roleLabel =
+    role === "ADMIN"
+      ? "총괄 관리자"
+      : role === "PRODUCTION_MANAGER"
+      ? "생산 관리자"
+      : role === "PROCESS_MANAGER"
+      ? "공정 관리자"
+      : "관리자";
 
   // ✅ 메뉴 2세트
   const processMenuItems = useMemo(
@@ -62,7 +72,10 @@ export function Sidebar({ username, onLogout }: SidebarProps) {
     []
   );
 
-  const menuItems = mode === "process" ? processMenuItems : orderMenuItems;
+  const forcedMode: AppMode | null =
+    role === "PROCESS_MANAGER" ? "process" : role === "PRODUCTION_MANAGER" ? "order" : null;
+  const activeMode = forcedMode ?? mode;
+  const menuItems = activeMode === "process" ? processMenuItems : orderMenuItems;
 
   // ✅ 선택 상태 계산 (현재 path가 하위 라우트면 active)
   const isActive = (itemPath: string) => {
@@ -71,6 +84,7 @@ export function Sidebar({ username, onLogout }: SidebarProps) {
 
   // ✅ 모드 전환 버튼
   const handleSwitchMode = () => {
+    if (forcedMode) return;
     if (mode === "process") {
       setMode("order");
       navigate("/order/orders");
@@ -100,7 +114,7 @@ export function Sidebar({ username, onLogout }: SidebarProps) {
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-white">{username}</p>
-            <p className="text-xs text-slate-400">관리자</p>
+            <p className="text-xs text-slate-400">{roleLabel}</p>
           </div>
         </div>
       </div>
@@ -129,13 +143,15 @@ export function Sidebar({ username, onLogout }: SidebarProps) {
       {/* Footer */}
       <div className="p-4 border-t border-slate-700">
         {/* ✅ 모드 전환 버튼 */}
-        <button
-          onClick={handleSwitchMode}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors mb-3"
-        >
-          <ArrowLeftRight className="w-5 h-5" />
-          <span>{mode === "process" ? "주문생산으로 이동" : "이상탐지로 이동"}</span>
-        </button>
+        {!forcedMode && (
+          <button
+            onClick={handleSwitchMode}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors mb-3"
+          >
+            <ArrowLeftRight className="w-5 h-5" />
+            <span>{mode === "process" ? "주문생산으로 이동" : "이상탐지로 이동"}</span>
+          </button>
+        )}
 
         {/* Logout */}
         <button

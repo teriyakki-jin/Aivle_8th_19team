@@ -388,31 +388,29 @@ export function OrderPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 차량 모델
               </label>
-              {vehicleModels.length === 0 ? (
-                <div className="text-sm text-slate-500 border rounded-lg px-3 py-2">
-                  등록된 차량 모델이 없습니다.
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {vehicleModels.map((m) => {
-                    const active = vehicleModelId === m.vehicleModelId;
-                    return (
-                      <button
-                        key={m.vehicleModelId}
-                        type="button"
-                        onClick={() => setVehicleModelId(m.vehicleModelId)}
-                        className={`px-3 py-2 rounded-full border text-sm transition-colors ${
-                          active
-                            ? "bg-blue-600 text-white border-blue-600"
-                            : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"
-                        }`}
-                      >
+              <select
+                className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={vehicleModelId ?? ""}
+                onChange={(e) =>
+                  setVehicleModelId(
+                    e.target.value ? Number(e.target.value) : null
+                  )
+                }
+                required
+              >
+                {vehicleModels.length === 0 ? (
+                  <option value="">등록된 차량 모델이 없습니다.</option>
+                ) : (
+                  <>
+                    <option value="">차량 모델을 선택하세요</option>
+                    {vehicleModels.map((m) => (
+                      <option key={m.vehicleModelId} value={m.vehicleModelId}>
                         {m.modelName}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
             </div>
           </div>
           <div className="mt-4 flex justify-end">

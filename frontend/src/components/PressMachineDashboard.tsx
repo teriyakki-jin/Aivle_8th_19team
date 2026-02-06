@@ -55,6 +55,19 @@ const DEFECT_TYPES = [
   "Patches",
 ];
 
+const DEFECT_NAME_KO: Record<string, string> = {
+  "Scratches": "표면 긁힘",
+  "Pitted Surface": "점상 부식",
+  "Rolled-in Scale": "산화물 포함",
+  "Inclusion": "개재물",
+  "Crazing": "미세 균열",
+  "Patches": "국부 결함",
+};
+
+function toKo(name: string): string {
+  return DEFECT_NAME_KO[name] ?? name;
+}
+
 const API_BASE = ML_IMAGE_BASE; // 이미지용
 const DEMO_RANDOM_ON_SAME_VALUE = false;
 
@@ -126,7 +139,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
   const statusBadge = useMemo(() => {
     const isAnomaly = !!vibration?.is_anomaly;
     return {
-      label: isAnomaly ? "ANOMALY" : "NORMAL",
+      label: isAnomaly ? "이상" : "정상",
       wrap: isAnomaly ? "bg-red-50 border-red-100" : "bg-green-50 border-green-100",
       dot: isAnomaly ? "bg-red-500 animate-pulse" : "bg-green-500",
       icon: isAnomaly ? (
@@ -139,7 +152,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
 
   const defectDistribution = useMemo(() => {
     return DEFECT_TYPES.map((type) => ({
-      name: type,
+      name: toKo(type),
       value: Number(defectAccum[type] ?? 0),
     }));
   }, [defectAccum]);
@@ -288,7 +301,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
   // ✅ KPI (배터리/차체 스타일 톤)
   // ---------------------------
   const kpi = useMemo(() => {
-    const pred = autoImage?.predicted_class ?? "-";
+    const pred = autoImage?.predicted_class ? toKo(autoImage.predicted_class) : "-";
     const conf = typeof autoImage?.confidence === "number" ? autoImage.confidence : null;
     const err = vibration?.reconstruction_error ?? null;
     const th = vibration?.threshold ?? null;
@@ -296,7 +309,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
     return {
       predicted: pred,
       confidencePct: conf === null ? "-" : `${(conf * 100).toFixed(1)}%`,
-      vibStatus: vibration ? (vibration.is_anomaly ? "ANOMALY" : "NORMAL") : "WAITING",
+      vibStatus: vibration ? (vibration.is_anomaly ? "이상" : "정상") : "대기",
       err: err === null ? "-" : err.toFixed(4),
       th: th === null ? "-" : th.toFixed(4),
     };
@@ -321,9 +334,9 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
             </div>
             <div>
               <h2 className="text-3xl font-bold text-gray-900">프레스 공정 모니터링</h2>
-              <p className="text-gray-600 mt-1">이미지 결함 검출(CNN) + 진동 이상 감지(LSTM)</p>
+              <p className="text-gray-600 mt-1">이미지 검함 검출 및 진동 이상 감지</p>
               <p className="text-xs text-gray-500 mt-1">
-                Polling: image {POLL_IMAGE_MS / 1000}s · vibration {POLL_VIB_MS / 1000}s
+                주기: 이미지 {POLL_IMAGE_MS / 1000}s · 진동 {POLL_VIB_MS / 1000}s
               </p>
             </div>
           </div>
@@ -331,10 +344,10 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
 
         <div className="flex gap-3 items-center">
           <div className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm text-gray-700 shadow-sm">
-            Vibration update: <span className="font-mono">{lastUpdated}</span>
+            진동 갱신: <span className="font-mono">{lastUpdated}</span>
           </div>
           <div className="px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm text-gray-700 shadow-sm">
-            Image update: <span className="font-mono">{imageLastUpdated}</span>
+            이미지 갱신: <span className="font-mono">{imageLastUpdated}</span>
           </div>
         </div>
       </div>
@@ -403,8 +416,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
                 {/* Image */}
                 <div className="bg-white rounded-2xl border border-gray-200 p-3">
                   <div className="text-[11px] text-gray-500 mb-2 flex items-center justify-between">
-                    <span>입력 이미지</span>
-                    <span className="font-mono">{isImageLoading ? "loading..." : imageLastUpdated}</span>
+                    <span className="font-mono">{isImageLoading ? "로딩 중..." : imageLastUpdated}</span>
                   </div>
 
                   <div className="rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
@@ -435,12 +447,12 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
                       <div>
                         <p className="text-xs text-gray-500">예측 결과</p>
                         <p className="text-2xl font-extrabold text-gray-900 mt-1">
-                          {autoImage?.predicted_class ?? "-"}
+                          {autoImage?.predicted_class ? toKo(autoImage.predicted_class) : "-"}
                         </p>
                       </div>
 
                       <div className="text-right">
-                        <p className="text-xs text-gray-500">Confidence</p>
+                        <p className="text-xs text-gray-500">신뢰도</p>
                         <p
                           className={cn(
                             "text-2xl font-extrabold mt-1",
@@ -459,14 +471,14 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-sm font-bold text-gray-900">전체 결함 확률</h4>
                       <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-                        scores
+                        점수
                       </span>
                     </div>
 
                     <div className="space-y-2">
                       {Object.entries(autoImage?.all_scores || {}).map(([className, score]) => (
                         <div key={className} className="flex items-center justify-between gap-3">
-                          <span className="text-xs text-gray-700 w-32 truncate">{className}</span>
+                          <span className="text-xs text-gray-700 w-32 truncate">{toKo(className)}</span>
 
                           <div className="flex items-center gap-3 flex-1">
                             <div className="h-2 rounded-full bg-gray-200 overflow-hidden flex-1">
@@ -502,7 +514,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
                 <h3 className="text-lg font-bold text-gray-900">진동 이상 감지 (LSTM)</h3>
               </div>
               <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-                Live
+                실시간
               </span>
             </div>
 
@@ -517,7 +529,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                  <p className="text-xs text-gray-600">Reconstruction Error</p>
+                  <p className="text-xs text-gray-600">복원 오차</p>
                   <p className="text-2xl font-mono font-bold text-gray-900 mt-2">
                     {typeof vibration?.reconstruction_error === "number"
                       ? vibration.reconstruction_error.toFixed(4)
@@ -538,16 +550,16 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-bold text-gray-900">센서 데이터 추이 (3개 센서)</h4>
                   <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-                    last 30
+                    최근 30
                   </span>
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-3" style={{ height: 230 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={sensorHistory}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                      <XAxis dataKey="time" hide />
-                      <YAxis stroke="#94a3b8" domain={["auto", "auto"]} />
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={sensorHistory} margin={{ bottom: 12 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis dataKey="time" hide={false} tick={{ fontSize: 10 }} tickMargin={6} />
+                        <YAxis stroke="#94a3b8" domain={["auto", "auto"]} />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "white",
@@ -568,18 +580,18 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-bold text-gray-900">Reconstruction Error 추이</h4>
+                  <h4 className="text-sm font-bold text-gray-900">복원 오차 추이</h4>
                   <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-                    last 30
+                    최근 30
                   </span>
                 </div>
 
                 <div className="rounded-2xl border border-gray-200 bg-white p-3" style={{ height: 190 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={vibrationHistory}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                      <XAxis dataKey="time" hide />
-                      <YAxis stroke="#94a3b8" domain={["auto", "auto"]} />
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={vibrationHistory} margin={{ bottom: 12 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis dataKey="time" hide={false} tick={{ fontSize: 10 }} tickMargin={6} />
+                        <YAxis stroke="#94a3b8" domain={["auto", "auto"]} />
                       <Tooltip
                         contentStyle={{
                           backgroundColor: "white",

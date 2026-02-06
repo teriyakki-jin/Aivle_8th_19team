@@ -240,8 +240,8 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
   const distBar = useMemo(() => {
     const normal = stats.totalCount - stats.abnormalCount;
     return [
-      { 구분: "NORMAL", 건수: normal },
-      { 구분: "ABNORMAL", 건수: stats.abnormalCount },
+      { 구분: "정상", 건수: normal },
+      { 구분: "이상", 건수: stats.abnormalCount },
     ];
   }, [stats]);
 
@@ -252,7 +252,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
     if (last) {
       list.push({
         id: 1,
-        issue: `ABNORMAL 감지`,
+        issue: `이상 감지`,
         severity: "경고",
         time: last.time,
       });
@@ -313,7 +313,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
               </div>
               <div>
                 <h2 className="text-3xl font-bold text-gray-900">엔진 진동 분석</h2>
-                <p className="text-gray-600 mt-1">엔진 진동 실시간 데이터 분석 (자동 요청)</p>
+                <p className="text-gray-600 mt-1">엔진 진동 실시간 데이터 분석</p>
               </div>
             </div>
 
@@ -345,7 +345,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                     ) : (
                       <AlertCircle className="w-4 h-4" />
                     )}
-                    {result.judgement}
+                    {result.judgement === "NORMAL" ? "정상" : "이상"}
                   </span>
                 ) : (
                   <span className="text-xs text-gray-500">ARFF 로딩 후 자동으로 요청이 시작됩니다</span>
@@ -355,7 +355,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-white rounded-xl border border-gray-200 p-4">
                   <div className="text-xs text-gray-600">판정</div>
-                  <div className="text-3xl font-bold text-gray-900 mt-1">{result ? result.judgement : "-"}</div>
+                  <div className="text-3xl font-bold text-gray-900 mt-1">{result ? (result.judgement === "NORMAL" ? "정상" : "이상") : "-"}</div>
                   <div className="text-xs text-gray-400 mt-2">prediction(0/1) 내부 처리</div>
                 </div>
 
@@ -392,7 +392,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                 <p className="text-sm font-medium text-gray-600">정상 비율</p>
               </div>
               <p className="text-4xl font-bold text-gray-900 mb-2">{stats.normalRate}%</p>
-              <p className="text-xs text-green-600 font-medium">누적 NORMAL 비율</p>
+              <p className="text-xs text-green-600 font-medium">누적 정상 비율</p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
@@ -415,7 +415,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                 <h3 className="text-lg font-bold text-gray-900">정상/이상 추이 (초 단위)</h3>
               </div>
               <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">
-                NORMAL=1 / ABNORMAL=0
+                정상=1 / 이상=0
               </span>
             </div>
 
@@ -426,7 +426,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                   <XAxis dataKey="시간" stroke="#94a3b8" style={{ fontSize: "12px" }} interval="preserveStartEnd" />
                   <YAxis domain={[0, 1]} ticks={[0, 1]} stroke="#94a3b8" style={{ fontSize: "12px" }} />
                   <Tooltip
-                    formatter={(value: any) => (Number(value) === 1 ? "NORMAL" : "ABNORMAL")}
+                    formatter={(value: any) => (Number(value) === 1 ? "정상" : "이상")}
                     contentStyle={{
                       backgroundColor: "white",
                       border: "1px solid #f1f5f9",
@@ -524,12 +524,12 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
               <p className="text-sm font-medium text-gray-600">이상 감지 수</p>
             </div>
             <p className="text-3xl font-bold text-gray-900">{stats.abnormalCount}</p>
-            <p className="text-xs text-red-600 font-medium">누적 ABNORMAL 건수</p>
+            <p className="text-xs text-red-600 font-medium">누적 이상 건수</p>
           </div>
         </div>
       </div>
 
-      {/* ABNORMAL 모달 */}
+      {/* 이상 모달 */}
       {isModalOpen &&
         createPortal(
           <div className="fixed top-0 left-0 w-full h-full z-[9999] flex items-center justify-center p-4 sm:p-6 md:p-8">
@@ -544,8 +544,8 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                     <AlertTriangle className="w-6 h-6" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900">ABNORMAL 분석 리포트</h2>
-                    <p className="text-sm text-gray-500">최근 ABNORMAL 이력</p>
+                    <h2 className="text-xl font-bold text-gray-900">이상 분석 리포트</h2>
+                    <p className="text-sm text-gray-500">최근 이상 이력</p>
                   </div>
                 </div>
                 <button
@@ -560,7 +560,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                 {abnormalHistory.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                     <CheckCircle2 className="w-12 h-12 mb-4 opacity-20" />
-                    <p>현재 ABNORMAL 이력이 없습니다.</p>
+                    <p>현재 이상 이력이 없습니다.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -577,7 +577,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                           <div>
                             <p className="text-xs font-bold text-red-900 mb-1">분석(예시)</p>
                             <p className="text-sm text-red-800 leading-tight font-medium">
-                              랜덤 샘플 스트리밍 중 ABNORMAL 판정 발생 → 설비 진동 원인 분석 및 점검 권고
+                              랜덤 샘플 스트리밍 중 이상 판정 발생 → 설비 진동 원인 분석 및 점검 권고
                             </p>
                           </div>
                         </div>

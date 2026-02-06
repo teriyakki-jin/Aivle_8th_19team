@@ -88,7 +88,7 @@ function PassFailPill({ value }: { value: "PASS" | "FAIL" }) {
           : "bg-red-200 text-red-800 border-red-300"
       )}
     >
-      {value}
+      {pass ? "합격" : "불합격"}
     </span>
   );
 }
@@ -299,12 +299,12 @@ function BodyAssemblyDashboardInner() {
           {pf ? (
             <PassFailPill value={pf} />
           ) : (
-            <span className="text-[10px] font-bold text-gray-400">WAIT</span>
+            <span className="text-[10px] font-bold text-gray-400">대기</span>
           )}
         </div>
 
         <div className="text-sm font-bold text-gray-900">
-          detections: {detCount}
+          감지: {detCount}
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -338,10 +338,10 @@ function BodyAssemblyDashboardInner() {
                   차체 조립 모니터링
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  부품별 비전 검사 결과 자동 수집 및 결함 탐지 (자동 요청)
+                  부품별 비전 검사 결과 자동 수집 및 결함 탐지
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Polling: {POLL_MS / 1000}s · Last update:{" "}
+                  주기: {POLL_MS / 1000}s · 최근 갱신:{" "}
                   <span className="font-mono">{lastUpdated}</span>
                 </p>
               </div>
@@ -359,7 +359,7 @@ function BodyAssemblyDashboardInner() {
             <p className="text-4xl font-bold text-gray-900 mb-2">
               {stats.yieldRate}%
             </p>
-            <p className="text-xs text-green-600 font-medium">PASS 비율(현재 배치)</p>
+            <p className="text-xs text-green-600 font-medium">합격 비율(현재 배치)</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
@@ -388,7 +388,7 @@ function BodyAssemblyDashboardInner() {
               />
             </div>
             <p className="text-4xl font-bold text-red-600 mb-2">{stats.fails}</p>
-            <p className="text-xs text-red-600 font-medium">FAIL 상세 리포트 보기</p>
+            <p className="text-xs text-red-600 font-medium">불합격 상세 리포트 보기</p>
           </button>
 
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
@@ -412,7 +412,7 @@ function BodyAssemblyDashboardInner() {
                 <h3 className="text-lg font-bold text-gray-900">배치 불량 추이</h3>
               </div>
               <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">
-                status: {systemStatus}
+                상태: {systemStatus === "MONITORING" ? "모니터링" : systemStatus === "ANALYZING" ? "분석 중" : "대기"}
               </span>
             </div>
 
@@ -512,7 +512,7 @@ function BodyAssemblyDashboardInner() {
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200 overflow-hidden">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <Activity className="w-5 h-5 text-blue-600" />
-            Real-time Process Logs
+            실시간 공정 로그
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -551,12 +551,12 @@ function BodyAssemblyDashboardInner() {
                           : "bg-red-200 text-red-700"
                       )}
                     >
-                      {d.time === "--:--:--" ? "WAIT" : d.pass_fail}
+                      {d.time === "--:--:--" ? "대기" : (d.pass_fail === "PASS" ? "합격" : "불합격")}
                     </span>
                   </div>
 
                   <div className="text-sm font-bold text-gray-900">{label}</div>
-                  <div className="text-[10px] text-gray-500">detections: {d.detCount}</div>
+                  <div className="text-[10px] text-gray-500">감지: {d.detCount}</div>
                 </div>
               );
             })}
@@ -614,7 +614,7 @@ function BodyAssemblyDashboardInner() {
                     <h2 className="text-xl font-bold text-gray-900">
                       불량 분석 리포트 (Body Assembly)
                     </h2>
-                    <p className="text-sm text-gray-500">FAIL 파트 및 탐지 정보 요약</p>
+                    <p className="text-sm text-gray-500">불합격 파트 및 탐지 정보 요약</p>
                   </div>
                 </div>
                 <button
@@ -629,7 +629,7 @@ function BodyAssemblyDashboardInner() {
                 {ngList.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                     <CheckCircle2 className="w-12 h-12 mb-4 opacity-20" />
-                    <p>현재 FAIL 파트가 없습니다.</p>
+                    <p>현재 불합격 파트가 없습니다.</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -643,14 +643,14 @@ function BodyAssemblyDashboardInner() {
                               {label} · {lastUpdated}
                             </span>
                             <span className="text-xs font-medium text-gray-400">
-                              detections: {r.detections?.length ?? 0}
+                              감지: {r.detections?.length ?? 0}
                             </span>
                           </div>
 
                           <div className="grid grid-cols-2 md:grid-cols-2 gap-4 mb-4">
                             <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
                               <p className="text-[10px] text-gray-500 mb-1">판정</p>
-                              <p className="text-sm font-bold text-gray-900">{r.pass_fail}</p>
+                              <p className="text-sm font-bold text-gray-900">{r.pass_fail === "PASS" ? "합격" : "불합격"}</p>
                             </div>
                             <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
                               <p className="text-[10px] text-gray-500 mb-1">탐지 수</p>

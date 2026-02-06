@@ -43,6 +43,40 @@ const SERVER_BASE = ML_IMAGE_BASE; // 이미지는 ML 서비스에서 제공
 const POLL_MS = 5000;
 
 /* =====================
+   Defect name translation
+===================== */
+
+const DEFECT_NAME_KO: Record<string, string> = {
+  // 용접 결함 (YOLO 모델 클래스)
+  "porosity": "기공",
+  "crack": "균열",
+  "spatter": "용접 튐",
+  "spatters": "용접 튐",
+  "undercut": "용접 언더컷",
+  "burn_through": "관통 용접 결함",
+  "overlap": "오버랩",
+  "slag_inclusion": "슬래그 혼입",
+  "incomplete_fusion": "용융 불량",
+  "excess_reinforcement": "과잉 보강",
+  "bad_weld": "불량 용접",
+  "good_weld": "양품 용접",
+  "defect": "결함",
+  "normal": "정상",
+};
+
+function toKo(name: string): string {
+  const raw = name ?? "";
+  const lower = raw.toLowerCase();
+  const normalized = lower.replace(/[\s-]+/g, "_");
+  return (
+    DEFECT_NAME_KO[raw] ??
+    DEFECT_NAME_KO[lower] ??
+    DEFECT_NAME_KO[normalized] ??
+    name
+  );
+}
+
+/* =====================
    Utils
 ===================== */
 
@@ -196,10 +230,14 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
 
   const latest = history[0];
 
+  const hasDefects = (result?.defects?.length ?? 0) > 0;
+  const resultStatus: "NORMAL" | "DEFECT" | undefined =
+    result?.status ?? (hasDefects ? "DEFECT" : "NORMAL");
+
   const latestDefect = useMemo(() => {
-    if (result?.status !== "DEFECT") return null;
+    if (!hasDefects || !result?.defects) return null;
     return topDefect(result.defects);
-  }, [result]);
+  }, [hasDefects, result]);
 
   const total = history.length;
   const bad = useMemo(() => history.filter((h) => h.judgement === "불량").length, [history]);
@@ -235,7 +273,8 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
       setLastUpdated(nowHHMMSS());
       setError("");
 
-      const top = json.status === "DEFECT" ? topDefect(json.defects) : null;
+      const jsonHasDefects = (json?.defects?.length ?? 0) > 0;
+      const top = jsonHasDefects ? topDefect(json.defects) : null;
 
       const id = `IMG-${pad5(seqRef.current)}`;
       seqRef.current += 1;
@@ -244,7 +283,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
         {
           id,
           time: nowHHMMSS(),
-          judgement: json.status === "DEFECT" ? "불량" : "양품",
+            judgement: jsonHasDefects || json.status === "DEFECT" ? "불량" : "양품",
           defectType: top?.class ?? "-",
           confidencePct: top ? confidenceToPct(top.confidence) : 99,
           originalUrl: publicUrl(json.original_image_url),
@@ -290,7 +329,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
   const latestJudgement: "양품" | "불량" | "대기" = latest
     ? latest.judgement
     : result
-    ? result.status === "DEFECT"
+    ? resultStatus === "DEFECT"
       ? "불량"
       : "양품"
     : "대기";
@@ -313,7 +352,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
             </div>
             <div>
               <h2 className="text-3xl font-bold text-gray-900">용접 이미지 검사</h2>
-              <p className="text-gray-600 mt-1">자동 폴링 기반 결함 탐지 + 결과 누적</p>
+              <p className="text-gray-600 mt-1">자동 폴링 기반 결함 탐지</p>
               <p className="text-xs text-gray-500 mt-1">
                 최근 갱신: <span className="font-mono">{lastUpdated}</span> · 주기:{" "}
                 {POLL_MS / 1000}s
@@ -384,7 +423,6 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
         >
           <div className="bg-white rounded-2xl border border-gray-200 p-3">
             <div className="text-[11px] text-gray-500 mb-2 flex items-center justify-between">
-              <span>최근 입력/결과 이미지</span>
               <span className="font-mono">{lastUpdated}</span>
             </div>
 
@@ -417,7 +455,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
           title="분석 결과"
           badge={
             <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-              {result ? (result.status === "DEFECT" ? "DEFECT" : "NORMAL") : "WAIT"}
+              {result ? (resultStatus === "DEFECT" ? "불량" : "양품") : "대기"}
             </span>
           }
         >
@@ -425,14 +463,14 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
             <div className="rounded-2xl border border-gray-200 bg-white p-4">
               <div className="text-xs text-gray-500">판정</div>
               <div className="mt-1 text-xl font-extrabold text-gray-900">
-                {result ? (result.status === "DEFECT" ? "불량" : "양품") : "-"}
+                {result ? (resultStatus === "DEFECT" ? "불량" : "양품") : "-"}
               </div>
             </div>
 
             <div className="rounded-2xl border border-gray-200 bg-white p-4">
               <div className="text-xs text-gray-500">대표 불량</div>
               <div className="mt-1 text-xl font-extrabold text-gray-900 truncate">
-                {latestDefect?.class ?? "-"}
+                {latestDefect?.class ? toKo(latestDefect.class) : "-"}
               </div>
             </div>
 
@@ -444,7 +482,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
             </div>
           </div>
 
-          {result?.status === "DEFECT" && result.defects.length > 0 && (
+          {hasDefects && (
             <div className="mt-5 rounded-2xl border border-gray-200 bg-white p-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="text-sm font-bold text-gray-900">검출 목록</div>
@@ -460,7 +498,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
                   .slice(0, 6)
                   .map((d, i) => (
                     <div key={`${d.class}-${i}`} className="flex items-center justify-between">
-                      <span className="text-gray-800">{d.class}</span>
+                      <span className="text-gray-800">{toKo(d.class)}</span>
                       <span className="font-mono text-gray-900">
                         {confidenceToPct(d.confidence)}%
                       </span>
@@ -518,7 +556,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
                         {h.judgement}
                       </span>
                     </td>
-                    <td className="py-3 pr-3 text-gray-800">{h.defectType}</td>
+                    <td className="py-3 pr-3 text-gray-800">{toKo(h.defectType)}</td>
                     <td className="py-3 pr-3 font-mono text-gray-900">
                       {h.confidencePct}%
                     </td>

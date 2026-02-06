@@ -99,6 +99,13 @@ function severityDot(sev: Severity) {
   return "bg-blue-500";
 }
 
+function severityTextKo(sev: Severity) {
+  if (sev === "CRITICAL") return "심각";
+  if (sev === "HIGH") return "높음";
+  if (sev === "MEDIUM") return "보통";
+  return "낮음";
+}
+
 function KpiCard({
   icon,
   label,
@@ -386,13 +393,12 @@ const PaintQualityDashboardInner: React.FC = () => {
           title="결과 이미지"
           badge={
             <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-              {latest ? (latest.status === "FAIL" ? "DEFECT" : "NORMAL") : "WAIT"}
+              {latest ? (latest.status === "FAIL" ? "결함" : "정상") : "대기"}
             </span>
           }
         >
           <div className="bg-white rounded-2xl border border-gray-200 p-3">
             <div className="text-[11px] text-gray-500 mb-2 flex items-center justify-between">
-              <span>최근 결과 이미지</span>
               <span className="font-mono">
                 {current
                   ? new Date(current.analyzedAt).toLocaleTimeString("ko-KR", {
@@ -422,7 +428,7 @@ const PaintQualityDashboardInner: React.FC = () => {
                 {statusText(current.status)}
               </span>
             ) : (
-              <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">WAIT</span>
+              <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">대기</span>
             )
           }
         >
@@ -504,7 +510,7 @@ const PaintQualityDashboardInner: React.FC = () => {
                               )}
                             >
                               <span className={cn("w-2 h-2 rounded-full", severityDot(d.severityLevel))} />
-                              {d.severityLevel}
+                              {severityTextKo(d.severityLevel)}
                             </div>
                           </div>
                         </div>
@@ -527,7 +533,7 @@ const PaintQualityDashboardInner: React.FC = () => {
         title="최근 분석 이력"
         badge={
           <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-            latest {Math.min(history.length, 50)}
+            최근 {Math.min(history.length, 50)}건
           </span>
         }
       >

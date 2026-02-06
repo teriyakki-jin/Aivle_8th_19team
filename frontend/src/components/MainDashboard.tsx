@@ -540,6 +540,12 @@ export function MainDashboard() {
   const resolvedProductionSummary = computedProductionSummary ?? productionSummary;
 
   const fmtCount = (value?: number) => (value === undefined || value === null ? '—' : `${value}건`);
+  const orderInProgress =
+    resolvedOrderSummary
+      ? (resolvedOrderSummary.created ?? 0)
+        + (resolvedOrderSummary.partiallyAllocated ?? 0)
+        + (resolvedOrderSummary.fullyAllocated ?? 0)
+      : undefined;
 
   const orderIndex = new Map<number, OrderListItem>(
     (orders ?? [])
@@ -703,6 +709,19 @@ export function MainDashboard() {
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">취소 {fmtCount(resolvedOrderSummary?.cancelled)}</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">주문 진행</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{fmtCount(orderInProgress)}</p>
+            </div>
+            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <Activity className="w-5 h-5 text-orange-600" />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">생성/할당 진행 중 합산</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-200">

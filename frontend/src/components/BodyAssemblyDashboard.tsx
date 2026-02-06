@@ -354,7 +354,7 @@ function BodyAssemblyDashboardInner() {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center gap-2 mb-4">
               <CheckCircle2 className="w-5 h-5 text-green-600" />
-              <p className="text-sm font-medium text-gray-600">Yield Rate</p>
+              <p className="text-sm font-medium text-gray-600">양품률</p>
             </div>
             <p className="text-4xl font-bold text-gray-900 mb-2">
               {stats.yieldRate}%
@@ -365,7 +365,7 @@ function BodyAssemblyDashboardInner() {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center gap-2 mb-4">
               <Activity className="w-5 h-5 text-blue-600" />
-              <p className="text-sm font-medium text-gray-600">Inspected Parts</p>
+              <p className="text-sm font-medium text-gray-600">검사 부품 수</p>
             </div>
             <p className="text-4xl font-bold text-gray-900 mb-2">{stats.inspected}</p>
             <p className="text-xs text-blue-600 font-medium">이번 배치 처리 파트 수</p>
@@ -378,7 +378,7 @@ function BodyAssemblyDashboardInner() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
-                <p className="text-sm font-medium text-gray-600">Defect Detected</p>
+                <p className="text-sm font-medium text-gray-600">불량 감지</p>
               </div>
               <div
                 className={cn(
@@ -394,7 +394,7 @@ function BodyAssemblyDashboardInner() {
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
             <div className="flex items-center gap-2 mb-4">
               <Cpu className="w-5 h-5 text-purple-600" />
-              <p className="text-sm font-medium text-gray-600">Cycle Time</p>
+              <p className="text-sm font-medium text-gray-600">사이클 시간</p>
             </div>
             <p className="text-4xl font-bold text-gray-900 mb-2">
               {(POLL_MS / 1000).toFixed(0)}s
@@ -409,7 +409,7 @@ function BodyAssemblyDashboardInner() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className={cn("w-2 h-2 rounded-full", "bg-blue-500")} />
-                <h3 className="text-lg font-bold text-gray-900">Batch Fail Trend</h3>
+                <h3 className="text-lg font-bold text-gray-900">배치 불량 추이</h3>
               </div>
               <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">
                 status: {systemStatus}
@@ -437,7 +437,7 @@ function BodyAssemblyDashboardInner() {
                     strokeWidth={3}
                     dot={{ fill: "#dc2626", r: 4 }}
                     isAnimationActive={false}
-                    name="FAIL parts"
+                    name="불량 부품"
                   />
                   <Line
                     type="monotone"
@@ -446,7 +446,7 @@ function BodyAssemblyDashboardInner() {
                     strokeWidth={3}
                     dot={{ fill: "#2563eb", r: 4 }}
                     isAnimationActive={false}
-                    name="Total detections"
+                    name="총 감지 수"
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -457,10 +457,10 @@ function BodyAssemblyDashboardInner() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-indigo-500 rounded-full" />
-                <h3 className="text-lg font-bold text-gray-900">Detections by Part</h3>
+                <h3 className="text-lg font-bold text-gray-900">부위별 감지</h3>
               </div>
               <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">
-                batch snapshot
+                배치 스냅샷
               </span>
             </div>
 
@@ -703,8 +703,8 @@ function BodyAssemblyDashboardInner() {
                               <table className="w-full text-left text-sm">
                                 <thead className="text-xs text-gray-500">
                                   <tr>
-                                    <th className="py-2">Class</th>
-                                    <th className="py-2">Conf</th>
+                                    <th className="py-2">분류</th>
+                                    <th className="py-2">신뢰도</th>
                                     <th className="py-2">BBox</th>
                                   </tr>
                                 </thead>

@@ -168,7 +168,7 @@ export function BatteryDashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <Battery className="w-5 h-5 text-green-600" />
-                                <p className="text-sm font-medium text-gray-600">Yield Rate</p>
+                                <p className="text-sm font-medium text-gray-600">양품률</p>
                             </div>
                         </div>
                         <p className="text-4xl font-bold text-gray-900 mb-2">{stats.recentYield}%</p>
@@ -179,7 +179,7 @@ export function BatteryDashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <Activity className="w-5 h-5 text-blue-600" />
-                                <p className="text-sm font-medium text-gray-600">Total Inspected</p>
+                                <p className="text-sm font-medium text-gray-600">총 검사 수</p>
                             </div>
                         </div>
                         <p className="text-4xl font-bold text-gray-900 mb-2">{stats.totalCount}</p>
@@ -193,7 +193,7 @@ export function BatteryDashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <AlertTriangle className="w-5 h-5 text-red-600" />
-                                <p className="text-sm font-medium text-gray-600">Defect Detected</p>
+                                <p className="text-sm font-medium text-gray-600">불량 감지</p>
                             </div>
                             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                         </div>
@@ -205,7 +205,7 @@ export function BatteryDashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <Cpu className="w-5 h-5 text-purple-600" />
-                                <p className="text-sm font-medium text-gray-600">Cycle Time</p>
+                                <p className="text-sm font-medium text-gray-600">사이클 시간</p>
                             </div>
                         </div>
                         <p className="text-4xl font-bold text-gray-900 mb-2">0.5s</p>
@@ -219,7 +219,7 @@ export function BatteryDashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                                <h3 className="text-lg font-bold text-gray-900">Real Power Stability</h3>
+                                <h3 className="text-lg font-bold text-gray-900">실제 출력 안정성</h3>
                             </div>
                             <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">target: 150W</span>
                         </div>
@@ -249,7 +249,7 @@ export function BatteryDashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-purple-500 rounded-full" />
-                                <h3 className="text-lg font-bold text-gray-900">Power Difference Analysis</h3>
+                                <h3 className="text-lg font-bold text-gray-900">출력 차이 분석</h3>
                             </div>
                             <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">target: &lt;15</span>
                         </div>
@@ -273,7 +273,7 @@ export function BatteryDashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-green-500 rounded-full" />
-                                <h3 className="text-lg font-bold text-gray-900">Gate On Time Monitoring</h3>
+                                <h3 className="text-lg font-bold text-gray-900">게이트 온 시간 모니터링</h3>
                             </div>
                             <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">target: 85±5ms</span>
                         </div>
@@ -303,7 +303,7 @@ export function BatteryDashboard() {
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                                <h3 className="text-lg font-bold text-gray-900">Weld Length Precision</h3>
+                                <h3 className="text-lg font-bold text-gray-900">용접 길이 정밀도</h3>
                             </div>
                             <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">target: ≥43mm</span>
                         </div>
@@ -341,7 +341,7 @@ export function BatteryDashboard() {
                                     </span>
                                 </div>
                                 <div className="text-sm font-bold text-gray-900">{d.RealPower}W</div>
-                                <div className="text-[10px] text-gray-500">Diff: {d.PowerDifference}</div>
+                                <div className="text-[10px] text-gray-500">차이: {d.PowerDifference}</div>
                             </div>
                         ))}
                     </div>
@@ -373,7 +373,7 @@ export function BatteryDashboard() {
                                     <AlertTriangle className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-bold text-gray-900">불량 분석 리포트 (NG Analysis Report)</h2>
+                                    <h2 className="text-xl font-bold text-gray-900">불량 분석 리포트</h2>
                                     <p className="text-sm text-gray-500">AI 기반 불량 원인 및 센서 데이터 임계치 분석</p>
                                 </div>
                             </div>
@@ -398,25 +398,25 @@ export function BatteryDashboard() {
                                         <div key={index} className="bg-white rounded-2xl p-5 border border-red-100 shadow-sm">
                                             <div className="flex items-center justify-between mb-4">
                                                 <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-bold rounded-full">
-                                                    DETECTED AT {item.time}
+                                                    감지 시간: {item.time}
                                                 </span>
                                                 <span className="text-xs font-medium text-gray-400">ID: BATT-{index + 1000}</span>
                                             </div>
                                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                                                 <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                                    <p className="text-[10px] text-gray-500 mb-1">Power</p>
+                                                    <p className="text-[10px] text-gray-500 mb-1">출력</p>
                                                     <p className="text-sm font-bold text-gray-900">{item.RealPower}W</p>
                                                 </div>
                                                 <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                                    <p className="text-[10px] text-gray-500 mb-1">Length</p>
+                                                    <p className="text-[10px] text-gray-500 mb-1">길이</p>
                                                     <p className="text-sm font-bold text-gray-900">{item.Length}mm</p>
                                                 </div>
                                                 <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                                    <p className="text-[10px] text-gray-500 mb-1">Diff</p>
+                                                    <p className="text-[10px] text-gray-500 mb-1">차이</p>
                                                     <p className="text-sm font-bold text-gray-900">{item.PowerDifference}</p>
                                                 </div>
                                                 <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                                    <p className="text-[10px] text-gray-500 mb-1">Gate On</p>
+                                                    <p className="text-[10px] text-gray-500 mb-1">게이트 온</p>
                                                     <p className="text-sm font-bold text-gray-900">{item.GateOnTime}ms</p>
                                                 </div>
                                             </div>

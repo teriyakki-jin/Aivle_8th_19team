@@ -340,7 +340,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center gap-2 mb-4">
             <ImageIcon className="w-5 h-5 text-blue-600" />
-            <p className="text-sm font-medium text-gray-600">Latest Class</p>
+            <p className="text-sm font-medium text-gray-600">최신 분류</p>
           </div>
           <p className="text-3xl font-bold text-gray-900 mb-2">{kpi.predicted}</p>
           <p className="text-xs text-blue-600 font-medium">최근 이미지 예측 결과</p>
@@ -349,7 +349,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center gap-2 mb-4">
             <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <p className="text-sm font-medium text-gray-600">Confidence</p>
+            <p className="text-sm font-medium text-gray-600">신뢰도</p>
           </div>
           <p className="text-3xl font-bold text-gray-900 mb-2">{kpi.confidencePct}</p>
           <p className="text-xs text-green-600 font-medium">모델 확신도(표시용)</p>
@@ -359,7 +359,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-red-600" />
-              <p className="text-sm font-medium text-gray-600">Vibration Status</p>
+              <p className="text-sm font-medium text-gray-600">진동 상태</p>
             </div>
             <div className={cn("w-2 h-2 rounded-full", statusBadge.dot)} />
           </div>
@@ -372,7 +372,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">
           <div className="flex items-center gap-2 mb-4">
             <Activity className="w-5 h-5 text-purple-600" />
-            <p className="text-sm font-medium text-gray-600">Reconstruction Error</p>
+            <p className="text-sm font-medium text-gray-600">복원 오차</p>
           </div>
           <p className="text-3xl font-bold text-gray-900 mb-2">{kpi.err}</p>
           <p className="text-xs text-purple-600 font-medium">threshold: {kpi.th}</p>
@@ -390,7 +390,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
                 <h3 className="text-lg font-bold text-gray-900">이미지 결함 검출 (CNN)</h3>
               </div>
               <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-                Auto
+                자동
               </span>
             </div>
 

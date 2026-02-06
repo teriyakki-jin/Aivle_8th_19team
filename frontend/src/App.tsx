@@ -105,7 +105,7 @@ export default function App() {
     localStorage.removeItem("role");
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div>로딩 중...</div>;
 
   const defaultPath =
     role === "PRODUCTION_MANAGER" ? "/order/orders" : "/dashboard";

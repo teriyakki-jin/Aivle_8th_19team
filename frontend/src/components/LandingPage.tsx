@@ -25,7 +25,7 @@ export function LandingPage() {
               </div>
               <div>
                 <h1 className="text-lg font-semibold leading-none">자동차 공정 관리</h1>
-                <p className="text-xs text-muted-foreground">Automotive Process Management</p>
+                <p className="text-xs text-muted-foreground">AI 기반 공정 관리 솔루션</p>
               </div>
             </div>
             <nav className="hidden md:flex items-center gap-1">
@@ -76,7 +76,7 @@ export function LandingPage() {
         <div className="container relative">
           <div className="max-w-3xl space-y-6 rounded-md bg-background/70 backdrop-blur-sm border border-border/50 p-6 md:p-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-sm mb-6">
-              <span className="text-xs font-mono text-primary">AI-POWERED SOLUTION</span>
+              <span className="text-xs font-mono text-primary">AI 기반 솔루션</span>
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold leading-tight text-foreground drop-shadow-sm tracking-tight">
               자동차 공정 이상 탐지 및<br />납기 리스크 예측 플랫폼
@@ -184,7 +184,7 @@ export function LandingPage() {
             <div className="grid md:grid-cols-2 gap-14 items-center">
               <div className="order-2 md:order-1">
                 <div className="inline-block px-3 py-1 bg-primary/10 border border-primary/20 rounded-sm mb-4">
-                  <span className="text-xs font-mono text-primary">FEATURE 01</span>
+                  <span className="text-xs font-mono text-primary">기능 01</span>
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">실시간 이상 탐지 시스템</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
@@ -232,7 +232,7 @@ export function LandingPage() {
               </div>
               <div>
                 <div className="inline-block px-3 py-1 bg-primary/10 border border-primary/20 rounded-sm mb-4">
-                  <span className="text-xs font-mono text-primary">FEATURE 02</span>
+                  <span className="text-xs font-mono text-primary">기능 02</span>
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">납기 리스크 예측 분석</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
@@ -267,7 +267,7 @@ export function LandingPage() {
             <div className="grid md:grid-cols-2 gap-14 items-center">
               <div className="order-2 md:order-1">
                 <div className="inline-block px-3 py-1 bg-primary/10 border border-primary/20 rounded-sm mb-4">
-                  <span className="text-xs font-mono text-primary">FEATURE 03</span>
+                  <span className="text-xs font-mono text-primary">기능 03</span>
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">통합 모니터링 대시보드</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
@@ -471,7 +471,7 @@ export function LandingPage() {
             </div>
           </div>
           <div className="pt-8 border-t border-border text-center text-sm text-muted-foreground">
-            <p>© 2026 자동차 공정 관리 시스템. All rights reserved.</p>
+            <p>© 2026 자동차 공정 관리 시스템. 모든 권리 보유.</p>
           </div>
         </div>
       </footer>

@@ -67,10 +67,10 @@
       "Bash(git remote:*)",
       "Bash(timeout:*)",
       "WebFetch(domain:autoprocmon-yx5z7bmd.manus.space)",
-      "Bash(powershell -Command \"cd ''c:\\\\Users\\\\User\\\\Desktop\\\\BigProject\\\\bigproject\\\\Aivle_8th_19team\\\\frontend''; npm run dev\")",
       "Bash(powershell:*)",
-      "Bash(cmd /c \"cd /d c:\\\\Users\\\\User\\\\Desktop\\\\BigProject\\\\bigproject\\\\Aivle_8th_19team\\\\frontend && npm run dev\")",
-      "Bash(cmd /c \"ping localhost -n 6 > nul && type C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-User-Desktop-BigProject-bigproject-Aivle-8th-19team\\\\tasks\\\\b23fa0e.output\")"
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash pop:*)"
     ]
   }
 }

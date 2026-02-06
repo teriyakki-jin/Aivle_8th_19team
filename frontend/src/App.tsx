@@ -50,7 +50,7 @@ function ProtectedRoute({
   children: JSX.Element;
   isLoggedIn: boolean;
 }) {
-  if (!isLoggedIn) return <Navigate to="/" replace />;
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
   return children;
 }
 

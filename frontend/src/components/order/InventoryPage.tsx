@@ -123,7 +123,7 @@ export function InventoryPage() {
         </div>
         <button
           onClick={refresh}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border text-slate-900 hover:bg-slate-50 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-slate-50 transition-colors"
         >
           <RefreshCcw className="w-4 h-4" />
           새로고침
@@ -151,7 +151,7 @@ export function InventoryPage() {
                 부품 ID
               </label>
               <input
-                className="w-full h-10 border rounded-lg px-3 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 value={adjustPartId}
                 onChange={(e) => setAdjustPartId(e.target.value)}
                 placeholder="예: 1"
@@ -165,7 +165,7 @@ export function InventoryPage() {
                 수량
               </label>
               <input
-                className="w-full h-10 border rounded-lg px-3 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 value={adjustQty}
                 onChange={(e) => setAdjustQty(e.target.value)}
                 placeholder="예: 10"
@@ -182,7 +182,7 @@ export function InventoryPage() {
                 변경 유형
               </label>
               <select
-                className="w-full h-10 border rounded-lg px-3 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 value={adjustType}
                 onChange={(e) =>
                   setAdjustType(e.target.value as typeof adjustType)
@@ -310,7 +310,7 @@ export function InventoryPage() {
               </span>
               <button
                 onClick={() => loadHistory(selectedPartId)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-slate-900 hover:bg-slate-50 transition-colors text-sm"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border hover:bg-slate-50 transition-colors text-sm"
               >
                 <RefreshCcw className="w-4 h-4" />
                 새로고침

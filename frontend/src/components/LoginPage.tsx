@@ -4,7 +4,7 @@ import { Factory, Lock, User } from 'lucide-react';
 import { apiUrl } from '../config/env';
 
 interface LoginPageProps {
-  onLogin: (username: string) => void;
+  onLogin: (username: string, role: string) => void;
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
@@ -14,12 +14,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const saveSession = (token: string, uname: string) => {
+  const saveSession = (token: string, uname: string, role: string) => {
     localStorage.setItem('token', token);
     localStorage.setItem('username', uname);
-    onLogin(uname);
-    // ✅ 로그인 후 원하는 첫 화면으로 이동 (App.tsx에서 /login 접근 시 /press로 보내게 했으니 맞춰줌)
-    navigate('/press', { replace: true });
+    localStorage.setItem('role', role);
+    onLogin(uname, role);
+    const nextPath = role === 'PRODUCTION_MANAGER' ? '/order/orders' : '/dashboard';
+    navigate(nextPath, { replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +29,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
     // ✅ demo bypass를 유지하되, token도 저장해서 403이 안 뜨게 함
     if (username === 'test' && password === 'test') {
-      saveSession('DEV_TOKEN', username);
+      saveSession('DEV_TOKEN', username, 'ADMIN');
       return;
     }
 
@@ -59,13 +60,14 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       // ✅ 혹시 래핑되어 오는 경우도 대비: { data: { token, username } }
       const token = data?.token ?? data?.data?.token;
       const uname = data?.username ?? data?.data?.username ?? username;
+      const role = data?.role ?? data?.data?.role ?? 'PRODUCTION_MANAGER';
 
       if (!token) {
         setError('로그인 응답에 token이 없습니다. (백엔드 응답 구조 확인 필요)');
         return;
       }
 
-      saveSession(token, uname);
+      saveSession(token, uname, role);
     } catch (err) {
       console.error(err);
       setError('서버 연결 실패');

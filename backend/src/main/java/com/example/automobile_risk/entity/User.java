@@ -3,6 +3,7 @@ package com.example.automobile_risk.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import com.example.automobile_risk.entity.enumclass.UserRole;
 
 @Entity
 @Table(name = "users")
@@ -21,6 +22,10 @@ public class User {
 
     @Column(nullable = false)
     private String password;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private UserRole role;
 
     private LocalDateTime startDate;
 }

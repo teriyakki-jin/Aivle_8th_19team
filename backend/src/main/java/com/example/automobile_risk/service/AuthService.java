@@ -3,6 +3,7 @@ package com.example.automobile_risk.service;
 import com.example.automobile_risk.dto.LoginRequest;
 import com.example.automobile_risk.dto.LoginResponse;
 import com.example.automobile_risk.entity.User;
+import com.example.automobile_risk.entity.enumclass.UserRole;
 import com.example.automobile_risk.repository.UserRepository;
 import com.example.automobile_risk.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
@@ -29,9 +30,12 @@ public class AuthService {
             throw new RuntimeException("Username already exists");
         }
 
+        UserRole role = request.getRole() != null ? request.getRole() : UserRole.PRODUCTION_MANAGER;
+
         User user = User.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .role(role)
                 .startDate(LocalDateTime.now())
                 .build();
 
@@ -45,9 +49,13 @@ public class AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String jwt = jwtUtils.generateJwtToken(authentication);
 
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
         return LoginResponse.builder()
                 .token(jwt)
                 .username(request.getUsername())
+                .role(user.getRole())
                 .build();
     }
 }

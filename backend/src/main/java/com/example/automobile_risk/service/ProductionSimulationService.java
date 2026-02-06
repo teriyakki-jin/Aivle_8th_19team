@@ -32,6 +32,7 @@ public class ProductionSimulationService {
     private final ProcessExecutionRepository processExecutionRepository;
     private final PlatformTransactionManager transactionManager;
     private final ProductionSseService productionSseService;
+    private final OrderService orderService;
 
     @Async("simulationExecutor")
     public void simulate(Long productionId) {
@@ -125,6 +126,11 @@ public class ProductionSimulationService {
             long remaining = processExecutionRepository.countNotCompletedByProductionId(productionId);
             if (remaining == 0) {
                 production.complete(LocalDateTime.now());
+                // 연관 주문 완료 처리
+                List<Long> orderIds = orderService.findRelatedOrderIdsByProduction(productionId);
+                for (Long orderId : orderIds) {
+                    orderService.tryCompleteOrder(orderId);
+                }
                 productionSseService.publish(ProductionStreamEvent.builder()
                         .type("production")
                         .productionId(productionId)

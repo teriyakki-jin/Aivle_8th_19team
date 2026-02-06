@@ -14,6 +14,7 @@ export const SignupPage = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [role, setRole] = useState<'PRODUCTION_MANAGER' | 'PROCESS_MANAGER'>('PRODUCTION_MANAGER');
     const [agreedToAll, setAgreedToAll] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
@@ -79,7 +80,7 @@ export const SignupPage = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ username, password, role }),
             });
 
             if (response.ok) {
@@ -307,6 +308,30 @@ export const SignupPage = () => {
                                     required
                                 />
                             </div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+                                역할
+                            </label>
+                            <div className="relative">
+                                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                    <ChevronDown className="h-5 w-5 text-gray-400" />
+                                </div>
+                                <select
+                                    id="role"
+                                    value={role}
+                                    onChange={(e) => setRole(e.target.value as 'PRODUCTION_MANAGER' | 'PROCESS_MANAGER')}
+                                    className="block w-full pr-10 py-3 px-3 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition appearance-none bg-white"
+                                    required
+                                >
+                                    <option value="PRODUCTION_MANAGER">생산 관리자</option>
+                                    <option value="PROCESS_MANAGER">공정 관리자</option>
+                                </select>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                                가입 후 권한에 따라 접근 가능한 화면이 달라집니다.
+                            </p>
                         </div>
 
                         <div>

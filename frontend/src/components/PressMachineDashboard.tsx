@@ -161,8 +161,10 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
 
     setIsImageLoading(true);
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${ML_API_BASE}/press/image`, {
         method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (!res.ok) {
@@ -222,8 +224,10 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
       vibInFlightRef.current = true;
 
       try {
+        const vibToken = localStorage.getItem("token");
         const response = await fetch(`${ML_API_BASE}/press/vibration`, {
           method: "POST",
+          headers: vibToken ? { Authorization: `Bearer ${vibToken}` } : {},
         });
 
         if (!response.ok) {

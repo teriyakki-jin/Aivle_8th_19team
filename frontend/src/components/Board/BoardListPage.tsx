@@ -56,9 +56,9 @@ export const BoardListPage = () => {
                     <p className="text-gray-600 mt-1">사내 소식과 의견을 공유하세요</p>
                 </div>
                 <Link to="/board/write">
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all px-2 py-3 rounded-lg flex items-center justify-center gap-4">
-                        <Plus className="h-3 w-6" />
-                        <span className="h-3 w-1 font-bold text-base">새글작성</span>
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all px-4 py-3 rounded-lg flex items-center justify-center gap-2">
+                        <Plus className="h-4 w-4" />
+                        <span className="font-bold text-base whitespace-nowrap">새글작성</span>
                     </Button>
                 </Link>
             </div>

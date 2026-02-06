@@ -311,7 +311,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
               <h2 className="text-3xl font-bold text-gray-900">용접 이미지 검사</h2>
               <p className="text-gray-600 mt-1">자동 폴링 기반 결함 탐지 + 결과 누적</p>
               <p className="text-xs text-gray-500 mt-1">
-                Last update: <span className="font-mono">{lastUpdated}</span> · Polling:{" "}
+                최근 갱신: <span className="font-mono">{lastUpdated}</span> · 주기:{" "}
                 {POLL_MS / 1000}s
               </p>
             </div>
@@ -374,7 +374,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
           title="이미지 분석"
           badge={
             <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-              {loading ? "Loading" : "Auto"}
+              {loading ? "로딩 중" : "자동"}
             </span>
           }
         >
@@ -479,7 +479,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
         title="최근 검사 결과"
         badge={
           <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-            latest {Math.min(history.length, 50)}
+            최근 {Math.min(history.length, 50)}건
           </span>
         }
       >

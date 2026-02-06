@@ -28,15 +28,17 @@ import { AccessDeniedPage } from "./components/AccessDeniedPage";
 function Layout({
   children,
   username,
+  role,
   onLogout,
 }: {
   children: React.ReactNode;
   username: string;
+  role: string | null;
   onLogout: () => void;
 }) {
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar username={username} onLogout={onLogout} />
+      <Sidebar username={username} role={role} onLogout={onLogout} />
       <main className="flex-1 overflow-auto">{children}</main>
       <AIChatbot />
     </div>
@@ -50,31 +52,29 @@ function ProtectedRoute({
   children: JSX.Element;
   isLoggedIn: boolean;
 }) {
-  if (!isLoggedIn) return <Navigate to="/" replace />;
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
   return children;
 }
 
-function RoleGuard({
+function RoleRoute({
   children,
   role,
-  allowed,
-  message,
+  allowedRoles,
 }: {
   children: JSX.Element;
-  role: string;
-  allowed: string[];
-  message: string;
+  role: string | null;
+  allowedRoles?: string[];
 }) {
-  if (!allowed.includes(role)) {
-    return <AccessDeniedPage message={message} />;
-  }
-  return children;
+  if (!allowedRoles || allowedRoles.length === 0) return children;
+  if (!role) return <Navigate to="/access-denied" replace />;
+  if (role === "ADMIN" || allowedRoles.includes(role)) return children;
+  return <Navigate to="/access-denied" replace />;
 }
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
-  const [role, setRole] = useState("PRODUCTION");
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -84,28 +84,31 @@ export default function App() {
     if (token && savedUsername) {
       setIsLoggedIn(true);
       setUsername(savedUsername);
-      if (savedRole) setRole(savedRole);
+      setRole(savedRole);
     }
     setLoading(false);
   }, []);
 
-  const handleLogin = (user: string) => {
+  const handleLogin = (user: string, userRole: string) => {
     const savedUsername = localStorage.getItem("username");
-    const savedRole = localStorage.getItem("role");
     setUsername(user || savedUsername || "User");
-    if (savedRole) setRole(savedRole);
+    setRole(userRole || localStorage.getItem("role"));
     setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUsername("");
+    setRole(null);
     localStorage.removeItem("token");
     localStorage.removeItem("username");
     localStorage.removeItem("role");
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div>로딩 중...</div>;
+
+  const defaultPath =
+    role === "PRODUCTION_MANAGER" ? "/order/orders" : "/dashboard";
 
   return (
     <BrowserRouter>
@@ -115,7 +118,7 @@ export default function App() {
           path="/"
           element={
             isLoggedIn ? (
-              <Navigate to="/dashboard" replace />
+              <Navigate to={defaultPath} replace />
             ) : (
               <LandingPage />
             )
@@ -127,7 +130,7 @@ export default function App() {
           element={
             isLoggedIn ? (
               // 로그인 되어있으면 로그인 화면 못 보게 -> 메인 대시보드로 보내기
-              <Navigate to="/dashboard" replace />
+              <Navigate to={defaultPath} replace />
             ) : (
               <LoginPage onLogin={handleLogin} />
             )
@@ -145,82 +148,44 @@ export default function App() {
           element={
             <ProtectedRoute isLoggedIn={isLoggedIn}>
             <ProductionProvider>
-              <Layout username={username} onLogout={handleLogout}>
+              <Layout username={username} role={role} onLogout={handleLogout}>
                 <Routes>
                   {/* 공정확인 */}
-                  <Route path="/dashboard" element={<MainDashboard />} />
-                  <Route
-                    path="/press"
-                    element={
-                      <RoleGuard
-                        role={role}
-                        allowed={["PROCESS"]}
-                        message="이곳은 공정 관리자용 페이지입니다."
-                      >
-                        <PressMachineDashboard />
-                      </RoleGuard>
-                    }
-                  />
-                  <Route
-                    path="/welding-image"
-                    element={
-                      <RoleGuard
-                        role={role}
-                        allowed={["PROCESS"]}
-                        message="이곳은 공정 관리자용 페이지입니다."
-                      >
-                        <WeldingImageDashboard />
-                      </RoleGuard>
-                    }
-                  />
-                  <Route
-                    path="/windshield"
-                    element={
-                      <RoleGuard
-                        role={role}
-                        allowed={["PROCESS"]}
-                        message="이곳은 공정 관리자용 페이지입니다."
-                      >
-                        <WindShieldDashboard />
-                      </RoleGuard>
-                    }
-                  />
-                  <Route
-                    path="/engine-vibration"
-                    element={
-                      <RoleGuard
-                        role={role}
-                        allowed={["PROCESS"]}
-                        message="이곳은 공정 관리자용 페이지입니다."
-                      >
-                        <EngineVibrationDashboard />
-                      </RoleGuard>
-                    }
-                  />
-                  <Route
-                    path="/body"
-                    element={
-                      <RoleGuard
-                        role={role}
-                        allowed={["PROCESS"]}
-                        message="이곳은 공정 관리자용 페이지입니다."
-                      >
-                        <BodyAssemblyDashboard />
-                      </RoleGuard>
-                    }
-                  />
-                  <Route
-                    path="/paint"
-                    element={
-                      <RoleGuard
-                        role={role}
-                        allowed={["PROCESS"]}
-                        message="이곳은 공정 관리자용 페이지입니다."
-                      >
-                        <PaintQualityDashboard />
-                      </RoleGuard>
-                    }
-                  />
+                  <Route path="/dashboard" element={
+                    <RoleRoute role={role} allowedRoles={["PROCESS_MANAGER"]}>
+                      <MainDashboard />
+                    </RoleRoute>
+                  } />
+                  <Route path="/press" element={
+                    <RoleRoute role={role} allowedRoles={["PROCESS_MANAGER"]}>
+                      <PressMachineDashboard />
+                    </RoleRoute>
+                  } />
+                  <Route path="/welding-image" element={
+                    <RoleRoute role={role} allowedRoles={["PROCESS_MANAGER"]}>
+                      <WeldingImageDashboard />
+                    </RoleRoute>
+                  } />
+                  <Route path="/windshield" element={
+                    <RoleRoute role={role} allowedRoles={["PROCESS_MANAGER"]}>
+                      <WindShieldDashboard />
+                    </RoleRoute>
+                  } />
+                  <Route path="/engine-vibration" element={
+                    <RoleRoute role={role} allowedRoles={["PROCESS_MANAGER"]}>
+                      <EngineVibrationDashboard />
+                    </RoleRoute>
+                  } />
+                  <Route path="/body" element={
+                    <RoleRoute role={role} allowedRoles={["PROCESS_MANAGER"]}>
+                      <BodyAssemblyDashboard />
+                    </RoleRoute>
+                  } />
+                  <Route path="/paint" element={
+                    <RoleRoute role={role} allowedRoles={["PROCESS_MANAGER"]}>
+                      <PaintQualityDashboard />
+                    </RoleRoute>
+                  } />
 
                   {/* Board Routes */}
                   <Route path="/board" element={<BoardListPage />} />
@@ -232,59 +197,32 @@ export default function App() {
                   <Route path="/privacy" element={<PrivacyPolicyPage />} />
 
                   {/* 주문생산 */}
-                  <Route
-                    path="/order/orders"
-                    element={
-                      <RoleGuard
-                        role={role}
-                        allowed={["PRODUCTION"]}
-                        message="이곳은 생산 관리자용 페이지입니다."
-                      >
-                        <OrderPage />
-                      </RoleGuard>
-                    }
-                  />
-                  <Route
-                    path="/order/production"
-                    element={
-                      <RoleGuard
-                        role={role}
-                        allowed={["PRODUCTION"]}
-                        message="이곳은 생산 관리자용 페이지입니다."
-                      >
-                        <ProductionPage />
-                      </RoleGuard>
-                    }
-                  />
-                  <Route
-                    path="/order/process"
-                    element={
-                      <RoleGuard
-                        role={role}
-                        allowed={["PRODUCTION"]}
-                        message="이곳은 생산 관리자용 페이지입니다."
-                      >
-                        <ProcessPage />
-                      </RoleGuard>
-                    }
-                  />
-                  <Route
-                    path="/order/inventory"
-                    element={
-                      <RoleGuard
-                        role={role}
-                        allowed={["PRODUCTION"]}
-                        message="이곳은 생산 관리자용 페이지입니다."
-                      >
-                        <InventoryPage />
-                      </RoleGuard>
-                    }
-                  />
+                  <Route path="/order/orders" element={
+                    <RoleRoute role={role} allowedRoles={["PRODUCTION_MANAGER"]}>
+                      <OrderPage />
+                    </RoleRoute>
+                  } />
+                  <Route path="/order/production" element={
+                    <RoleRoute role={role} allowedRoles={["PRODUCTION_MANAGER"]}>
+                      <ProductionPage />
+                    </RoleRoute>
+                  } />
+                  <Route path="/order/process" element={
+                    <RoleRoute role={role} allowedRoles={["PRODUCTION_MANAGER"]}>
+                      <ProcessPage />
+                    </RoleRoute>
+                  } />
+                  <Route path="/order/inventory" element={
+                    <RoleRoute role={role} allowedRoles={["PRODUCTION_MANAGER"]}>
+                      <InventoryPage />
+                    </RoleRoute>
+                  } />
                   <Route path="/order" element={<Navigate to="/order/orders" replace />} />
 
                   {/* Policy Routes */}
                   <Route path="/terms" element={<TermsOfServicePage />} />
                   <Route path="/privacy" element={<PrivacyPolicyPage />} />
+                  <Route path="/access-denied" element={<AccessDeniedPage role={role} onLogout={handleLogout} />} />
 
                   {/* 없는 경로 처리 */}
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

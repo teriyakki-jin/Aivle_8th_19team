@@ -14,17 +14,12 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-    const saveSession = (token: string, uname: string) => {
+  const saveSession = (token: string, uname: string) => {
     localStorage.setItem('token', token);
     localStorage.setItem('username', uname);
-    const storedRole =
-      localStorage.getItem(`userRole:${uname}`) ||
-      localStorage.getItem('role') ||
-      'PRODUCTION';
-    localStorage.setItem('role', storedRole);
     onLogin(uname);
-    const landing = storedRole === 'PRODUCTION' ? '/order/orders' : '/press';
-    navigate(landing, { replace: true });
+    // ✅ 로그인 후 원하는 첫 화면으로 이동 (App.tsx에서 /login 접근 시 /press로 보내게 했으니 맞춰줌)
+    navigate('/press', { replace: true });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

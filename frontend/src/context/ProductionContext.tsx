@@ -6,7 +6,7 @@ import {
   useRef,
   ReactNode,
 } from "react";
-import { orderApi, OrderDto } from "../api/order";
+import { productionApi, ProductionDto } from "../api/production";
 import { ML_API_BASE } from "../config/env";
 import { processEventApi } from "../api/processEvent";
 import { defectSummaryApi } from "../api/defectSummary";
@@ -74,6 +74,7 @@ type StageResult = {
 type ProductionItem = {
   orderId: number;
   vehicleModelId: number;
+  vehicleModelName?: string;
   orderQty: number;
   dueDate?: string;
   currentStage: number;
@@ -81,6 +82,8 @@ type ProductionItem = {
   startedAt?: string;
   completedAt?: string;
   baseOffset?: number; // 주문별 랜덤 시작 오프셋
+  productionId?: number;
+  productionStatus?: string;
 };
 
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
@@ -246,38 +249,44 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
     setError(null);
     setLoading(true);
     try {
-      const data = await orderApi.listAll();
-      // 페이징 응답에서 content 추출
-      const orderList: OrderDto[] = Array.isArray(data) ? data : (data?.content ?? []);
+      const data = await productionApi.list(0, 1000);
+      const productionList: ProductionDto[] = Array.isArray(data) ? data : (data?.content ?? []);
 
       setProductions((prev) => {
         const newMap = new Map(prev);
-        orderList.forEach((o) => {
-          const orderId = (o as any)?.id ?? (o as any)?.orderId;
+        productionList.forEach((p) => {
+          const orderId = p.orderId ?? p.productionId;
           if (!orderId) return;
-          const dueDate = (o as any)?.dueDate ?? (o as any)?.deadline ?? undefined;
-          if (!newMap.has(orderId)) {
+          const existing = newMap.get(orderId);
+          const dueDate = p.dueDate ?? undefined;
+          if (!existing) {
             newMap.set(orderId, {
               orderId,
-              vehicleModelId: (o as any)?.vehicleModelId ?? (o as any)?.modelId ?? 0,
-              orderQty: (o as any)?.orderQty ?? (o as any)?.quantity ?? 0,
+              vehicleModelId: p.vehicleModelId ?? 0,
+              vehicleModelName: p.vehicleModelName,
+              orderQty: p.orderQty ?? p.plannedQty ?? 0,
               dueDate,
               currentStage: 0,
               stageResults: PIPELINE_STAGES.map(() => ({ status: "waiting" as StageStatus })),
+              productionId: p.productionId,
+              productionStatus: p.productionStatus,
             });
           } else {
-            const existing = newMap.get(orderId)!;
-            existing.orderQty = (o as any)?.orderQty ?? (o as any)?.quantity ?? existing.orderQty;
-            existing.vehicleModelId = (o as any)?.vehicleModelId ?? (o as any)?.modelId ?? existing.vehicleModelId;
-            existing.dueDate = dueDate ?? existing.dueDate;
-            newMap.set(orderId, { ...existing });
+            const next = { ...existing };
+            next.vehicleModelId = p.vehicleModelId ?? next.vehicleModelId;
+            next.vehicleModelName = p.vehicleModelName ?? next.vehicleModelName;
+            next.orderQty = p.orderQty ?? p.plannedQty ?? next.orderQty;
+            next.dueDate = dueDate ?? next.dueDate;
+            next.productionId = p.productionId ?? next.productionId;
+            next.productionStatus = p.productionStatus ?? next.productionStatus;
+            newMap.set(orderId, next);
           }
         });
         productionsRef.current = newMap;
         return newMap;
       });
     } catch (e: any) {
-      setError(e?.message ?? "주문 목록 조회 실패");
+      setError(e?.message ?? "생산 목록 조회 실패");
     } finally {
       setLoading(false);
     }

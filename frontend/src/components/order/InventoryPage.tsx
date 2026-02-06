@@ -20,7 +20,7 @@ export function InventoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [adjustPartId, setAdjustPartId] = useState("");
+  const [adjustPartId, setAdjustPartId] = useState<number | "">("");
   const [adjustQty, setAdjustQty] = useState("");
   const [adjustType, setAdjustType] =
     useState<"IN" | "OUT" | "ADJUST" | "SCRAP">("IN");
@@ -38,7 +38,11 @@ export function InventoryPage() {
     setLoading(true);
     try {
       const list = await inventoryApi.list();
-      setItems(Array.isArray(list) ? list : []);
+      const normalized = Array.isArray(list) ? list : [];
+      setItems(normalized);
+      if (normalized.length > 0 && adjustPartId === "") {
+        setAdjustPartId(normalized[0].partId);
+      }
     } catch (e: any) {
       setError(e?.message ?? "재고 목록 조회 실패");
     } finally {
@@ -73,7 +77,7 @@ export function InventoryPage() {
     const qtyNum = Number(adjustQty);
 
     if (!partIdNum || Number.isNaN(partIdNum)) {
-      setAdjustError("부품 ID를 입력해주세요.");
+      setAdjustError("부품 ID를 선택해주세요.");
       return;
     }
     if (!adjustQty || Number.isNaN(qtyNum) || qtyNum === 0) {
@@ -150,13 +154,24 @@ export function InventoryPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 부품 ID
               </label>
-              <input
-                className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              <select
+                className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 value={adjustPartId}
-                onChange={(e) => setAdjustPartId(e.target.value)}
-                placeholder="예: 1"
-                inputMode="numeric"
-              />
+                onChange={(e) =>
+                  setAdjustPartId(
+                    e.target.value === "" ? "" : Number(e.target.value)
+                  )
+                }
+              >
+                {items.length === 0 && (
+                  <option value="">부품 목록 없음</option>
+                )}
+                {items.map((item) => (
+                  <option key={item.partId} value={item.partId}>
+                    #{item.partId} {item.partName}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* 수량 */}

@@ -314,14 +314,14 @@ export function OrderPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">주문 관리</h1>
-            <p className="text-sm text-slate-900">
+            <p className="text-sm text-slate-500">
               신규 주문 입력 및 주문 내역 조회
             </p>
           </div>
         </div>
         <button
           onClick={() => refresh()}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border text-slate-900 hover:bg-slate-50 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-slate-50 transition-colors"
         >
           <RefreshCcw className="w-4 h-4" />
           새로고침
@@ -349,7 +349,7 @@ export function OrderPage() {
                 주문 날짜
               </label>
               <input
-                className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 type="date"
                 value={orderDate}
                 onChange={(e) => setOrderDate(e.target.value)}
@@ -361,7 +361,7 @@ export function OrderPage() {
                 납기 일자
               </label>
               <input
-                className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
@@ -373,7 +373,7 @@ export function OrderPage() {
                 주문 수량
               </label>
               <input
-                className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 type="number"
                 min={1}
                 value={orderQty}
@@ -386,7 +386,7 @@ export function OrderPage() {
                 차량 모델
               </label>
               <input
-                className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={vehicleModelName}
                 onChange={(e) => setVehicleModelName(e.target.value)}
                 placeholder="예) 아반떼, 소나타"

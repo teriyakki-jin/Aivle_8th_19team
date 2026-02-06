@@ -14,6 +14,7 @@ export const SignupPage = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [role, setRole] = useState<'PRODUCTION' | 'PROCESS'>('PRODUCTION');
     const [agreedToAll, setAgreedToAll] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
@@ -83,6 +84,7 @@ export const SignupPage = () => {
             });
 
             if (response.ok) {
+                localStorage.setItem(`userRole:${username}`, role);
                 navigate('/login');
             } else {
                 try {
@@ -289,6 +291,34 @@ export const SignupPage = () => {
                                 </div>
                             </div>
                         </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                역할 선택
+                            </label>
+                            <div className="flex items-center gap-4">
+                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                    <input
+                                        type="radio"
+                                        name="role"
+                                        value="PRODUCTION"
+                                        checked={role === 'PRODUCTION'}
+                                        onChange={() => setRole('PRODUCTION')}
+                                    />
+                                    생산 관리자
+                                </label>
+                                <label className="flex items-center gap-2 text-sm text-gray-700">
+                                    <input
+                                        type="radio"
+                                        name="role"
+                                        value="PROCESS"
+                                        checked={role === 'PROCESS'}
+                                        onChange={() => setRole('PROCESS')}
+                                    />
+                                    공정 관리자
+                                </label>
+                            </div>
+                        </div>
+
                         <div>
                             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
                                 아이디

@@ -164,4 +164,17 @@ public class ProcessExecutionService {
                 .map(ProcessExecutionListResponse::from)
                 .collect(Collectors.toList());
     }
+
+    /**
+     *  8. 생산 기준 공정수행 목록 조회
+     */
+    public List<ProcessExecutionListResponse> getByProduction(Long productionId) {
+
+        List<ProcessExecution> processExecutionList =
+                processExecutionRepository.findByProductionIdOrderByExecutionOrderAsc(productionId);
+
+        return processExecutionList.stream()
+                .map(ProcessExecutionListResponse::from)
+                .collect(Collectors.toList());
+    }
 }

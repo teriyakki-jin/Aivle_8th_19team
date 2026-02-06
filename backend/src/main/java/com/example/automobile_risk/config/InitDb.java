@@ -53,6 +53,12 @@ public class InitDb {
             LoginRequest admin = new LoginRequest("admin", "1234", UserRole.ADMIN);
             authService.register(admin);
 
+            LoginRequest productionManager = new LoginRequest("생산", "1234", UserRole.PRODUCTION_MANAGER);
+            authService.register(productionManager);
+
+            LoginRequest processManager = new LoginRequest("공정", "1234", UserRole.PROCESS_MANAGER);
+            authService.register(processManager);
+
             /**
              *  차량 모델
              */

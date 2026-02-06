@@ -461,7 +461,7 @@ export function ProductionPage() {
             <p className="text-sm text-slate-500">자동차 제조 공정 파이프라인</p>
           </div>
         </div>
-        <button onClick={refresh} className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-slate-50">
+        <button onClick={refresh} className="flex items-center gap-2 px-4 py-2 rounded-lg border hover:bg-slate-50 text-slate-900">
           <RefreshCcw className="w-4 h-4" />
           새로고침
         </button>

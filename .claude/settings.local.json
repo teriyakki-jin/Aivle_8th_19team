@@ -64,7 +64,13 @@
       "Bash(aws cloudfront create-function:*)",
       "Bash(aws cloudfront create-invalidation:*)",
       "Bash(gh run:*)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(timeout:*)",
+      "WebFetch(domain:autoprocmon-yx5z7bmd.manus.space)",
+      "Bash(powershell:*)",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash pop:*)"
     ]
   }
 }

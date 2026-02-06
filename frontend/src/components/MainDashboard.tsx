@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertTriangle, Clock, AlertCircle, RefreshCw, Package, ClipboardList, CheckCircle, Factory, Activity } from 'lucide-react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { orderApi, OrderDto } from '../api/order';
 import { productionApi, ProductionDto } from '../api/production';
@@ -495,50 +495,6 @@ export function MainDashboard() {
 
   const currentPrediction = activeData?.currentPrediction;
 
-  // ── 공정별 지연 시간 분포 — 4단계 fallback ──
-  const delayContribution = (() => {
-    // 1순위: currentPrediction.contributions (ML 직접 결과)
-    const contribs: ProcessContribution[] = currentPrediction?.contributions ?? [];
-    if (contribs.length > 0) {
-      return contribs.map((c: ProcessContribution) => ({
-        name: processLabel(c.process),
-        지연시간: c.delayMaxH,
-      }));
-    }
-    // 2순위: dashboard/main의 processDelayBreakdown
-    const pdb: ProcessDelayBreakdownItem[] = activeData?.processDelayBreakdown ?? [];
-    if (pdb.length > 0) {
-      return pdb.map((b: ProcessDelayBreakdownItem) => ({
-        name: processLabel(b.process),
-        지연시간: b.totalDelayHours,
-      }));
-    }
-    // 3순위: delay-prediction/overview의 processBreakdown
-    const pb: ProcessDelayBreakdownItem[] = activePrediction?.processBreakdown ?? [];
-    if (pb.length > 0) {
-      return pb.map((b: ProcessDelayBreakdownItem) => ({
-        name: processLabel(b.process),
-        지연시간: b.totalDelayHours,
-      }));
-    }
-    // 4순위: order-level process_scores 집계 (주문 예측 상세 기반)
-    const orders = (activePrediction?.orders ?? []) as Array<{ process_scores?: Record<string, number> }>;
-    if (orders.length > 0) {
-      const scoreMap: Record<string, number> = {};
-      for (const o of orders) {
-        const scores = o.process_scores ?? {};
-        for (const [proc, score] of Object.entries(scores)) {
-          scoreMap[proc] = (scoreMap[proc] ?? 0) + (Number(score) || 0);
-        }
-      }
-      const aggregated = Object.entries(scoreMap)
-        .map(([proc, score]) => ({ name: processLabel(proc), 지연시간: score }))
-        .sort((a, b) => b.지연시간 - a.지연시간);
-      if (aggregated.length > 0) return aggregated;
-    }
-    return [];
-  })();
-
   const orderSummary = activeData?.orderSummary;
   const productionSummary = activeData?.productionSummary;
   
@@ -863,29 +819,6 @@ export function MainDashboard() {
         </div>
       </div>
 
-
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-gray-900">공정별 지연 시간 분포</h3>
-          <span className="text-xs text-gray-500">실시간 집계</span>
-        </div>
-        {delayContribution.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={delayContribution}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis label={{ value: '시간', angle: -90, position: 'insideLeft' }} />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="지연시간" stroke="#f59e0b" strokeWidth={2} dot />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="h-[260px] flex items-center justify-center text-gray-400 text-sm">
-            지연 시간 데이터가 없습니다.
-          </div>
-        )}
-      </div>
 
       {/* 실시간 납기 예측 (공정 진행 기반) */}
       <div className="mt-8 bg-white rounded-xl shadow-sm p-6 border border-gray-200">

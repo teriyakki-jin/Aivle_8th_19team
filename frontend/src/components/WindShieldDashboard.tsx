@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { OrderSelector } from "./OrderSelector";
-import { ML_API_BASE } from "../config/env";
+import { mlResultsApi, MLAnalysisResultDto } from "../api/mlResults";
 import {
   ArrowLeft,
   Layers,
@@ -45,18 +45,6 @@ function nowHHMMSS(): string {
   });
 }
 
-function parseCsvToRows(csvText: string): string[] {
-  return csvText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-}
-
-function makeSingleRowCsvBlob(row: string): Blob {
-  const content = row.endsWith("\n") ? row : row + "\n";
-  return new Blob([content], { type: "text/csv" });
-}
-
 export function WindShieldDashboard() {
   return (
     <OrderSelector processName="윈드실드 검사">
@@ -69,14 +57,9 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
   const navigate = useNavigate();
   const [side, setSide] = useState<Side>("Left");
 
-  // ✅ 버튼 없이 "자동 모니터링"으로 동작
   const [systemStatus, setSystemStatus] = useState<
-    "WAITING" | "LOADING_CSV" | "MONITORING"
-  >("LOADING_CSV");
-
-  // ✅ 데모 CSV rows 저장
-  const [demoRowsLeft, setDemoRowsLeft] = useState<string[] | null>(null);
-  const [demoRowsRight, setDemoRowsRight] = useState<string[] | null>(null);
+    "WAITING" | "READY"
+  >("WAITING");
 
   // ✅ 최신 결과
   const [result, setResult] = useState<{
@@ -96,156 +79,122 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
   // ✅ 차트/로그 버퍼
   const [buffer, setBuffer] = useState<MonitorEntry[]>([]);
   const [failHistory, setFailHistory] = useState<MonitorEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // =========================
-  // public/data/ 아래에 두고 URL로 불러오기
-  // frontend/public/data/2nd_process_left_data.csv
-  // frontend/public/data/2nd_process_right_data.csv
-  // =========================
-  const DEMO_CSV_LEFT_URL = "/data/2nd_process_left_data.csv";
-  const DEMO_CSV_RIGHT_URL = "/data/2nd_process_right_data.csv";
-
-  const currentDemoRows = useMemo(() => {
-    return side === "Left" ? demoRowsLeft : demoRowsRight;
-  }, [side, demoRowsLeft, demoRowsRight]);
-
-  // ✅ 데모 CSV 로딩(한 번)
   useEffect(() => {
-    let cancelled = false;
+    if (!orderId) return;
+    let mounted = true;
 
-    async function loadDemoCsv() {
+    const parseAdditional = (item: MLAnalysisResultDto): any => {
+      if (!item.additionalInfo) return null;
       try {
-        setSystemStatus("LOADING_CSV");
-
-        const [leftRes, rightRes] = await Promise.all([
-          fetch(DEMO_CSV_LEFT_URL),
-          fetch(DEMO_CSV_RIGHT_URL),
-        ]);
-
-        if (!leftRes.ok)
-          throw new Error(`Left demo csv load failed: HTTP ${leftRes.status}`);
-        if (!rightRes.ok)
-          throw new Error(`Right demo csv load failed: HTTP ${rightRes.status}`);
-
-        const [leftText, rightText] = await Promise.all([
-          leftRes.text(),
-          rightRes.text(),
-        ]);
-
-        const leftRows = parseCsvToRows(leftText);
-        const rightRows = parseCsvToRows(rightText);
-
-        if (!cancelled) {
-          setDemoRowsLeft(leftRows);
-          setDemoRowsRight(rightRows);
-          setSystemStatus("MONITORING"); // ✅ 로드 완료 즉시 모니터링 상태로
-        }
-      } catch (e) {
-        console.error(e);
-        if (!cancelled) setSystemStatus("WAITING");
+        return JSON.parse(item.additionalInfo);
+      } catch {
+        return null;
       }
-    }
-
-    loadDemoCsv();
-    return () => {
-      cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  // ✅ 자동 모니터링: systemStatus가 MONITORING이고, rows가 있으면 바로 FastAPI에 주기 요청
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
+    const normalizeEntry = (item: MLAnalysisResultDto, raw: any): MonitorEntry | null => {
+      const predictionRaw =
+        typeof raw?.prediction === "number"
+          ? raw.prediction
+          : typeof item.prediction === "number"
+          ? item.prediction
+          : null;
+      const prediction = predictionRaw === 1 ? 1 : 0;
+      const judgementRaw = raw?.judgement ?? raw?.status ?? item.status;
+      const judgement: "PASS" | "FAIL" =
+        judgementRaw === "PASS" || judgementRaw === "FAIL"
+          ? judgementRaw
+          : prediction === 1
+          ? "PASS"
+          : "FAIL";
+      const sideRaw = raw?.side ?? "left";
+      const sideNormalized = String(sideRaw).toLowerCase();
+      const sideLabel: Side = sideNormalized === "right" ? "Right" : "Left";
+      return {
+        time: item.createdDate
+          ? new Date(item.createdDate).toLocaleTimeString("ko-KR", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })
+          : nowHHMMSS(),
+        side: sideLabel,
+        prediction: prediction as Pred01,
+        judgement,
+      };
+    };
 
-    const canRun =
-      systemStatus === "MONITORING" &&
-      currentDemoRows &&
-      currentDemoRows.length > 0;
-
-    if (canRun) {
-      interval = setInterval(async () => {
-        try {
-          const rows = currentDemoRows!;
-          const row = rows[Math.floor(Math.random() * rows.length)];
-
-          // 1행짜리 CSV로 만들어 업로드
-          const blob = makeSingleRowCsvBlob(row);
-          const file = new File([blob], "stream_row.csv", {
-            type: "text/csv",
-          });
-
-          const form = new FormData();
-          form.append("side", side.toLowerCase()); // 백엔드: left/right
-          form.append("file", file);
-
-          const res = await fetch(
-            `${ML_API_BASE}/windshield`,
-            {
-              method: "POST",
-              body: form,
-            }
-          );
-
-          if (!res.ok) return;
-
-          const data = await res.json();
-
-          const rawPred = Number(data?.prediction);
-          if (!(rawPred === 0 || rawPred === 1)) return;
-
-          const prediction = rawPred as Pred01;
-
-          const rawJudgement = data?.judgement;
-          const judgement: "PASS" | "FAIL" =
-            rawJudgement === "PASS" || rawJudgement === "FAIL"
-              ? rawJudgement
-              : prediction === 1
-              ? "PASS"
-              : "FAIL";
-
-          const t = nowHHMMSS();
-
-          // 최신 결과
-          setResult({ prediction, judgement, time: t });
-
-          const entry: MonitorEntry = { time: t, side, prediction, judgement };
-
-          // 통계 업데이트
-          setStats((prev) => {
-            const total = prev.totalCount + 1;
-            const fail =
-              judgement === "FAIL" ? prev.failCount + 1 : prev.failCount;
-            const passRate = ((total - fail) / total) * 100;
-            return {
-              ...prev,
-              totalCount: total,
-              failCount: fail,
-              passRate: Number(passRate.toFixed(1)),
-            };
-          });
-
-          // FAIL 히스토리
-          if (judgement === "FAIL") {
-            setFailHistory((prev) => [entry, ...prev].slice(0, 30));
-          }
-
-          // 버퍼(최근 30개)
-          setBuffer((prev) => {
-            const next = [...prev, entry];
-            if (next.length > 30) next.shift();
-            return next;
-          });
-        } catch {
-          // 스트리밍은 조용히 무시
+    const load = async () => {
+      setError(null);
+      try {
+        const list = await mlResultsApi.list({
+          orderId,
+          serviceType: "windshield",
+          limit: 40,
+        });
+        if (!mounted) return;
+        if (!list || list.length === 0) {
+          setResult(null);
+          setBuffer([]);
+          setFailHistory([]);
+          setStats({ totalCount: 0, failCount: 0, passRate: 100.0, cycleTime: "-" });
+          setSystemStatus("WAITING");
+          return;
         }
-      }, 5000);
-    }
 
-    return () => {
-      if (interval) clearInterval(interval);
+        const entries: MonitorEntry[] = [];
+        for (const item of list) {
+          const info = parseAdditional(item);
+          if (Array.isArray(info?.results)) {
+            info.results.forEach((row: any) => {
+              const entry = normalizeEntry(item, row);
+              if (entry) entries.push(entry);
+            });
+          } else {
+            const entry = normalizeEntry(item, info);
+            if (entry) entries.push(entry);
+          }
+        }
+
+        const latest = entries[0] ?? null;
+        if (latest) {
+          setResult({
+            prediction: latest.prediction,
+            judgement: latest.judgement,
+            time: latest.time,
+          });
+        } else {
+          setResult(null);
+        }
+
+        const total = entries.length;
+        const fail = entries.filter((e) => e.judgement === "FAIL").length;
+        const passRate = total === 0 ? 100 : ((total - fail) / total) * 100;
+        setStats({
+          totalCount: total,
+          failCount: fail,
+          passRate: Number(passRate.toFixed(1)),
+          cycleTime: "-",
+        });
+
+        setBuffer(entries.slice(0, 30));
+        setFailHistory(entries.filter((e) => e.judgement === "FAIL").slice(0, 30));
+        setSystemStatus("READY");
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || "ML 결과 조회 실패");
+        setSystemStatus("WAITING");
+      }
     };
-  }, [systemStatus, side, currentDemoRows]);
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [orderId]);
 
   // Charts
   const passFailTrend = useMemo(() => {
@@ -281,19 +230,10 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
       });
     }
 
-    if (systemStatus === "MONITORING") {
+    if (systemStatus === "READY") {
       list.push({
         id: 2,
-        issue: "스트리밍 예측 중",
-        severity: "주의",
-        time: nowHHMMSS(),
-      });
-    }
-
-    if (systemStatus === "LOADING_CSV") {
-      list.push({
-        id: 3,
-        issue: "로딩 중",
+        issue: "ML 결과 수신 완료",
         severity: "주의",
         time: nowHHMMSS(),
       });
@@ -302,7 +242,7 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
     if (systemStatus === "WAITING") {
       list.push({
         id: 4,
-        issue: "로딩 중",
+        issue: "아직 저장된 결과가 없습니다.",
         severity: "주의",
         time: nowHHMMSS(),
       });
@@ -313,8 +253,7 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
 
   const statusBadge = useMemo(() => {
     if (systemStatus === "WAITING") return "bg-gray-100 text-gray-700";
-    if (systemStatus === "LOADING_CSV") return "bg-blue-100 text-blue-700";
-    return "bg-purple-100 text-purple-700";
+    return "bg-green-100 text-green-700";
   }, [systemStatus]);
 
   return (
@@ -354,6 +293,12 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
             </div>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 font-medium">
+            {error}
+          </div>
+        )}
 
         {/* Controls */}
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200 mb-8">
@@ -705,9 +650,9 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
               <p className="text-sm font-medium text-gray-600">Monitoring</p>
             </div>
             <p className="text-3xl font-bold text-gray-900">
-              {systemStatus === "MONITORING" ? "ON" : "OFF"}
+              {systemStatus === "READY" ? "ON" : "OFF"}
             </p>
-            <p className="text-xs text-blue-600 font-medium">샘플링 스트림</p>
+            <p className="text-xs text-blue-600 font-medium">결과 수신 상태</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">

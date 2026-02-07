@@ -33,6 +33,7 @@ public class ProductionSimulationService {
     private final PlatformTransactionManager transactionManager;
     private final ProductionSseService productionSseService;
     private final OrderService orderService;
+    private final MLProxyService mlProxyService;
 
     @Async("simulationExecutor")
     public void simulate(Long productionId) {
@@ -99,6 +100,14 @@ public class ProductionSimulationService {
                 return pe.getId();
             });
 
+            Long orderId = tx.execute(status -> {
+                Production production = productionRepository.findById(productionId)
+                        .orElseThrow(() -> new ProductionNotFoundException(productionId));
+                return getOrderId(production);
+            });
+
+            triggerMlForProcess(orderId, productionId, processType.getProcessName(), peId);
+
             sleepMillis(5000L * allocatedQty);
 
             tx.execute(status -> {
@@ -164,5 +173,37 @@ public class ProductionSimulationService {
             return null;
         }
         return production.getOrderProductionList().get(0).getOrder().getId();
+    }
+
+    private void triggerMlForProcess(Long orderId, Long productionId, String processName, Long processExecutionId) {
+        if (orderId == null || processName == null || processExecutionId == null) return;
+
+        int offset = (int) (Math.abs(processExecutionId) % 10);
+        MLProxyService.MlContext context = new MLProxyService.MlContext(
+                orderId,
+                productionId,
+                processExecutionId,
+                processName
+        );
+
+        try {
+            switch (processName) {
+                case "프레스" -> {
+                    mlProxyService.analyzePressVibration(offset, context);
+                    mlProxyService.analyzePressImage(offset, context);
+                }
+                case "차체조립(용접)" -> mlProxyService.analyzeWeldingImageAuto(offset, context);
+                case "도장" -> mlProxyService.analyzePaintAuto(offset, context);
+                case "의장" -> mlProxyService.analyzeBodyAssemblyBatchAuto(0.5, offset, context);
+                case "검수" -> {
+                    mlProxyService.analyzeWindshieldAuto(offset, context);
+                    mlProxyService.analyzeEngineAuto(offset, context);
+                }
+                default -> {
+                }
+            }
+        } catch (Exception e) {
+            log.warn("ML call failed for process {} (productionId={}): {}", processName, productionId, e.getMessage());
+        }
     }
 }

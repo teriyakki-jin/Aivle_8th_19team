@@ -87,9 +87,6 @@ public class InitDb {
 
             VehicleModel capser_ax1 = createVehicleModel("캐스퍼 AX1", "경형", "가솔린", "2021년 9월부터 판매 중인 전륜구동 경형 SUV", true);
             VehicleModel kona_sx2 = createVehicleModel("코나 SX2", "소형", "전기", "2017년부터 생산 중인 전륜구동 소형 SUV", true);
-            VehicleModel veracruz = createVehicleModel("베라쿠르즈 EN", "준대형 SUV", "가솔린", "전륜구동 기반 유니 바디 형식의 준대형 SUV. 프로젝트명은 EN", true);
-            VehicleModel stella_SL = createVehicleModel("스텔라 SL", "중형 세단", "가솔린", "쏘나타의 1세대 격으로, 쏘나타가 스텔라와 공유하는 부분이 많았기 때문에 사실상 같은 차종으로 봐도 무방하다.", true);
-            VehicleModel pony = createVehicleModel("포니", "중형 세단", "가솔린", "첫 독자생산 모델(고유모델)이자, 대한민국 자동차 개발사상 최초로 독자생산된 국산 자동차다.", true);
             em.persist(avante_CN8);
             em.persist(sonata_DN8);
             em.persist(grandeur_GN7);
@@ -98,9 +95,6 @@ public class InitDb {
 
             em.persist(capser_ax1);
             em.persist(kona_sx2);
-            em.persist(veracruz);
-            em.persist(stella_SL);
-            em.persist(pony);
 
             /**
              *  부품
@@ -196,38 +190,6 @@ public class InitDb {
             em.persist(kona_sx2_bumper);
             em.persist(kona_sx2_radiatorGrill);
 
-            Bom veracruz_headLamp = createBom(2, veracruz, headLamp);
-            Bom veracruz_tailLamp = createBom(2, veracruz, tailLamp);
-            Bom veracruz_door = createBom(4, veracruz, door);
-            Bom veracruz_bumper = createBom(2, veracruz, bumper);
-            Bom veracruz_radiatorGrill = createBom(1, veracruz, radiatorGrill);
-            em.persist(veracruz_headLamp);
-            em.persist(veracruz_tailLamp);
-            em.persist(veracruz_door);
-            em.persist(veracruz_bumper);
-            em.persist(veracruz_radiatorGrill);
-
-            Bom stella_SL_headLamp = createBom(2, stella_SL, headLamp);
-            Bom stella_SL_tailLamp = createBom(2, stella_SL, tailLamp);
-            Bom stella_SL_door = createBom(4, stella_SL, door);
-            Bom stella_SL_bumper = createBom(2, stella_SL, bumper);
-            Bom stella_SL_radiatorGrill = createBom(1, stella_SL, radiatorGrill);
-            em.persist(stella_SL_headLamp);
-            em.persist(stella_SL_tailLamp);
-            em.persist(stella_SL_door);
-            em.persist(stella_SL_bumper);
-            em.persist(stella_SL_radiatorGrill);
-
-            Bom pony_headLamp = createBom(2, pony, headLamp);
-            Bom pony_tailLamp = createBom(2, pony, tailLamp);
-            Bom pony_door = createBom(4, pony, door);
-            Bom pony_bumper = createBom(2, pony, bumper);
-            Bom pony_radiatorGrill = createBom(1, pony, radiatorGrill);
-            em.persist(pony_headLamp);
-            em.persist(pony_tailLamp);
-            em.persist(pony_door);
-            em.persist(pony_bumper);
-            em.persist(pony_radiatorGrill);
 
             /**
              *  현 재고

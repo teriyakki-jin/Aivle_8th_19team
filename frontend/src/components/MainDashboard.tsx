@@ -542,8 +542,7 @@ export function MainDashboard() {
   const fmtCount = (value?: number) => (value === undefined || value === null ? '—' : `${value}건`);
   const orderInProgress =
     resolvedOrderSummary
-      ? (resolvedOrderSummary.created ?? 0)
-        + (resolvedOrderSummary.partiallyAllocated ?? 0)
+      ? (resolvedOrderSummary.partiallyAllocated ?? 0)
         + (resolvedOrderSummary.fullyAllocated ?? 0)
       : undefined;
 
@@ -721,7 +720,7 @@ export function MainDashboard() {
               <Activity className="w-5 h-5 text-orange-600" />
             </div>
           </div>
-          <p className="text-xs text-gray-500 mt-2">생성/할당 진행 중 합산</p>
+          <p className="text-xs text-gray-500 mt-2">할당 진행 중 합산</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-200">

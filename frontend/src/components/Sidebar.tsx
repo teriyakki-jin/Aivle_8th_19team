@@ -54,10 +54,10 @@ export function Sidebar({ username, role, onLogout }: SidebarProps) {
       { path: "/dashboard", label: "메인 대시보드", icon: LayoutDashboard },
       { path: "/press", label: "프레스 머신", icon: Hammer },
       { path: "/welding-image", label: "용접(이미지)", icon: Zap },
+      { path: "/paint", label: "도장 품질", icon: Droplet },
+      { path: "/body", label: "차체 조립", icon: Box },
       { path: "/windshield", label: "윈드실드", icon: ShieldCheck },
       { path: "/engine-vibration", label: "엔진 진동", icon: Cpu },
-      { path: "/body", label: "차체 조립", icon: Box },
-      { path: "/paint", label: "도장 품질", icon: Droplet },
       { path: "/board", label: "게시판", icon: ClipboardList },
     ],
     []

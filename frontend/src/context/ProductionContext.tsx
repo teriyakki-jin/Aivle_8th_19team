@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useRef,
+  useEffect,
   ReactNode,
 } from "react";
 import { productionApi, ProductionDto } from "../api/production";
@@ -212,6 +213,10 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const applyStreamEvent = useCallback((event: ProductionStreamEvent) => {
     setProductions((prev) => {

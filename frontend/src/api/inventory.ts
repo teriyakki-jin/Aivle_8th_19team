@@ -5,6 +5,7 @@ export interface InventoryDto {
   partId: number;
   partName: string;
   currentQty: number;
+  safetyQty: number;
 }
 
 export interface InventoryHistoryDto {
@@ -12,18 +13,29 @@ export interface InventoryHistoryDto {
   changeQty: number;
   afterQty: number;
   changeType: string;
+  changeTypeLabel?: string | null;
+  remark?: string | null;
+  referenceId?: number | null;
+  referenceType?: string | null;
   occuredAt: string;
 }
 
 export interface InventoryCreateForm {
   partId: number;
   initialQty: number;
+  safetyQty: number;
 }
 
 export interface InventoryAdjustForm {
   partId: number;
   qty: number;
   changeType: string;
+  remark?: string | null;
+}
+
+export interface InventorySafetyForm {
+  partId: number;
+  safetyQty: number;
 }
 
 export const inventoryApi = {
@@ -32,4 +44,5 @@ export const inventoryApi = {
   history: (partId: number) => api.get<InventoryHistoryDto[]>(`/api/v1/inventory/${partId}/history`),
   create: (payload: InventoryCreateForm) => api.post<number>("/api/v1/inventory", payload),
   adjust: (payload: InventoryAdjustForm) => api.post<number>("/api/v1/inventory/adjust", payload),
+  updateSafety: (payload: InventorySafetyForm) => api.post<number>("/api/v1/inventory/safety", payload),
 };

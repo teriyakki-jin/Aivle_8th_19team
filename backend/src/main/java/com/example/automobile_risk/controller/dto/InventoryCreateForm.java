@@ -16,4 +16,7 @@ public class InventoryCreateForm {
 
     @PositiveOrZero
     private int initialQty;
+
+    @PositiveOrZero
+    private int safetyQty;
 }

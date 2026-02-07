@@ -2,6 +2,7 @@ package com.example.automobile_risk.controller;
 
 import com.example.automobile_risk.controller.dto.InventoryAdjustForm;
 import com.example.automobile_risk.controller.dto.InventoryCreateForm;
+import com.example.automobile_risk.controller.dto.InventorySafetyForm;
 import com.example.automobile_risk.service.InventoryService;
 import com.example.automobile_risk.service.dto.InventoryHistoryResponse;
 import com.example.automobile_risk.service.dto.InventoryResponse;
@@ -37,6 +38,12 @@ public class InventoryController {
 
         inventoryService.adjustInventory(form);
 
+        return ApiResponse.of(form.getPartId());
+    }
+
+    @PostMapping("/safety")
+    public ApiResponse<Long> updateSafety(@Valid @RequestBody InventorySafetyForm form) {
+        inventoryService.updateSafetyQty(form.getPartId(), form.getSafetyQty());
         return ApiResponse.of(form.getPartId());
     }
 

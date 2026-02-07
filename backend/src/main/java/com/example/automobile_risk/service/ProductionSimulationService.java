@@ -22,7 +22,9 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -190,13 +192,47 @@ public class ProductionSimulationService {
                 processExecutionId,
                 normalizedProcess
         );
-        MlInputDataset dataset = productionDatasetService.findDatasetForProductionProcess(productionId, normalizedProcess);
+        MlInputDataset vibrationDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "press_vibration"
+        );
+        MlInputDataset pressImageDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "press_image"
+        );
+        MlInputDataset weldingDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "welding_image"
+        );
+        MlInputDataset paintDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "paint"
+        );
+        MlInputDataset bodyDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "body_assembly"
+        );
+        MlInputDataset windshieldDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "windshield"
+        );
+        MlInputDataset engineDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "engine"
+        );
 
         try {
             switch (processName) {
                 case "프레스" -> {
-                    if (dataset != null && dataset.getFormat() == DatasetFormat.JSON) {
-                        JsonNode body = loadJsonDataset(dataset);
+                    if (vibrationDataset != null && vibrationDataset.getFormat() == DatasetFormat.JSON) {
+                        JsonNode body = loadJsonDataset(vibrationDataset);
                         if (body != null) {
                             mlProxyService.analyzePressVibrationJson(body, context);
                         } else {
@@ -205,11 +241,20 @@ public class ProductionSimulationService {
                     } else {
                         mlProxyService.analyzePressVibration(offset, context);
                     }
-                    mlProxyService.analyzePressImage(offset, context);
+                    if (pressImageDataset != null && pressImageDataset.getFormat() == DatasetFormat.IMAGE) {
+                        java.io.File file = pickDatasetFile(pressImageDataset);
+                        if (file != null) {
+                            mlProxyService.analyzePressImageFile(file, offset, context);
+                        } else {
+                            mlProxyService.analyzePressImage(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzePressImage(offset, context);
+                    }
                 }
                 case "차체조립(용접)" -> {
-                    if (dataset != null && dataset.getFormat() == DatasetFormat.IMAGE) {
-                        java.io.File file = pickDatasetFile(dataset);
+                    if (weldingDataset != null && weldingDataset.getFormat() == DatasetFormat.IMAGE) {
+                        java.io.File file = pickDatasetFile(weldingDataset);
                         if (file != null) {
                             mlProxyService.analyzeWeldingImageFile(file, context);
                         } else {
@@ -220,8 +265,8 @@ public class ProductionSimulationService {
                     }
                 }
                 case "도장" -> {
-                    if (dataset != null && dataset.getFormat() == DatasetFormat.IMAGE) {
-                        java.io.File file = pickDatasetFile(dataset);
+                    if (paintDataset != null && paintDataset.getFormat() == DatasetFormat.IMAGE) {
+                        java.io.File file = pickDatasetFile(paintDataset);
                         if (file != null) {
                             mlProxyService.analyzePaintFile(file, context);
                         } else {
@@ -232,20 +277,25 @@ public class ProductionSimulationService {
                     }
                 }
                 case "의장" -> {
-                    if (dataset != null && dataset.getFormat() == DatasetFormat.IMAGE) {
-                        java.io.File file = pickDatasetFile(dataset);
-                        if (file != null) {
-                            mlProxyService.analyzeBodyAssemblyFile(file, context);
+                    if (bodyDataset != null && bodyDataset.getFormat() == DatasetFormat.IMAGE) {
+                        Map<String, java.io.File> parts = pickBodyAssemblyFiles(bodyDataset);
+                        if (parts != null && parts.size() == 5) {
+                            mlProxyService.analyzeBodyAssemblyBatchFiles(parts, 0.5, context);
                         } else {
-                            mlProxyService.analyzeBodyAssemblyBatchAuto(0.5, offset, context);
+                            java.io.File file = pickDatasetFile(bodyDataset);
+                            if (file != null) {
+                                mlProxyService.analyzeBodyAssemblyFile(file, context);
+                            } else {
+                                mlProxyService.analyzeBodyAssemblyBatchAuto(0.5, offset, context);
+                            }
                         }
                     } else {
                         mlProxyService.analyzeBodyAssemblyBatchAuto(0.5, offset, context);
                     }
                 }
                 case "검수" -> {
-                    if (dataset != null && dataset.getFormat() == DatasetFormat.CSV) {
-                        java.io.File file = pickDatasetFile(dataset);
+                    if (windshieldDataset != null && windshieldDataset.getFormat() == DatasetFormat.CSV) {
+                        java.io.File file = pickDatasetFile(windshieldDataset);
                         if (file != null) {
                             mlProxyService.analyzeWindshieldFile("left", file, context);
                         } else {
@@ -254,8 +304,8 @@ public class ProductionSimulationService {
                     } else {
                         mlProxyService.analyzeWindshieldAuto(offset, context);
                     }
-                    if (dataset != null && dataset.getFormat() == DatasetFormat.ARFF) {
-                        java.io.File file = pickDatasetFile(dataset);
+                    if (engineDataset != null && engineDataset.getFormat() == DatasetFormat.ARFF) {
+                        java.io.File file = pickDatasetFile(engineDataset);
                         if (file != null) {
                             mlProxyService.analyzeEngineFile(file, context);
                         } else {
@@ -317,6 +367,31 @@ public class ProductionSimulationService {
             return path.toFile();
         } catch (Exception e) {
             log.warn("Failed to pick dataset file: {} ({})", dataset.getStorageKey(), e.getMessage());
+            return null;
+        }
+    }
+
+    private Map<String, java.io.File> pickBodyAssemblyFiles(MlInputDataset dataset) {
+        try {
+            java.nio.file.Path path = java.nio.file.Paths.get(dataset.getStorageKey());
+            if (!java.nio.file.Files.exists(path) || !java.nio.file.Files.isDirectory(path)) {
+                return null;
+            }
+            Map<String, java.io.File> parts = new HashMap<>();
+            try (java.util.stream.Stream<java.nio.file.Path> stream = java.nio.file.Files.list(path)) {
+                stream.filter(p -> !java.nio.file.Files.isDirectory(p))
+                        .forEach(p -> {
+                            String name = p.getFileName().toString().toLowerCase();
+                            if (name.contains("door")) parts.put("door", p.toFile());
+                            else if (name.contains("bumper")) parts.put("bumper", p.toFile());
+                            else if (name.contains("headlamp")) parts.put("headlamp", p.toFile());
+                            else if (name.contains("taillamp")) parts.put("taillamp", p.toFile());
+                            else if (name.contains("radiator")) parts.put("radiator", p.toFile());
+                        });
+            }
+            return parts;
+        } catch (Exception e) {
+            log.warn("Failed to pick body assembly files: {} ({})", dataset.getStorageKey(), e.getMessage());
             return null;
         }
     }

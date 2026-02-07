@@ -24,6 +24,12 @@ public class MlInputDataset extends BaseTimeEntity {
     private String processName;
 
     /**
+     * 서비스 타입 (예: press_vibration, press_image, welding_image, paint, body_assembly, windshield, engine)
+     */
+    @Column(nullable = false, length = 100)
+    private String serviceType;
+
+    /**
      * 데이터셋 이름
      */
     @Column(nullable = false, length = 200)

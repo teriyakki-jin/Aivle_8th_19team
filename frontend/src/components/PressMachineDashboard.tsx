@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OrderSelector } from "./OrderSelector";
-import { ML_API_BASE, ML_IMAGE_BASE } from "../config/env";
+import { ML_IMAGE_BASE } from "../config/env";
+import { mlResultsApi, MLAnalysisResultDto } from "../api/mlResults";
 
 interface DefectData {
   predicted_class: string;
@@ -69,11 +70,6 @@ function toKo(name: string): string {
 }
 
 const API_BASE = ML_IMAGE_BASE; // 이미지용
-const DEMO_RANDOM_ON_SAME_VALUE = false;
-
-// ✅ 폴링 주기
-const POLL_IMAGE_MS = 5000; // 이미지 예측 요청 주기
-const POLL_VIB_MS = 2000; // 진동 예측 요청 주기
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -128,13 +124,6 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
   >([]);
   const [lastUpdated, setLastUpdated] = useState<string>("--:--:--");
 
-  // ✅ 중복 요청 방지용
-  const imageInFlightRef = useRef(false);
-  const vibInFlightRef = useRef(false);
-
-  const prevRef = useRef<{ err?: number; s0?: number; s1?: number; s2?: number }>(
-    {}
-  );
 
   const statusBadge = useMemo(() => {
     const isAnomaly = !!vibration?.is_anomaly;
@@ -165,137 +154,129 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
     });
   };
 
-  // ---------------------------
-  // ✅ Auto Image Predict (폴링)
-  // ---------------------------
-  const fetchPressImage = async () => {
-    if (imageInFlightRef.current) return;
-    imageInFlightRef.current = true;
-
-    setIsImageLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${ML_API_BASE}/press/image`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        throw new Error(`API ${res.status}: ${t || res.statusText}`);
-      }
-
-      const data = (await res.json()) as DefectData;
-      setAutoImage(data);
-
-      // ✅ 분포 누적
-      setDefectAccum((prev) => {
-        const next = { ...prev };
-        for (const k of DEFECT_TYPES) {
-          const add =
-            typeof data.all_scores?.[k] === "number" ? data.all_scores[k] : 0;
-          next[k] = (next[k] ?? 0) + add;
-        }
-        return next;
-      });
-
-      setImageLastUpdated(nowHHMMSS());
-    } catch (e) {
-      console.error("Failed to fetch press image:", e);
-    } finally {
-      setIsImageLoading(false);
-      imageInFlightRef.current = false;
-    }
-  };
-
   useEffect(() => {
+    if (!orderId) return;
     let mounted = true;
 
-    const tick = async () => {
-      if (!mounted) return;
-      await fetchPressImage();
-    };
-
-    tick();
-    const t = window.setInterval(tick, POLL_IMAGE_MS);
-
-    return () => {
-      mounted = false;
-      window.clearInterval(t);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ---------------------------
-  // ✅ Vibration Monitoring (폴링)
-  // ---------------------------
-  useEffect(() => {
-    let mounted = true;
-
-    const fetchVibrationData = async () => {
-      if (vibInFlightRef.current) return;
-      vibInFlightRef.current = true;
-
+    const parseAdditional = (item: MLAnalysisResultDto): any => {
+      if (!item.additionalInfo) return null;
       try {
-        const vibToken = localStorage.getItem("token");
-        const response = await fetch(`${ML_API_BASE}/press/vibration`, {
-          method: "POST",
-          headers: vibToken ? { Authorization: `Bearer ${vibToken}` } : {},
-        });
+        return JSON.parse(item.additionalInfo);
+      } catch {
+        return null;
+      }
+    };
 
-        if (!response.ok) {
-          const t = await response.text().catch(() => "");
-          throw new Error(`API ${response.status}: ${t || response.statusText}`);
-        }
-
-        const data = (await response.json()) as VibrationData;
-
-        const timeStr = nowHHMMSS();
+    const load = async () => {
+      setIsImageLoading(true);
+      try {
+        const [imageList, vibList] = await Promise.all([
+          mlResultsApi.list({ orderId, serviceType: "press_image", limit: 30 }),
+          mlResultsApi.list({ orderId, serviceType: "press_vibration", limit: 30 }),
+        ]);
         if (!mounted) return;
 
-        const sv = data.sensor_values || {};
-        let s0 = typeof (sv as any).sensor_0 === "number" ? (sv as any).sensor_0 : 0;
-        let s1 = typeof (sv as any).sensor_1 === "number" ? (sv as any).sensor_1 : 0;
-        let s2 = typeof (sv as any).sensor_2 === "number" ? (sv as any).sensor_2 : 0;
+        if (imageList && imageList.length > 0) {
+          const info = parseAdditional(imageList[0]) || {};
+          const data: DefectData = {
+            predicted_class: info.predicted_class ?? info.prediction_class ?? "-",
+            confidence: info.confidence ?? 0,
+            all_scores: info.all_scores ?? {},
+            image_base64: info.image_base64 ?? null,
+            note: info.note,
+            model_input_shape: info.model_input_shape,
+            sim_image_shape: info.sim_image_shape,
+            source: info.source,
+            sequence: info.sequence,
+          };
+          setAutoImage(data);
+          setImageLastUpdated(
+            imageList[0].createdDate ? new Date(imageList[0].createdDate).toLocaleTimeString() : nowHHMMSS()
+          );
 
-        let err =
-          typeof data.reconstruction_error === "number" ? data.reconstruction_error : 0;
-
-        if (DEMO_RANDOM_ON_SAME_VALUE) {
-          const prev = prevRef.current;
-          const same = prev.err === err && prev.s0 === s0 && prev.s1 === s1 && prev.s2 === s2;
-          if (same) {
-            const jitter = () => (Math.random() - 0.5) * 0.02;
-            err = err + jitter();
-            s0 = s0 + jitter();
-            s1 = s1 + jitter();
-            s2 = s2 + jitter();
-          }
-          prevRef.current = { err, s0, s1, s2 };
+          setDefectAccum(() => {
+            const init: Record<string, number> = {};
+            DEFECT_TYPES.forEach((k) => (init[k] = 0));
+            imageList.forEach((item) => {
+              const infoItem = parseAdditional(item) || {};
+              const scores = infoItem.all_scores ?? {};
+              for (const k of DEFECT_TYPES) {
+                const add = typeof scores[k] === "number" ? scores[k] : 0;
+                init[k] = (init[k] ?? 0) + add;
+              }
+            });
+            return init;
+          });
+        } else {
+          setAutoImage(null);
+          setImageLastUpdated("--:--:--");
         }
 
-        setVibration(data);
-        setLastUpdated(timeStr);
+        if (vibList && vibList.length > 0) {
+          const info = parseAdditional(vibList[0]) || {};
+          const data: VibrationData = {
+            reconstruction_error: info.reconstruction_error ?? vibList[0].reconstructionError ?? 0,
+            is_anomaly: info.is_anomaly ?? vibList[0].isAnomaly ?? 0,
+            threshold: info.threshold ?? vibList[0].threshold ?? 0,
+            sensor_values: info.sensor_values ?? undefined,
+            mode: info.mode,
+            note: info.note,
+            model_input_shape: info.model_input_shape,
+          };
+          setVibration(data);
+          setLastUpdated(
+            vibList[0].createdDate ? new Date(vibList[0].createdDate).toLocaleTimeString() : nowHHMMSS()
+          );
 
-        setVibrationHistory((prev) => [...prev, { time: timeStr, value: err }].slice(-30));
-        setSensorHistory((prev) =>
-          [...prev, { time: timeStr, sensor_0: s0, sensor_1: s1, sensor_2: s2 }].slice(-30)
-        );
-      } catch (error) {
-        console.error("Failed to fetch vibration data:", error);
+          const vibHistory = vibList
+            .slice()
+            .reverse()
+            .map((item) => {
+              const infoItem = parseAdditional(item) || {};
+              const err = infoItem.reconstruction_error ?? item.reconstructionError ?? 0;
+              const time = item.createdDate
+                ? new Date(item.createdDate).toLocaleTimeString()
+                : nowHHMMSS();
+              return { time, value: err };
+            });
+          setVibrationHistory(vibHistory.slice(-30));
+
+          const sensorHist = vibList
+            .slice()
+            .reverse()
+            .map((item) => {
+              const infoItem = parseAdditional(item) || {};
+              const sv = infoItem.sensor_values || {};
+              const time = item.createdDate
+                ? new Date(item.createdDate).toLocaleTimeString()
+                : nowHHMMSS();
+              return {
+                time,
+                sensor_0: typeof sv.sensor_0 === "number" ? sv.sensor_0 : 0,
+                sensor_1: typeof sv.sensor_1 === "number" ? sv.sensor_1 : 0,
+                sensor_2: typeof sv.sensor_2 === "number" ? sv.sensor_2 : 0,
+              };
+            });
+          setSensorHistory(sensorHist.slice(-30));
+        } else {
+          setVibration(null);
+          setLastUpdated("--:--:--");
+          setVibrationHistory([]);
+          setSensorHistory([]);
+        }
+      } catch (e) {
+        console.error("Failed to fetch press results:", e);
       } finally {
-        vibInFlightRef.current = false;
+        if (!mounted) return;
+        setIsImageLoading(false);
       }
     };
 
-    fetchVibrationData();
-    const interval = window.setInterval(fetchVibrationData, POLL_VIB_MS);
-
+    load();
     return () => {
       mounted = false;
-      window.clearInterval(interval);
     };
-  }, []);
+  }, [orderId]);
 
   // ---------------------------
   // ✅ KPI (배터리/차체 스타일 톤)
@@ -336,7 +317,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
               <h2 className="text-3xl font-bold text-gray-900">프레스 공정 모니터링</h2>
               <p className="text-gray-600 mt-1">이미지 검함 검출 및 진동 이상 감지</p>
               <p className="text-xs text-gray-500 mt-1">
-                주기: 이미지 {POLL_IMAGE_MS / 1000}s · 진동 {POLL_VIB_MS / 1000}s
+                주문별 저장 결과 표시
               </p>
             </div>
           </div>

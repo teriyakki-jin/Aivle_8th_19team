@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ResponsiveContainer,
@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { OrderSelector } from "./OrderSelector";
-import { ML_API_BASE, ML_IMAGE_BASE } from "../config/env";
+import { ML_IMAGE_BASE } from "../config/env";
+import { mlResultsApi, MLAnalysisResultDto } from "../api/mlResults";
 
 type PartKey = "door" | "bumper" | "headlamp" | "taillamp" | "radiator";
 
@@ -45,12 +46,7 @@ type BodyResult = {
   sequence?: { index_next: number; count: number };
 };
 
-type BatchResponse = {
-  results: Record<PartKey, BodyResult | null | any>;
-};
-
 const API_BASE = ML_IMAGE_BASE; // 이미지용
-const POLL_MS = 5000;
 
 const PARTS: { key: PartKey; label: string }[] = [
   { key: "door", label: "도어" },
@@ -93,13 +89,13 @@ function PassFailPill({ value }: { value: "PASS" | "FAIL" }) {
   );
 }
 
-function BodyAssemblyDashboardInner() {
+function BodyAssemblyDashboardInner({ orderId }: { orderId: number | null }) {
   const navigate = useNavigate();
 
   // ✅ 버튼 없이 자동 모니터링
   const [systemStatus, setSystemStatus] = useState<
-    "WAITING" | "MONITORING" | "ANALYZING"
-  >("MONITORING");
+    "WAITING" | "MONITORING"
+  >("WAITING");
 
   const [results, setResults] = useState<
     Partial<Record<PartKey, BodyResult | null>>
@@ -120,8 +116,6 @@ function BodyAssemblyDashboardInner() {
   // 모달
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // 중복 요청 방지
-  const inFlightRef = useRef(false);
 
   const stats = useMemo(() => {
     const vals = Object.values(results).filter(Boolean) as BodyResult[];
@@ -158,73 +152,144 @@ function BodyAssemblyDashboardInner() {
     return `${topStr} 포함 ${r.detections.length}건 탐지 — 시각검사/재작업 필요`;
   };
 
-  // ✅ 자동 배치(서버가 이미지 자동 선택)
-  const fetchAutoBatch = async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-
-    setError(null);
-    try {
-      setSystemStatus("ANALYZING");
-
-      const res = await fetch(
-        `${ML_API_BASE}/body/inspect/batch/auto`,
-        { method: "POST" }
-      );
-
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        throw new Error(`API ${res.status}: ${t || res.statusText}`);
-      }
-
-      const data: BatchResponse = await res.json();
-      const next = (data.results ?? {}) as any;
-
-      const t = nowHHMMSS();
-
-      setResults(next);
-      setLastUpdated(t);
-
-      const failParts = PARTS.filter(
-        (p) => next?.[p.key]?.pass_fail === "FAIL"
-      ).length;
-
-      const totalDetections = PARTS.reduce(
-        (acc, p) => acc + (next?.[p.key]?.detections?.length ?? 0),
-        0
-      );
-
-      setBatchHistory((prev) =>
-        [...prev, { time: t, failParts, totalDetections }].slice(-30)
-      );
-
-      const newSlots = PARTS.map((p) => {
-        const r: BodyResult | undefined = next?.[p.key];
-        return {
-          time: t,
-          part: p.key,
-          pass_fail: (r?.pass_fail ?? "PASS") as "PASS" | "FAIL",
-          detCount: r?.detections?.length ?? 0,
-        };
-      });
-      setLogSlots(newSlots);
-
-      setSystemStatus("MONITORING");
-    } catch (e: any) {
-      setError(e?.message ?? "자동 배치 분석 중 오류가 발생했습니다.");
-      setSystemStatus("WAITING");
-    } finally {
-      inFlightRef.current = false;
-    }
-  };
-
-  // ✅ 자동 폴링: 마운트 즉시 1회 + 5초마다 계속
   useEffect(() => {
-    fetchAutoBatch(); // 즉시 1회
-    const interval = setInterval(fetchAutoBatch, POLL_MS);
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!orderId) return;
+    let mounted = true;
+
+    const parseAdditional = (item: MLAnalysisResultDto): any => {
+      if (!item.additionalInfo) return null;
+      try {
+        return JSON.parse(item.additionalInfo);
+      } catch {
+        return null;
+      }
+    };
+
+    const normalizeBodyResult = (raw: any): BodyResult | null => {
+      if (!raw) return null;
+      return {
+        part: raw.part as PartKey,
+        pass_fail: (raw.pass_fail ?? raw.status ?? raw.judgement ?? "PASS") as "PASS" | "FAIL",
+        detections: Array.isArray(raw.detections) ? raw.detections : [],
+        original_image_url: raw.original_image_url ?? null,
+        result_image_url: raw.result_image_url ?? null,
+        error: raw.error,
+        source: raw.source,
+        sequence: raw.sequence,
+      };
+    };
+
+    const load = async () => {
+      setError(null);
+      try {
+        const list = await mlResultsApi.list({
+          orderId,
+          serviceType: "body_assembly",
+          limit: 30,
+        });
+        if (!mounted) return;
+
+        if (!list || list.length === 0) {
+          setResults({});
+          setBatchHistory([]);
+          setLogSlots([]);
+          setLastUpdated("--:--:--");
+          setSystemStatus("WAITING");
+          return;
+        }
+
+        const latestItem = list[0];
+        const latestInfo = parseAdditional(latestItem);
+
+        let nextResults: Partial<Record<PartKey, BodyResult | null>> = {};
+        if (latestInfo?.results) {
+          const rawResults = latestInfo.results as Record<string, any>;
+          PARTS.forEach((p) => {
+            const normalized = normalizeBodyResult(rawResults[p.key]);
+            if (normalized) {
+              nextResults[p.key] = normalized;
+            }
+          });
+        } else if (latestInfo) {
+          const normalized = normalizeBodyResult(latestInfo);
+          if (normalized?.part) {
+            nextResults[normalized.part] = normalized;
+          }
+        }
+
+        setResults(nextResults);
+        setLastUpdated(
+          latestItem.createdDate
+            ? new Date(latestItem.createdDate).toLocaleTimeString()
+            : nowHHMMSS()
+        );
+        setSystemStatus("MONITORING");
+
+        const history = list
+          .slice()
+          .reverse()
+          .map((item) => {
+            const info = parseAdditional(item);
+            if (info?.results) {
+              const rawResults = info.results as Record<string, any>;
+              const failParts = PARTS.filter(
+                (p) => rawResults?.[p.key]?.pass_fail === "FAIL"
+              ).length;
+              const totalDetections = PARTS.reduce(
+                (acc, p) => acc + (rawResults?.[p.key]?.detections?.length ?? 0),
+                0
+              );
+              return {
+                time: item.createdDate
+                  ? new Date(item.createdDate).toLocaleTimeString()
+                  : nowHHMMSS(),
+                failParts,
+                totalDetections,
+              };
+            }
+            if (info) {
+              const normalized = normalizeBodyResult(info);
+              const failParts = normalized?.pass_fail === "FAIL" ? 1 : 0;
+              const totalDetections = normalized?.detections?.length ?? 0;
+              return {
+                time: item.createdDate
+                  ? new Date(item.createdDate).toLocaleTimeString()
+                  : nowHHMMSS(),
+                failParts,
+                totalDetections,
+              };
+            }
+            return null;
+          })
+          .filter((row): row is { time: string; failParts: number; totalDetections: number } => !!row)
+          .slice(-30);
+        setBatchHistory(history);
+
+        const t = latestItem.createdDate
+          ? new Date(latestItem.createdDate).toLocaleTimeString()
+          : nowHHMMSS();
+        const newSlots = PARTS.map((p) => {
+          const r: BodyResult | undefined = nextResults[p.key] ?? undefined;
+          return {
+            time: t,
+            part: p.key,
+            pass_fail: (r?.pass_fail ?? "PASS") as "PASS" | "FAIL",
+            detCount: r?.detections?.length ?? 0,
+          };
+        });
+        setLogSlots(newSlots);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message ?? "ML 결과 조회 실패");
+        setSystemStatus("WAITING");
+      }
+    };
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [orderId]);
 
   // ✅ 최신 검사 결과 순서
   const latestCards = useMemo(() => {
@@ -341,8 +406,7 @@ function BodyAssemblyDashboardInner() {
                   부품별 비전 검사 결과 자동 수집 및 결함 탐지
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  주기: {POLL_MS / 1000}s · 최근 갱신:{" "}
-                  <span className="font-mono">{lastUpdated}</span>
+                  최근 갱신: <span className="font-mono">{lastUpdated}</span>
                 </p>
               </div>
             </div>
@@ -397,9 +461,9 @@ function BodyAssemblyDashboardInner() {
               <p className="text-sm font-medium text-gray-600">사이클 시간</p>
             </div>
             <p className="text-4xl font-bold text-gray-900 mb-2">
-              {(POLL_MS / 1000).toFixed(0)}s
+              {batchHistory.length}
             </p>
-            <p className="text-xs text-purple-600 font-medium">자동 배치 검사 주기</p>
+            <p className="text-xs text-purple-600 font-medium">저장된 결과 수</p>
           </div>
         </div>
 
@@ -412,7 +476,7 @@ function BodyAssemblyDashboardInner() {
                 <h3 className="text-lg font-bold text-gray-900">배치 불량 추이</h3>
               </div>
               <span className="px-3 py-1 bg-gray-900 text-white text-[10px] font-bold rounded-full">
-                상태: {systemStatus === "MONITORING" ? "모니터링" : systemStatus === "ANALYZING" ? "분석 중" : "대기"}
+                상태: {systemStatus === "MONITORING" ? "모니터링" : "대기"}
               </span>
             </div>
 
@@ -751,7 +815,7 @@ function BodyAssemblyDashboardInner() {
 export function BodyAssemblyDashboard() {
   return (
     <OrderSelector processName="차체 조립">
-      {(_orderId) => <BodyAssemblyDashboardInner />}
+      {(_orderId) => <BodyAssemblyDashboardInner orderId={_orderId} />}
     </OrderSelector>
   );
 }

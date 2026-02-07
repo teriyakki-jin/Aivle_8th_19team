@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OrderSelector } from "./OrderSelector";
+import { mlResultsApi, MLAnalysisResultDto } from "../api/mlResults";
 import {
   ArrowLeft,
   Layers,
@@ -26,7 +27,6 @@ import {
   LineChart,
   Line,
 } from "recharts";
-import { ML_API_BASE } from "../config/env";
 
 type Pred01 = 0 | 1;
 
@@ -42,27 +42,6 @@ function nowHHMMSS(): string {
     minute: "2-digit",
     second: "2-digit",
   });
-}
-
-function makeMiniArffBlob(header: string, row: string): Blob {
-  // header에는 @data 까지 포함되어 있어야 함
-  const content = `${header}\n${row.endsWith("\n") ? row : row + "\n"}`;
-  return new Blob([content], { type: "text/plain" });
-}
-
-function splitArffHeaderAndRows(arffText: string): { header: string; rows: string[] } {
-  const idx = arffText.toLowerCase().indexOf("@data");
-  if (idx === -1) throw new Error("ARFF에 @data 섹션이 없습니다.");
-
-  const headerPart = arffText.slice(0, idx + "@data".length);
-  const dataPart = arffText.slice(idx + "@data".length);
-
-  const rows = dataPart
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0 && !l.startsWith("%"));
-
-  return { header: headerPart.trim(), rows };
 }
 
 export function EngineVibrationDashboard() {
@@ -82,14 +61,7 @@ export function EngineVibrationDashboard() {
 
 function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }) {
   const navigate = useNavigate();
-  const DEMO_ARFF_URL = "/data/FordA_TEST.arff";
-  const ENGINE_API_URL = `${ML_API_BASE}/engine`;
-
-  // ✅ 자동 모니터링(버튼 제거)
-  const [systemStatus, setSystemStatus] = useState<"WAITING" | "LOADING_ARFF" | "MONITORING">("LOADING_ARFF");
-
-  const [arffHeader, setArffHeader] = useState<string | null>(null);
-  const [arffRows, setArffRows] = useState<string[] | null>(null);
+  const [systemStatus, setSystemStatus] = useState<"WAITING" | "READY">("WAITING");
 
   const [result, setResult] = useState<{
     prediction: Pred01;
@@ -106,128 +78,104 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
 
   const [buffer, setBuffer] = useState<MonitorEntry[]>([]);
   const [abnormalHistory, setAbnormalHistory] = useState<MonitorEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // ✅ ARFF 로딩(한 번) → 성공하면 바로 MONITORING
   useEffect(() => {
-    let cancelled = false;
+    if (!orderId) return;
+    let mounted = true;
 
-    async function loadArff() {
+    const parseAdditional = (item: MLAnalysisResultDto): any => {
+      if (!item.additionalInfo) return null;
       try {
-        setSystemStatus("LOADING_ARFF");
-
-        const res = await fetch(DEMO_ARFF_URL);
-        if (!res.ok) throw new Error(`ARFF load failed: HTTP ${res.status}`);
-
-        const text = await res.text();
-        const { header, rows } = splitArffHeaderAndRows(text);
-
-        if (!cancelled) {
-          setArffHeader(header);
-          setArffRows(rows);
-
-          // ✅ 로드 완료 즉시 자동 스트리밍 시작
-          if (rows.length > 0) setSystemStatus("MONITORING");
-          else setSystemStatus("WAITING");
-
-          console.log("[ENGINE] ARFF loaded:", { headerLen: header.length, rows: rows.length });
-        }
-      } catch (e) {
-        console.error("[ENGINE] ARFF load error:", e);
-        if (!cancelled) setSystemStatus("WAITING");
+        return JSON.parse(item.additionalInfo);
+      } catch {
+        return null;
       }
-    }
-
-    loadArff();
-    return () => {
-      cancelled = true;
     };
-  }, []);
 
-  // ✅ 자동 모니터링: MONITORING 상태 && rows 있으면 5초마다 FastAPI에 POST
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
+    const load = async () => {
+      setError(null);
+      try {
+        const list = await mlResultsApi.list({
+          orderId,
+          serviceType: "engine",
+          limit: 40,
+        });
+        if (!mounted) return;
+        if (!list || list.length === 0) {
+          setResult(null);
+          setBuffer([]);
+          setAbnormalHistory([]);
+          setStats({ totalCount: 0, abnormalCount: 0, normalRate: 100.0, cycleTime: "-" });
+          setSystemStatus("WAITING");
+          return;
+        }
 
-    const canRun = systemStatus === "MONITORING" && arffHeader && arffRows && arffRows.length > 0;
-
-    if (canRun) {
-      interval = setInterval(async () => {
-        try {
-          const row = arffRows![Math.floor(Math.random() * arffRows!.length)];
-
-          const blob = makeMiniArffBlob(arffHeader!, row);
-          const file = new File([blob], "stream_row.arff", { type: "text/plain" });
-
-          const form = new FormData();
-          form.append("file", file);
-
-          const token = localStorage.getItem("token");
-          const res = await fetch(ENGINE_API_URL, {
-            method: "POST",
-            body: form,
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          });
-
-          if (!res.ok) {
-            const txt = await res.text().catch(() => "");
-            console.error("[ENGINE] API FAIL:", res.status, txt);
-            return;
-          }
-
-          const data = await res.json();
-
-          const rawPred = Number(data?.prediction);
-          if (!(rawPred === 0 || rawPred === 1)) {
-            console.error("[ENGINE] invalid prediction:", data?.prediction);
-            return;
-          }
-
-          const prediction = rawPred as Pred01;
-
-          const rawJudgement = data?.judgement;
+        const entries: MonitorEntry[] = list.map((item) => {
+          const info = parseAdditional(item) || {};
+          const predictionRaw =
+            typeof info.prediction === "number"
+              ? info.prediction
+              : typeof item.prediction === "number"
+              ? item.prediction
+              : 0;
+          const prediction = predictionRaw === 1 ? 1 : 0;
+          const judgementRaw = info.judgement ?? info.status ?? item.status;
           const judgement: "NORMAL" | "ABNORMAL" =
-            rawJudgement === "NORMAL" || rawJudgement === "ABNORMAL"
-              ? rawJudgement
+            judgementRaw === "NORMAL" || judgementRaw === "ABNORMAL"
+              ? judgementRaw
               : prediction === 1
               ? "NORMAL"
               : "ABNORMAL";
+          return {
+            time: item.createdDate
+              ? new Date(item.createdDate).toLocaleTimeString("ko-KR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })
+              : nowHHMMSS(),
+            prediction: prediction as Pred01,
+            judgement,
+          };
+        });
 
-          const t = nowHHMMSS();
-          setResult({ prediction, judgement, time: t });
-
-          const entry: MonitorEntry = { time: t, prediction, judgement };
-
-          setStats((prev) => {
-            const total = prev.totalCount + 1;
-            const abnormal = judgement === "ABNORMAL" ? prev.abnormalCount + 1 : prev.abnormalCount;
-            const normalRate = ((total - abnormal) / total) * 100;
-            return {
-              ...prev,
-              totalCount: total,
-              abnormalCount: abnormal,
-              normalRate: Number(normalRate.toFixed(1)),
-            };
+        const latest = entries[0] ?? null;
+        if (latest) {
+          setResult({
+            prediction: latest.prediction,
+            judgement: latest.judgement,
+            time: latest.time,
           });
-
-          if (judgement === "ABNORMAL") {
-            setAbnormalHistory((prev) => [entry, ...prev].slice(0, 30));
-          }
-
-          setBuffer((prev) => {
-            const next = [...prev, entry];
-            if (next.length > 30) next.shift();
-            return next;
-          });
-        } catch (e) {
-          console.error("[ENGINE] monitor loop error:", e);
+        } else {
+          setResult(null);
         }
-      }, 5000);
-    }
 
-    return () => {
-      if (interval) clearInterval(interval);
+        const total = entries.length;
+        const abnormal = entries.filter((e) => e.judgement === "ABNORMAL").length;
+        const normalRate = total === 0 ? 100 : ((total - abnormal) / total) * 100;
+        setStats({
+          totalCount: total,
+          abnormalCount: abnormal,
+          normalRate: Number(normalRate.toFixed(1)),
+          cycleTime: "-",
+        });
+
+        setBuffer(entries.slice(0, 30));
+        setAbnormalHistory(entries.filter((e) => e.judgement === "ABNORMAL").slice(0, 30));
+        setSystemStatus("READY");
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || "ML 결과 조회 실패");
+        setSystemStatus("WAITING");
+      }
     };
-  }, [systemStatus, arffHeader, arffRows]);
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [orderId]);
 
   // Charts
   const trend = useMemo(() => {
@@ -258,19 +206,10 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
       });
     }
 
-    if (systemStatus === "MONITORING") {
+    if (systemStatus === "READY") {
       list.push({
         id: 2,
-        issue: "스트리밍 예측 중",
-        severity: "주의",
-        time: nowHHMMSS(),
-      });
-    }
-
-    if (systemStatus === "LOADING_ARFF") {
-      list.push({
-        id: 3,
-        issue: "ARFF 로딩 중",
+        issue: "ML 결과 수신 완료",
         severity: "주의",
         time: nowHHMMSS(),
       });
@@ -279,7 +218,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
     if (systemStatus === "WAITING") {
       list.push({
         id: 4,
-        issue: "ARFF 로드 실패 또는 데이터 없음 (/public/data 확인)",
+        issue: "아직 저장된 결과가 없습니다.",
         severity: "주의",
         time: nowHHMMSS(),
       });
@@ -290,8 +229,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
 
   const statusBadge = useMemo(() => {
     if (systemStatus === "WAITING") return "bg-gray-100 text-gray-700";
-    if (systemStatus === "LOADING_ARFF") return "bg-blue-100 text-blue-700";
-    return "bg-purple-100 text-purple-700";
+    return "bg-green-100 text-green-700";
   }, [systemStatus]);
 
   return (
@@ -324,6 +262,12 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
           </div>
         </div>
 
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 font-medium">
+            {error}
+          </div>
+        )}
+
         {/* KPIs + Latest Result */}
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200 mb-8">
           <div className="mt-2 grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -348,7 +292,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                     {result.judgement === "NORMAL" ? "정상" : "이상"}
                   </span>
                 ) : (
-                  <span className="text-xs text-gray-500">ARFF 로딩 후 자동으로 요청이 시작됩니다</span>
+                  <span className="text-xs text-gray-500">주문 기준 결과가 아직 없습니다</span>
                 )}
               </div>
 
@@ -514,8 +458,8 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
               <Activity className="w-5 h-5 text-blue-600" />
               <p className="text-sm font-medium text-gray-600">모니터링</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900">{systemStatus === "MONITORING" ? "ON" : "OFF"}</p>
-            <p className="text-xs text-blue-600 font-medium">랜덤 샘플 스트림</p>
+            <p className="text-3xl font-bold text-gray-900">{systemStatus === "READY" ? "ON" : "OFF"}</p>
+            <p className="text-xs text-blue-600 font-medium">결과 수신 상태</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200">

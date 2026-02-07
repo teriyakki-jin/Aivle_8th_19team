@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, RefreshCcw, Factory, Image as ImageIcon, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { OrderSelector } from "./OrderSelector";
-import { ML_API_BASE, ML_IMAGE_BASE } from "../config/env";
+import { ML_IMAGE_BASE } from "../config/env";
+import { mlResultsApi, MLAnalysisResultDto } from "../api/mlResults";
 
 /* =====================
    Types
@@ -38,9 +39,7 @@ type HistoryRow = {
    Constants
 ===================== */
 
-const ENDPOINT_AUTO = `${ML_API_BASE}/welding/image/auto`;
 const SERVER_BASE = ML_IMAGE_BASE; // 이미지는 ML 서비스에서 제공
-const POLL_MS = 5000;
 
 /* =====================
    Defect name translation
@@ -90,10 +89,6 @@ function nowHHMMSS() {
     minute: "2-digit",
     second: "2-digit",
   });
-}
-
-function pad5(n: number) {
-  return String(n).padStart(5, "0");
 }
 
 function topDefect(defects: Defect[]) {
@@ -222,12 +217,6 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("--:--:--");
 
-  // ✅ seq는 useRef로 (리렌더/의존성 꼬임 방지)
-  const seqRef = useRef(1);
-
-  // ✅ 폴링 중 중복 호출 방지
-  const inFlightRef = useRef(false);
-
   const latest = history[0];
 
   const hasDefects = (result?.defects?.length ?? 0) > 0;
@@ -250,78 +239,86 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
     return "";
   }, [result]);
 
-  const fetchAuto = async () => {
-    if (inFlightRef.current) return;
-
-    inFlightRef.current = true;
-    setLoading(true);
-
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(ENDPOINT_AUTO, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        throw new Error(`API ${res.status}: ${t || res.statusText}`);
-      }
-
-      const json = (await res.json()) as WeldingAutoResponse;
-
-      setResult(json);
-      setLastUpdated(nowHHMMSS());
-      setError("");
-
-      const jsonHasDefects = (json?.defects?.length ?? 0) > 0;
-      const top = jsonHasDefects ? topDefect(json.defects) : null;
-
-      const id = `IMG-${pad5(seqRef.current)}`;
-      seqRef.current += 1;
-
-      setHistory((prev) => [
-        {
-          id,
-          time: nowHHMMSS(),
-            judgement: jsonHasDefects || json.status === "DEFECT" ? "불량" : "양품",
-          defectType: top?.class ?? "-",
-          confidencePct: top ? confidenceToPct(top.confidence) : 99,
-          originalUrl: publicUrl(json.original_image_url),
-          resultUrl: publicUrl(json.result_image_url),
-          source: json.source,
-        },
-        ...prev,
-      ]);
-    } catch (e: any) {
-      setError(e?.message || "자동 분석 중 오류 발생");
-    } finally {
-      setLoading(false);
-      inFlightRef.current = false;
-    }
-  };
-
   useEffect(() => {
+    if (!orderId) return;
     let mounted = true;
 
-    const tick = async () => {
-      if (!mounted) return;
-      await fetchAuto();
+    const parseAdditional = (item: MLAnalysisResultDto): any => {
+      if (!item.additionalInfo) return null;
+      try {
+        return JSON.parse(item.additionalInfo);
+      } catch {
+        return null;
+      }
     };
 
-    tick();
-    const t = window.setInterval(tick, POLL_MS);
+    const load = async () => {
+      setLoading(true);
+      try {
+        const list = await mlResultsApi.list({
+          orderId,
+          serviceType: "welding_image",
+          limit: 50,
+        });
+        if (!mounted) return;
 
+        if (!list || list.length === 0) {
+          setResult(null);
+          setHistory([]);
+          setLastUpdated("--:--:--");
+          return;
+        }
+
+        const rows: HistoryRow[] = list.map((item) => {
+          const info = parseAdditional(item) || {};
+          const defects = info.defects ?? [];
+          const hasDefects = (defects?.length ?? 0) > 0;
+          const top = hasDefects ? topDefect(defects) : null;
+          return {
+            id: String(item.id),
+            time: item.createdDate ? new Date(item.createdDate).toLocaleTimeString() : nowHHMMSS(),
+            judgement: info.status === "DEFECT" || hasDefects ? "불량" : "양품",
+            defectType: top?.class ?? "-",
+            confidencePct: top ? confidenceToPct(top.confidence) : 0,
+            originalUrl: publicUrl(info.original_image_url),
+            resultUrl: publicUrl(info.result_image_url),
+            source: info.source,
+          };
+        });
+        setHistory(rows);
+
+        const latestItem = list[0];
+        const latestInfo = parseAdditional(latestItem) || {};
+        setResult({
+          status: latestInfo.status ?? "NORMAL",
+          defects: latestInfo.defects ?? [],
+          original_image_url: latestInfo.original_image_url ?? "",
+          result_image_url: latestInfo.result_image_url ?? null,
+          source: latestInfo.source,
+          sequence: latestInfo.sequence,
+        });
+        setLastUpdated(
+          latestItem.createdDate ? new Date(latestItem.createdDate).toLocaleTimeString() : nowHHMMSS()
+        );
+        setError("");
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || "ML 결과 조회 실패");
+      } finally {
+        if (!mounted) return;
+        setLoading(false);
+      }
+    };
+
+    load();
     return () => {
       mounted = false;
-      window.clearInterval(t);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [orderId]);
 
   const resetAll = () => {
     setResult(null);
     setHistory([]);
-    seqRef.current = 1;
     setError("");
     setLastUpdated("--:--:--");
   };
@@ -352,10 +349,9 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
             </div>
             <div>
               <h2 className="text-3xl font-bold text-gray-900">용접 이미지 검사</h2>
-              <p className="text-gray-600 mt-1">자동 폴링 기반 결함 탐지</p>
+              <p className="text-gray-600 mt-1">주문별 저장 결과 표시</p>
               <p className="text-xs text-gray-500 mt-1">
-                최근 갱신: <span className="font-mono">{lastUpdated}</span> · 주기:{" "}
-                {POLL_MS / 1000}s
+                최근 갱신: <span className="font-mono">{lastUpdated}</span>
               </p>
             </div>
           </div>

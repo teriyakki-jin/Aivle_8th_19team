@@ -33,6 +33,9 @@ public class InventoryHistory extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     private InventoryChangeType changeType; // IN, OUT, ADJUST, SCRAP
 
+    @Column(length = 500)
+    private String remark;
+
     /**
      *  ========================================
      *  비즈니스 로직
@@ -46,10 +49,11 @@ public class InventoryHistory extends BaseTimeEntity {
             Part part,
             int changeQty, int afterQty,
             LocalDateTime occuredAt,
-            InventoryChangeType changeType
+            InventoryChangeType changeType,
+            String remark
     ) {
 
-        if (changeQty + afterQty < 0) {
+        if (!InventoryChangeType.isPlanned(changeType) && changeQty + afterQty < 0) {
             throw new IllegalStateException("재고가 부족합니다.");
         }
 
@@ -59,6 +63,16 @@ public class InventoryHistory extends BaseTimeEntity {
                 .afterQty(afterQty)
                 .occuredAt(occuredAt)
                 .changeType(changeType)
+                .remark(remark)
                 .build();
+    }
+
+    public void setReference(Long referenceId, String referenceType) {
+        this.referenceId = referenceId;
+        this.referenceType = referenceType;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
     }
 }

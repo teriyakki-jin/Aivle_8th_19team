@@ -134,8 +134,11 @@ public class ProductionService {
                     -requiredTotal,
                     inventory.getCurrentQty(),
                     LocalDateTime.now(),
-                    InventoryChangeType.OUT
+                    InventoryChangeType.OUT,
+                    null
             );
+            history.setReference(productionId, "PRODUCTION");
+            history.setRemark(vehicleModel.getModelName() + " (" + plannedQty + ")");
 
             inventoryHistoryRepository.save(history);
         }

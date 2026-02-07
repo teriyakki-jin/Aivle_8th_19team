@@ -3,9 +3,11 @@ package com.example.automobile_risk.entity.enumclass;
 public enum InventoryChangeType {
 
     IN("입고"),
-    OUT("출고"),   // 생산 일부 계획
-    ADJUST("조정"),       // 생산 계획 확정
-    SCRAP("폐기");       // 생산 계획 확정
+    OUT("출고"),
+    IN_PLANNED("입고(예정)"),
+    OUT_PLANNED("출고(예정)"),
+    ADJUST("조정"),
+    SCRAP("폐기");
 
     private final String label;
 
@@ -15,5 +17,9 @@ public enum InventoryChangeType {
 
     public String getLabel() {
         return label;
+    }
+
+    public static boolean isPlanned(InventoryChangeType type) {
+        return type == IN_PLANNED || type == OUT_PLANNED;
     }
 }

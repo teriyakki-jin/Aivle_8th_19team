@@ -10,15 +10,19 @@ import com.example.automobile_risk.entity.Bom;
 import com.example.automobile_risk.entity.Equipment;
 import com.example.automobile_risk.entity.Inventory;
 import com.example.automobile_risk.entity.InventoryHistory;
+import com.example.automobile_risk.entity.MlInputDataset;
 import com.example.automobile_risk.entity.Order;
 import com.example.automobile_risk.entity.OrderProduction;
 import com.example.automobile_risk.entity.Part;
 import com.example.automobile_risk.entity.ProcessType;
 import com.example.automobile_risk.entity.Production;
 import com.example.automobile_risk.entity.VehicleModel;
+import com.example.automobile_risk.entity.enumclass.DatasetFormat;
 import com.example.automobile_risk.entity.enumclass.InventoryChangeType;
 import com.example.automobile_risk.entity.enumclass.Unit;
 import com.example.automobile_risk.entity.enumclass.UserRole;
+import com.example.automobile_risk.repository.MlInputDatasetRepository;
+import com.example.automobile_risk.repository.ProductionDatasetMappingRepository;
 import com.example.automobile_risk.repository.UserRepository;
 import com.example.automobile_risk.service.AuthService;
 import com.example.automobile_risk.service.PressFeatureAggregationService;
@@ -49,6 +53,8 @@ public class InitDb {
         private final PressFeatureAggregationService pressFeatureAggregationService;
         private final AuthService authService;
         private final UserRepository userRepository;
+        private final MlInputDatasetRepository mlInputDatasetRepository;
+        private final ProductionDatasetMappingRepository productionDatasetMappingRepository;
 
         public void vehicleModelDbInit() {
 
@@ -307,6 +313,76 @@ public class InitDb {
             em.persist(paintEquipment_1);
             em.persist(assemblyEquipment_1);
             em.persist(inspectionEquipment_1);
+
+            /**
+             *  ML 입력 데이터셋 + 생산 매핑 (초기)
+             */
+            if (mlInputDatasetRepository.count() == 0) {
+                MlInputDataset pressJson = MlInputDataset.builder()
+                        .processName("프레스")
+                        .name("press_vibration_order1")
+                        .format(DatasetFormat.JSON)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\press\\\\press_vibration_unit01.json")
+                        .description("press vibration json sample")
+                        .build();
+
+                MlInputDataset weldImg = MlInputDataset.builder()
+                        .processName("용접")
+                        .name("welding_unit01")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\welding\\\\welding_unit01.jpg")
+                        .description("welding image sample")
+                        .build();
+
+                MlInputDataset paintImg = MlInputDataset.builder()
+                        .processName("도장")
+                        .name("paint_unit01")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\paint\\\\paint_unit01.jpg")
+                        .description("paint image sample")
+                        .build();
+
+                MlInputDataset bodyImg = MlInputDataset.builder()
+                        .processName("조립")
+                        .name("body_assembly_unit01")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\body_assembly\\\\body_assembly_unit01.jpg")
+                        .description("body assembly image sample")
+                        .build();
+
+                MlInputDataset inspectionCsv = MlInputDataset.builder()
+                        .processName("검사")
+                        .name("windshield_left_sample")
+                        .format(DatasetFormat.CSV)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\frontend\\\\public\\\\data\\\\2nd_process_left_data.csv")
+                        .description("windshield csv sample")
+                        .build();
+
+                mlInputDatasetRepository.save(pressJson);
+                mlInputDatasetRepository.save(weldImg);
+                mlInputDatasetRepository.save(paintImg);
+                mlInputDatasetRepository.save(bodyImg);
+                mlInputDatasetRepository.save(inspectionCsv);
+
+                // 생산 1~3에 공정별 데이터셋 매핑
+                mapDatasetIfEmpty(production1.getId(), "프레스", pressJson);
+                mapDatasetIfEmpty(production1.getId(), "용접", weldImg);
+                mapDatasetIfEmpty(production1.getId(), "도장", paintImg);
+                mapDatasetIfEmpty(production1.getId(), "조립", bodyImg);
+                mapDatasetIfEmpty(production1.getId(), "검사", inspectionCsv);
+
+                mapDatasetIfEmpty(production2.getId(), "프레스", pressJson);
+                mapDatasetIfEmpty(production2.getId(), "용접", weldImg);
+                mapDatasetIfEmpty(production2.getId(), "도장", paintImg);
+                mapDatasetIfEmpty(production2.getId(), "조립", bodyImg);
+                mapDatasetIfEmpty(production2.getId(), "검사", inspectionCsv);
+
+                mapDatasetIfEmpty(production3.getId(), "프레스", pressJson);
+                mapDatasetIfEmpty(production3.getId(), "용접", weldImg);
+                mapDatasetIfEmpty(production3.getId(), "도장", paintImg);
+                mapDatasetIfEmpty(production3.getId(), "조립", bodyImg);
+                mapDatasetIfEmpty(production3.getId(), "검사", inspectionCsv);
+            }
         }
 
         public void OrderAndProductionDbInit() {
@@ -339,6 +415,21 @@ public class InitDb {
                     .vehicleModel(vehicleModel)
                     .part(part)
                     .build();
+        }
+
+        private void mapDatasetIfEmpty(Long productionId, String processName, MlInputDataset dataset) {
+            if (productionId == null || dataset == null) return;
+            boolean exists = productionDatasetMappingRepository
+                    .findByProductionIdAndProcessName(productionId, processName)
+                    .isPresent();
+            if (exists) return;
+
+            em.createNativeQuery(
+                            "insert into production_dataset_mappings (created_date, last_modified_date, process_name, production_id, ml_input_dataset_id) values (now(), now(), ?, ?, ?)")
+                    .setParameter(1, processName)
+                    .setParameter(2, productionId)
+                    .setParameter(3, dataset.getId())
+                    .executeUpdate();
         }
 
     }

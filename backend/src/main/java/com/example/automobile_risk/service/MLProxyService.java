@@ -298,6 +298,12 @@ public class MLProxyService {
         return callMLServiceWithoutFile("/api/v1/smartfactory/welding/image/auto", "welding_image", offset, context);
     }
 
+    public JsonNode analyzeWeldingImageFile(File file, MlContext context) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new FileSystemResource(file));
+        return callMLServiceAndSave("/api/v1/welding/image", body, "welding_image", context);
+    }
+
     /**
      * 도장 품질 분석 (자동)
      */
@@ -309,6 +315,12 @@ public class MLProxyService {
         return callMLServiceWithoutFile("/api/v1/smartfactory/paint/auto", "paint", offset, context);
     }
 
+    public JsonNode analyzePaintFile(File file, MlContext context) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new FileSystemResource(file));
+        return callMLServiceAndSave("/api/v1/smartfactory/paint", body, "paint", context);
+    }
+
     /**
      * 프레스 진동 분석
      */
@@ -318,6 +330,10 @@ public class MLProxyService {
 
     public JsonNode analyzePressVibration(int offset, MlContext context) {
         return callMLServiceWithoutFile("/api/v1/smartfactory/press/vibration", "press_vibration", offset, context);
+    }
+
+    public JsonNode analyzePressVibrationJson(JsonNode bodyJson, MlContext context) {
+        return callMLServiceWithJson("/api/v1/smartfactory/press/vibration", bodyJson, "press_vibration", context);
     }
 
     /**
@@ -342,6 +358,13 @@ public class MLProxyService {
         return callMLServiceWithoutFile("/api/v1/smartfactory/windshield/auto", "windshield", offset, context);
     }
 
+    public JsonNode analyzeWindshieldFile(String side, File file, MlContext context) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("side", side);
+        body.add("file", new FileSystemResource(file));
+        return callMLServiceAndSave("/api/v1/smartfactory/windshield", body, "windshield", context);
+    }
+
     /**
      * 엔진 진동 분석 (자동)
      */
@@ -351,6 +374,12 @@ public class MLProxyService {
 
     public JsonNode analyzeEngineAuto(int offset, MlContext context) {
         return callMLServiceWithoutFile("/api/v1/smartfactory/engine/auto", "engine", offset, context);
+    }
+
+    public JsonNode analyzeEngineFile(File file, MlContext context) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new FileSystemResource(file));
+        return callMLServiceAndSave("/api/v1/smartfactory/engine", body, "engine", context);
     }
 
     /**
@@ -389,6 +418,13 @@ public class MLProxyService {
             log.error("Error calling ML service for body assembly: {}", e.getMessage(), e);
             throw new RuntimeException("ML 서비스 호출 실패: " + e.getMessage(), e);
         }
+    }
+
+    public JsonNode analyzeBodyAssemblyFile(File file, MlContext context) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("part", "door");
+        body.add("file", new FileSystemResource(file));
+        return callMLServiceAndSave("/api/v1/smartfactory/body/inspect", body, "body_assembly", context);
     }
 
     /**

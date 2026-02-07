@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -24,14 +26,13 @@ public class MlOrchestrationService {
     private String mlBaseUrl;
 
     private static final Map<String, String> ENDPOINT_MAP = Map.of(
-            "press_vibration", "/api/v1/smartfactory/press/auto",
-            "press_image",     "/api/v1/smartfactory/press_image/auto",
+            "press_vibration", "/api/v1/smartfactory/press/vibration",
+            "press_image",     "/api/v1/smartfactory/press/image",
             "paint",           "/api/v1/smartfactory/paint/auto",
-            "welding",         "/api/v1/smartfactory/welding/auto",
+            "welding",         "/api/v1/smartfactory/welding/image/auto",
             "windshield",      "/api/v1/smartfactory/windshield/auto",
             "engine",          "/api/v1/smartfactory/engine/auto",
-            "body_inspect",    "/api/v1/smartfactory/body/auto",
-            "delay_prediction", "/api/v1/delay/prediction/overview"
+            "body_inspect",    "/api/v1/smartfactory/body/inspect/batch/auto"
     );
 
     public MlOrchestrationService(
@@ -81,7 +82,7 @@ public class MlOrchestrationService {
             String endpoint = entry.getValue();
             try {
                 String url = mlBaseUrl + endpoint;
-                ResponseEntity<String> response = mlRestTemplate.getForEntity(url, String.class);
+                ResponseEntity<String> response = callEndpoint(process, url);
 
                 if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                     JsonNode data = objectMapper.readTree(response.getBody());
@@ -97,5 +98,21 @@ public class MlOrchestrationService {
         }
 
         return new OrchestrationResult(results);
+    }
+
+    private ResponseEntity<String> callEndpoint(String process, String url) {
+        if ("body_inspect".equals(process)) {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("conf", 0.5);
+            HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
+            return mlRestTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>("{}", headers);
+        return mlRestTemplate.exchange(url, HttpMethod.POST, entity, String.class);
     }
 }

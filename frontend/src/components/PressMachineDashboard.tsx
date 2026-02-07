@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { OrderSelector } from "./OrderSelector";
-import { ML_IMAGE_BASE } from "../config/env";
 import { mlResultsApi, MLAnalysisResultDto } from "../api/mlResults";
 
 interface DefectData {
@@ -69,7 +68,6 @@ function toKo(name: string): string {
   return DEFECT_NAME_KO[name] ?? name;
 }
 
-const API_BASE = ML_IMAGE_BASE; // 이미지용
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");

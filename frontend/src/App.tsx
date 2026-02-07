@@ -19,6 +19,7 @@ import { OrderPage } from "./components/order/OrderPage";
 import { ProductionPage } from "./components/order/ProductionPage";
 import { ProcessPage } from "./components/order/ProcessPage";
 import { InventoryPage } from "./components/order/InventoryPage";
+import { DatasetPage } from "./components/order/DatasetPage";
 import { TermsOfServicePage } from './components/TermsOfServicePage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { ProductionProvider } from "./context/ProductionContext";
@@ -205,6 +206,11 @@ export default function App() {
                   <Route path="/order/production" element={
                     <RoleRoute role={role} allowedRoles={["PRODUCTION_MANAGER"]}>
                       <ProductionPage />
+                    </RoleRoute>
+                  } />
+                  <Route path="/order/datasets" element={
+                    <RoleRoute role={role} allowedRoles={["PRODUCTION_MANAGER"]}>
+                      <DatasetPage />
                     </RoleRoute>
                   } />
                   <Route path="/order/process" element={

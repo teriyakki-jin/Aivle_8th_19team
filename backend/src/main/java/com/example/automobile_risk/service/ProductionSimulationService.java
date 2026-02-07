@@ -1,9 +1,11 @@
 package com.example.automobile_risk.service;
 
 import com.example.automobile_risk.entity.Equipment;
+import com.example.automobile_risk.entity.MlInputDataset;
 import com.example.automobile_risk.entity.ProcessExecution;
 import com.example.automobile_risk.entity.ProcessType;
 import com.example.automobile_risk.entity.Production;
+import com.example.automobile_risk.entity.enumclass.DatasetFormat;
 import com.example.automobile_risk.entity.enumclass.EquipmentStatus;
 import com.example.automobile_risk.exception.ProductionNotFoundException;
 import com.example.automobile_risk.repository.EquipmentRepository;
@@ -11,6 +13,7 @@ import com.example.automobile_risk.repository.ProcessExecutionRepository;
 import com.example.automobile_risk.repository.ProcessTypeRepository;
 import com.example.automobile_risk.repository.ProductionRepository;
 import com.example.automobile_risk.service.dto.ProductionStreamEvent;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -34,6 +37,7 @@ public class ProductionSimulationService {
     private final ProductionSseService productionSseService;
     private final OrderService orderService;
     private final MLProxyService mlProxyService;
+    private final ProductionDatasetService productionDatasetService;
 
     @Async("simulationExecutor")
     public void simulate(Long productionId) {
@@ -179,31 +183,141 @@ public class ProductionSimulationService {
         if (orderId == null || processName == null || processExecutionId == null) return;
 
         int offset = (int) (Math.abs(processExecutionId) % 10);
+        String normalizedProcess = normalizeProcessName(processName);
         MLProxyService.MlContext context = new MLProxyService.MlContext(
                 orderId,
                 productionId,
                 processExecutionId,
-                processName
+                normalizedProcess
         );
+        MlInputDataset dataset = productionDatasetService.findDatasetForProductionProcess(productionId, normalizedProcess);
 
         try {
             switch (processName) {
                 case "프레스" -> {
-                    mlProxyService.analyzePressVibration(offset, context);
+                    if (dataset != null && dataset.getFormat() == DatasetFormat.JSON) {
+                        JsonNode body = loadJsonDataset(dataset);
+                        if (body != null) {
+                            mlProxyService.analyzePressVibrationJson(body, context);
+                        } else {
+                            mlProxyService.analyzePressVibration(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzePressVibration(offset, context);
+                    }
                     mlProxyService.analyzePressImage(offset, context);
                 }
-                case "차체조립(용접)" -> mlProxyService.analyzeWeldingImageAuto(offset, context);
-                case "도장" -> mlProxyService.analyzePaintAuto(offset, context);
-                case "의장" -> mlProxyService.analyzeBodyAssemblyBatchAuto(0.5, offset, context);
+                case "차체조립(용접)" -> {
+                    if (dataset != null && dataset.getFormat() == DatasetFormat.IMAGE) {
+                        java.io.File file = pickDatasetFile(dataset);
+                        if (file != null) {
+                            mlProxyService.analyzeWeldingImageFile(file, context);
+                        } else {
+                            mlProxyService.analyzeWeldingImageAuto(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzeWeldingImageAuto(offset, context);
+                    }
+                }
+                case "도장" -> {
+                    if (dataset != null && dataset.getFormat() == DatasetFormat.IMAGE) {
+                        java.io.File file = pickDatasetFile(dataset);
+                        if (file != null) {
+                            mlProxyService.analyzePaintFile(file, context);
+                        } else {
+                            mlProxyService.analyzePaintAuto(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzePaintAuto(offset, context);
+                    }
+                }
+                case "의장" -> {
+                    if (dataset != null && dataset.getFormat() == DatasetFormat.IMAGE) {
+                        java.io.File file = pickDatasetFile(dataset);
+                        if (file != null) {
+                            mlProxyService.analyzeBodyAssemblyFile(file, context);
+                        } else {
+                            mlProxyService.analyzeBodyAssemblyBatchAuto(0.5, offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzeBodyAssemblyBatchAuto(0.5, offset, context);
+                    }
+                }
                 case "검수" -> {
-                    mlProxyService.analyzeWindshieldAuto(offset, context);
-                    mlProxyService.analyzeEngineAuto(offset, context);
+                    if (dataset != null && dataset.getFormat() == DatasetFormat.CSV) {
+                        java.io.File file = pickDatasetFile(dataset);
+                        if (file != null) {
+                            mlProxyService.analyzeWindshieldFile("left", file, context);
+                        } else {
+                            mlProxyService.analyzeWindshieldAuto(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzeWindshieldAuto(offset, context);
+                    }
+                    if (dataset != null && dataset.getFormat() == DatasetFormat.ARFF) {
+                        java.io.File file = pickDatasetFile(dataset);
+                        if (file != null) {
+                            mlProxyService.analyzeEngineFile(file, context);
+                        } else {
+                            mlProxyService.analyzeEngineAuto(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzeEngineAuto(offset, context);
+                    }
                 }
                 default -> {
                 }
             }
         } catch (Exception e) {
             log.warn("ML call failed for process {} (productionId={}): {}", processName, productionId, e.getMessage());
+        }
+    }
+
+    private String normalizeProcessName(String processTypeName) {
+        return switch (processTypeName) {
+            case "차체조립(용접)" -> "용접";
+            case "의장" -> "조립";
+            case "검수" -> "검사";
+            default -> processTypeName;
+        };
+    }
+
+    private JsonNode loadJsonDataset(MlInputDataset dataset) {
+        try {
+            java.nio.file.Path path = java.nio.file.Paths.get(dataset.getStorageKey());
+            if (!java.nio.file.Files.exists(path)) {
+                log.warn("Dataset file not found: {}", dataset.getStorageKey());
+                return null;
+            }
+            return new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readTree(java.nio.file.Files.newBufferedReader(path));
+        } catch (Exception e) {
+            log.warn("Failed to load JSON dataset: {} ({})", dataset.getStorageKey(), e.getMessage());
+            return null;
+        }
+    }
+
+    private java.io.File pickDatasetFile(MlInputDataset dataset) {
+        try {
+            java.nio.file.Path path = java.nio.file.Paths.get(dataset.getStorageKey());
+            if (!java.nio.file.Files.exists(path)) {
+                log.warn("Dataset path not found: {}", dataset.getStorageKey());
+                return null;
+            }
+            if (java.nio.file.Files.isDirectory(path)) {
+                try (java.util.stream.Stream<java.nio.file.Path> stream = java.nio.file.Files.list(path)) {
+                    return stream
+                            .filter(p -> !java.nio.file.Files.isDirectory(p))
+                            .sorted()
+                            .findFirst()
+                            .map(java.nio.file.Path::toFile)
+                            .orElse(null);
+                }
+            }
+            return path.toFile();
+        } catch (Exception e) {
+            log.warn("Failed to pick dataset file: {} ({})", dataset.getStorageKey(), e.getMessage());
+            return null;
         }
     }
 }

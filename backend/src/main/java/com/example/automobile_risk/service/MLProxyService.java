@@ -20,6 +20,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +38,9 @@ public class MLProxyService {
 
     @Value("${ml-service.base-url:http://localhost:8000}")
     private String mlServiceBaseUrl;
+
+    @Value("${ml-service.press-image-dir:}")
+    private String pressImageDirOverride;
 
     @RequiredArgsConstructor
     public static class MlContext {
@@ -347,6 +355,36 @@ public class MLProxyService {
         return callMLServiceWithoutFile("/api/v1/smartfactory/press/image", "press_image", offset, context);
     }
 
+    public JsonNode analyzePressImageFile(File file, int offset, MlContext context) {
+        try {
+            Path sampleDir = resolvePressSampleDir();
+            if (sampleDir != null) {
+                Files.createDirectories(sampleDir);
+                String fileName = "dataset_press_image" + getExtension(file.getName());
+                Path target = sampleDir.resolve(fileName);
+                Files.copy(file.toPath(), target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to sync press image dataset: {}", e.getMessage());
+        }
+        return analyzePressImage(offset, context);
+    }
+
+    private Path resolvePressSampleDir() {
+        if (pressImageDirOverride != null && !pressImageDirOverride.isBlank()) {
+            return Paths.get(pressImageDirOverride);
+        }
+        Path base = Paths.get(System.getProperty("user.dir"));
+        Path root = base.getParent() != null ? base.getParent() : base;
+        return root.resolve("ml-service").resolve("press").resolve("sample_images");
+    }
+
+    private String getExtension(String name) {
+        int idx = name.lastIndexOf('.');
+        if (idx < 0) return ".jpg";
+        return name.substring(idx);
+    }
+
     /**
      * 윈드실드 분석 (자동)
      */
@@ -420,11 +458,31 @@ public class MLProxyService {
         }
     }
 
+    public JsonNode analyzeBodyAssemblyBatchFiles(
+            Map<String, File> partFiles,
+            Double confidence,
+            MlContext context
+    ) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("conf", confidence != null ? confidence : 0.5);
+        addIfPresent(body, "door_file", partFiles.get("door"));
+        addIfPresent(body, "bumper_file", partFiles.get("bumper"));
+        addIfPresent(body, "headlamp_file", partFiles.get("headlamp"));
+        addIfPresent(body, "taillamp_file", partFiles.get("taillamp"));
+        addIfPresent(body, "radiator_file", partFiles.get("radiator"));
+        return callMLServiceAndSave("/api/v1/smartfactory/body/inspect/batch", body, "body_assembly", context);
+    }
+
     public JsonNode analyzeBodyAssemblyFile(File file, MlContext context) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add("part", "door");
         body.add("file", new FileSystemResource(file));
         return callMLServiceAndSave("/api/v1/smartfactory/body/inspect", body, "body_assembly", context);
+    }
+
+    private void addIfPresent(MultiValueMap<String, Object> body, String key, File file) {
+        if (file == null) return;
+        body.add(key, new FileSystemResource(file));
     }
 
     /**

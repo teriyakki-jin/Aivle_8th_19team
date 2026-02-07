@@ -282,68 +282,219 @@ public class InitDb {
             if (mlInputDatasetRepository.count() == 0) {
                 MlInputDataset pressJson = MlInputDataset.builder()
                         .processName("프레스")
+                        .serviceType("press_vibration")
                         .name("press_vibration_order1")
                         .format(DatasetFormat.JSON)
                         .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\press\\\\press_vibration_unit01.json")
                         .description("press vibration json sample")
                         .build();
 
-                MlInputDataset weldImg = MlInputDataset.builder()
+                MlInputDataset pressImg1 = MlInputDataset.builder()
+                        .processName("프레스")
+                        .serviceType("press_image")
+                        .name("press_image_unit01_p1")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\press\\\\press_image_unit01.jpg")
+                        .description("press image sample for production 1")
+                        .build();
+
+                MlInputDataset pressImg2 = MlInputDataset.builder()
+                        .processName("프레스")
+                        .serviceType("press_image")
+                        .name("press_image_unit01_p2")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_2\\\\press\\\\press_image_unit01.jpg")
+                        .description("press image sample for production 2")
+                        .build();
+
+                MlInputDataset pressImg3 = MlInputDataset.builder()
+                        .processName("프레스")
+                        .serviceType("press_image")
+                        .name("press_image_unit01_p3")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_3\\\\press\\\\press_image_unit01.jpg")
+                        .description("press image sample for production 3")
+                        .build();
+
+                MlInputDataset weldImg1 = MlInputDataset.builder()
                         .processName("용접")
-                        .name("welding_unit01")
+                        .serviceType("welding_image")
+                        .name("welding_unit01_p1")
                         .format(DatasetFormat.IMAGE)
                         .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\welding\\\\welding_unit01.jpg")
-                        .description("welding image sample")
+                        .description("welding image sample for production 1")
                         .build();
 
-                MlInputDataset paintImg = MlInputDataset.builder()
+                MlInputDataset weldImg2 = MlInputDataset.builder()
+                        .processName("용접")
+                        .serviceType("welding_image")
+                        .name("welding_unit01_p2")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_2\\\\welding\\\\welding_unit01.jpg")
+                        .description("welding image sample for production 2")
+                        .build();
+
+                MlInputDataset weldImg3 = MlInputDataset.builder()
+                        .processName("용접")
+                        .serviceType("welding_image")
+                        .name("welding_unit01_p3")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_3\\\\welding\\\\welding_unit01.jpg")
+                        .description("welding image sample for production 3")
+                        .build();
+
+                MlInputDataset paintImg1 = MlInputDataset.builder()
                         .processName("도장")
-                        .name("paint_unit01")
+                        .serviceType("paint")
+                        .name("paint_unit01_p1")
                         .format(DatasetFormat.IMAGE)
                         .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\paint\\\\paint_unit01.jpg")
-                        .description("paint image sample")
+                        .description("paint image sample for production 1")
                         .build();
 
-                MlInputDataset bodyImg = MlInputDataset.builder()
-                        .processName("조립")
-                        .name("body_assembly_unit01")
+                MlInputDataset paintImg2 = MlInputDataset.builder()
+                        .processName("도장")
+                        .serviceType("paint")
+                        .name("paint_unit01_p2")
                         .format(DatasetFormat.IMAGE)
-                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\body_assembly\\\\body_assembly_unit01.jpg")
-                        .description("body assembly image sample")
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_2\\\\paint\\\\paint_unit01.jpg")
+                        .description("paint image sample for production 2")
                         .build();
 
-                MlInputDataset inspectionCsv = MlInputDataset.builder()
+                MlInputDataset paintImg3 = MlInputDataset.builder()
+                        .processName("도장")
+                        .serviceType("paint")
+                        .name("paint_unit01_p3")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_3\\\\paint\\\\paint_unit01.jpg")
+                        .description("paint image sample for production 3")
+                        .build();
+
+                MlInputDataset bodyImg1 = MlInputDataset.builder()
+                        .processName("조립")
+                        .serviceType("body_assembly")
+                        .name("body_assembly_parts_p1")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\body_assembly")
+                        .description("body assembly part images for production 1")
+                        .build();
+
+                MlInputDataset bodyImg2 = MlInputDataset.builder()
+                        .processName("조립")
+                        .serviceType("body_assembly")
+                        .name("body_assembly_parts_p2")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_2\\\\body_assembly")
+                        .description("body assembly part images for production 2")
+                        .build();
+
+                MlInputDataset bodyImg3 = MlInputDataset.builder()
+                        .processName("조립")
+                        .serviceType("body_assembly")
+                        .name("body_assembly_parts_p3")
+                        .format(DatasetFormat.IMAGE)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_3\\\\body_assembly")
+                        .description("body assembly part images for production 3")
+                        .build();
+
+                MlInputDataset inspectionCsv1 = MlInputDataset.builder()
                         .processName("검사")
-                        .name("windshield_left_sample")
+                        .serviceType("windshield")
+                        .name("windshield_left_p1")
                         .format(DatasetFormat.CSV)
-                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\frontend\\\\public\\\\data\\\\2nd_process_left_data.csv")
-                        .description("windshield csv sample")
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\inspection\\\\windshield_left.csv")
+                        .description("windshield csv sample for production 1")
+                        .build();
+
+                MlInputDataset inspectionCsv2 = MlInputDataset.builder()
+                        .processName("검사")
+                        .serviceType("windshield")
+                        .name("windshield_left_p2")
+                        .format(DatasetFormat.CSV)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_2\\\\inspection\\\\windshield_left.csv")
+                        .description("windshield csv sample for production 2")
+                        .build();
+
+                MlInputDataset inspectionCsv3 = MlInputDataset.builder()
+                        .processName("검사")
+                        .serviceType("windshield")
+                        .name("windshield_left_p3")
+                        .format(DatasetFormat.CSV)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_3\\\\inspection\\\\windshield_left.csv")
+                        .description("windshield csv sample for production 3")
+                        .build();
+
+                MlInputDataset inspectionEngine1 = MlInputDataset.builder()
+                        .processName("검사")
+                        .serviceType("engine")
+                        .name("engine_p1")
+                        .format(DatasetFormat.ARFF)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_1\\\\inspection\\\\engine.arff")
+                        .description("engine arff sample for production 1")
+                        .build();
+
+                MlInputDataset inspectionEngine2 = MlInputDataset.builder()
+                        .processName("검사")
+                        .serviceType("engine")
+                        .name("engine_p2")
+                        .format(DatasetFormat.ARFF)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_2\\\\inspection\\\\engine.arff")
+                        .description("engine arff sample for production 2")
+                        .build();
+
+                MlInputDataset inspectionEngine3 = MlInputDataset.builder()
+                        .processName("검사")
+                        .serviceType("engine")
+                        .name("engine_p3")
+                        .format(DatasetFormat.ARFF)
+                        .storageKey("C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_3\\\\inspection\\\\engine.arff")
+                        .description("engine arff sample for production 3")
                         .build();
 
                 mlInputDatasetRepository.save(pressJson);
-                mlInputDatasetRepository.save(weldImg);
-                mlInputDatasetRepository.save(paintImg);
-                mlInputDatasetRepository.save(bodyImg);
-                mlInputDatasetRepository.save(inspectionCsv);
+                mlInputDatasetRepository.save(pressImg1);
+                mlInputDatasetRepository.save(pressImg2);
+                mlInputDatasetRepository.save(pressImg3);
+                mlInputDatasetRepository.save(weldImg1);
+                mlInputDatasetRepository.save(weldImg2);
+                mlInputDatasetRepository.save(weldImg3);
+                mlInputDatasetRepository.save(paintImg1);
+                mlInputDatasetRepository.save(paintImg2);
+                mlInputDatasetRepository.save(paintImg3);
+                mlInputDatasetRepository.save(bodyImg1);
+                mlInputDatasetRepository.save(bodyImg2);
+                mlInputDatasetRepository.save(bodyImg3);
+                mlInputDatasetRepository.save(inspectionCsv1);
+                mlInputDatasetRepository.save(inspectionCsv2);
+                mlInputDatasetRepository.save(inspectionCsv3);
+                mlInputDatasetRepository.save(inspectionEngine1);
+                mlInputDatasetRepository.save(inspectionEngine2);
+                mlInputDatasetRepository.save(inspectionEngine3);
 
                 // 생산 1~3에 공정별 데이터셋 매핑
                 mapDatasetIfEmpty(production1.getId(), "프레스", pressJson);
-                mapDatasetIfEmpty(production1.getId(), "용접", weldImg);
-                mapDatasetIfEmpty(production1.getId(), "도장", paintImg);
-                mapDatasetIfEmpty(production1.getId(), "조립", bodyImg);
-                mapDatasetIfEmpty(production1.getId(), "검사", inspectionCsv);
+                mapDatasetIfEmpty(production1.getId(), "프레스", pressImg1);
+                mapDatasetIfEmpty(production1.getId(), "용접", weldImg1);
+                mapDatasetIfEmpty(production1.getId(), "도장", paintImg1);
+                mapDatasetIfEmpty(production1.getId(), "조립", bodyImg1);
+                mapDatasetIfEmpty(production1.getId(), "검사", inspectionCsv1);
+                mapDatasetIfEmpty(production1.getId(), "검사", inspectionEngine1);
 
                 mapDatasetIfEmpty(production2.getId(), "프레스", pressJson);
-                mapDatasetIfEmpty(production2.getId(), "용접", weldImg);
-                mapDatasetIfEmpty(production2.getId(), "도장", paintImg);
-                mapDatasetIfEmpty(production2.getId(), "조립", bodyImg);
-                mapDatasetIfEmpty(production2.getId(), "검사", inspectionCsv);
+                mapDatasetIfEmpty(production2.getId(), "프레스", pressImg2);
+                mapDatasetIfEmpty(production2.getId(), "용접", weldImg2);
+                mapDatasetIfEmpty(production2.getId(), "도장", paintImg2);
+                mapDatasetIfEmpty(production2.getId(), "조립", bodyImg2);
+                mapDatasetIfEmpty(production2.getId(), "검사", inspectionCsv2);
+                mapDatasetIfEmpty(production2.getId(), "검사", inspectionEngine2);
 
                 mapDatasetIfEmpty(production3.getId(), "프레스", pressJson);
-                mapDatasetIfEmpty(production3.getId(), "용접", weldImg);
-                mapDatasetIfEmpty(production3.getId(), "도장", paintImg);
-                mapDatasetIfEmpty(production3.getId(), "조립", bodyImg);
-                mapDatasetIfEmpty(production3.getId(), "검사", inspectionCsv);
+                mapDatasetIfEmpty(production3.getId(), "프레스", pressImg3);
+                mapDatasetIfEmpty(production3.getId(), "용접", weldImg3);
+                mapDatasetIfEmpty(production3.getId(), "도장", paintImg3);
+                mapDatasetIfEmpty(production3.getId(), "조립", bodyImg3);
+                mapDatasetIfEmpty(production3.getId(), "검사", inspectionCsv3);
+                mapDatasetIfEmpty(production3.getId(), "검사", inspectionEngine3);
             }
         }
 
@@ -382,15 +533,16 @@ public class InitDb {
         private void mapDatasetIfEmpty(Long productionId, String processName, MlInputDataset dataset) {
             if (productionId == null || dataset == null) return;
             boolean exists = productionDatasetMappingRepository
-                    .findByProductionIdAndProcessName(productionId, processName)
+                    .findByProductionIdAndProcessNameAndServiceType(productionId, processName, dataset.getServiceType())
                     .isPresent();
             if (exists) return;
 
             em.createNativeQuery(
-                            "insert into production_dataset_mappings (created_date, last_modified_date, process_name, production_id, ml_input_dataset_id) values (now(), now(), ?, ?, ?)")
+                            "insert into production_dataset_mappings (created_date, last_modified_date, process_name, service_type, production_id, ml_input_dataset_id) values (now(), now(), ?, ?, ?, ?)")
                     .setParameter(1, processName)
-                    .setParameter(2, productionId)
-                    .setParameter(3, dataset.getId())
+                    .setParameter(2, dataset.getServiceType())
+                    .setParameter(3, productionId)
+                    .setParameter(4, dataset.getId())
                     .executeUpdate();
         }
 

@@ -3,6 +3,7 @@ import { api } from "./client";
 export type MlInputDatasetDto = {
   id: number;
   processName: string;
+  serviceType?: string | null;
   name: string;
   format: "IMAGE" | "JSON" | "CSV" | "ARFF";
   storageKey: string;

@@ -7,8 +7,10 @@ import lombok.*;
 @Table(
         name = "production_dataset_mappings",
         uniqueConstraints = {
-                @UniqueConstraint(name = "production_dataset_mappings_production_id_process_name_key",
-                        columnNames = {"production_id", "process_name"})
+                @UniqueConstraint(
+                        name = "production_dataset_mappings_production_id_process_name_service_type_key",
+                        columnNames = {"production_id", "process_name", "service_type"}
+                )
         }
 )
 @Getter
@@ -31,6 +33,12 @@ public class ProductionDatasetMapping extends BaseTimeEntity {
      */
     @Column(name = "process_name", nullable = false, length = 100)
     private String processName;
+
+    /**
+     * 서비스 타입 (press_vibration, press_image, welding_image, paint, body_assembly, windshield, engine 등)
+     */
+    @Column(name = "service_type", nullable = false, length = 100)
+    private String serviceType;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "ml_input_dataset_id")

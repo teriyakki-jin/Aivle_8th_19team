@@ -5,6 +5,7 @@ export type ProcessExecutionDto = {
   startDate?: string;
   endDate?: string;
   executionOrder?: number;
+  unitIndex?: number;
   status?: "READY" | "IN_PROGRESS" | "COMPLETED" | "STOPPED";
 };
 

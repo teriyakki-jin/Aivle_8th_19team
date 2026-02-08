@@ -22,6 +22,7 @@ public class ProductionStreamEvent {
     // process execution fields
     private Long processExecutionId;
     private Integer executionOrder;
+    private Integer unitIndex;
     private ProcessExecutionStatus processExecutionStatus;
     private LocalDateTime startDate;
     private LocalDateTime endDate;

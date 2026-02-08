@@ -264,7 +264,7 @@ public class DummyDataGeneratorService {
                 //  endDate는 complete()에서 설정되는 구조로 보임)
                 // 공정 수행 상태: READY
                 ProcessExecution pe = ProcessExecution.createEntity(
-                        peStart, executionOrder, production, pt, eq
+                        peStart, executionOrder, 1, production, pt, eq
                 );
                 em.persist(pe);
 

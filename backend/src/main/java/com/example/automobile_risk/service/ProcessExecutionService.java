@@ -57,6 +57,7 @@ public class ProcessExecutionService {
         ProcessExecution processExecution = ProcessExecution.createEntity(
                 form.getStartDate(),
                 form.getExecutionOrder(),
+                1,
                 production,
                 processType,
                 equipment

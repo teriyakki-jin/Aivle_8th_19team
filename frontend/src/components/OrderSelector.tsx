@@ -45,6 +45,9 @@ export function OrderSelector({ processName, children }: OrderSelectorProps) {
             {production && (
               <span className="text-sm text-blue-600">
                 ({production.orderQty}대)
+                {production.currentUnitIndex ? (
+                  <> · {production.currentUnitIndex}번째 차량 (총 {production.orderQty}대)</>
+                ) : null}
               </span>
             )}
           </div>
@@ -160,6 +163,9 @@ function OrderCard({
             <div className="font-semibold text-slate-900">주문 #{production.orderId}</div>
             <div className="text-xs text-slate-500">
               {getModelName(production.vehicleModelId)} · {production.orderQty}대
+              {production.currentUnitIndex ? (
+                <> · {production.currentUnitIndex}번째 차량 (총 {production.orderQty}대)</>
+              ) : null}
             </div>
           </div>
         </div>

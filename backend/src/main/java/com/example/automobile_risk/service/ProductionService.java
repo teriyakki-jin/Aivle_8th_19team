@@ -36,6 +36,7 @@ public class ProductionService {
     private final DefectSummaryService defectSummaryService;
     private final ProductionSimulationService productionSimulationService;
     private final ProductionSseService productionSseService;
+    private final ProductionDatasetService productionDatasetService;
 
     /**
      *  1. 생산 생성
@@ -154,6 +155,9 @@ public class ProductionService {
                 .productionStatus(production.getProductionStatus())
                 .startDate(production.getStartDate())
                 .build());
+
+        // 생산 시작 시 데이터셋 랜덤 할당 (미할당 시)
+        productionDatasetService.assignRandomDatasetsIfMissing(productionId);
 
         // 6. 백엔드 시뮬레이션 시작 (비동기)
         productionSimulationService.simulate(productionId);

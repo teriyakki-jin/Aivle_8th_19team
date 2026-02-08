@@ -489,10 +489,17 @@ public class MLProxyService {
      * 납기 지연 예측
      */
     public JsonNode analyzeDueDate(JsonNode body) {
+        System.out.println("DUEDATE_ANALYZE_START");
         JsonNode result = callMLServiceWithJson("/api/v1/smartfactory/duedate", body, "duedate");
+        System.out.println("DUEDATE_ANALYZE_AFTER_CALL");
         try {
             DueDatePrediction prediction = buildDueDatePrediction(body, result);
             dueDatePredictionService.save(prediction);
+            log.info("DueDate ML saved: orderId={}, stage={}, delayFlag={}, delayProb={}",
+                    prediction.getOrderId(),
+                    prediction.getSnapshotStage(),
+                    prediction.getDelayFlag(),
+                    prediction.getDelayProbability());
         } catch (Exception e) {
             log.warn("Failed to save due date prediction: {}", e.getMessage());
         }

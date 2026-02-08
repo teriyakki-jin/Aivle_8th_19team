@@ -262,6 +262,7 @@ export function MainDashboard() {
   const orderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const productionPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dueDatePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dueDateEsRef = useRef<EventSource | null>(null);
 
   // --- SAFE fetch helper (res.ok 체크 + token/credentials) ---
   const safeFetchJson = useCallback(async (url: string) => {
@@ -363,7 +364,6 @@ export function MainDashboard() {
     productionPollRef.current = setInterval(fetchProductions, 5_000);
 
     fetchDueDateLatest();
-    dueDatePollRef.current = setInterval(fetchDueDateLatest, 5_000);
 
     // 4) SSE는 추가로 연결(실시간 푸시)
     if (useSSE && typeof EventSource !== 'undefined') {
@@ -407,6 +407,57 @@ export function MainDashboard() {
       }
     }
 
+    // DueDate SSE (replaces polling)
+    if (typeof EventSource !== 'undefined') {
+      const dueDateUrl = apiUrl('/api/v1/duedate-predictions/stream?limit=50');
+      try {
+        const es = new EventSource(dueDateUrl);
+        dueDateEsRef.current = es;
+
+        const applyList = (raw: string) => {
+          try {
+            const parsed = JSON.parse(raw);
+            const list = unwrapResponse<DueDatePredictionRow[]>(parsed) ?? parsed;
+            if (Array.isArray(list)) setDueDateLatest(list);
+          } catch (e) {
+            console.error('DueDate SSE parse error:', e);
+          }
+        };
+
+        const applySingle = (raw: string) => {
+          try {
+            const parsed = JSON.parse(raw);
+            const item = unwrapResponse<DueDatePredictionRow>(parsed) ?? parsed;
+            if (!item || !item.orderId) return;
+            setDueDateLatest((prev) => {
+              const next = Array.isArray(prev) ? [...prev] : [];
+              const idx = next.findIndex((r) => r.orderId === item.orderId);
+              if (idx >= 0) next[idx] = item;
+              else next.unshift(item);
+              return next.slice(0, 50);
+            });
+          } catch (e) {
+            console.error('DueDate SSE parse error:', e);
+          }
+        };
+
+        es.addEventListener('dueDateList', (e: MessageEvent) => applyList(e.data));
+        es.addEventListener('dueDatePrediction', (e: MessageEvent) => applySingle(e.data));
+        es.onerror = () => {
+          try { es.close(); } catch {}
+          dueDateEsRef.current = null;
+          // fallback to polling if SSE fails
+          if (!dueDatePollRef.current) {
+            dueDatePollRef.current = setInterval(fetchDueDateLatest, 10_000);
+          }
+        };
+      } catch (e) {
+        if (!dueDatePollRef.current) {
+          dueDatePollRef.current = setInterval(fetchDueDateLatest, 10_000);
+        }
+      }
+    }
+
     return () => {
       if (esRef.current) {
         try { esRef.current.close(); } catch {}
@@ -431,6 +482,10 @@ export function MainDashboard() {
       if (dueDatePollRef.current) {
         clearInterval(dueDatePollRef.current);
         dueDatePollRef.current = null;
+      }
+      if (dueDateEsRef.current) {
+        try { dueDateEsRef.current.close(); } catch {}
+        dueDateEsRef.current = null;
       }
     };
   }, [useSSE, fetchDashboard, fetchPrediction, fetchOrders, fetchProductions, fetchDueDateLatest]);
@@ -830,25 +885,25 @@ export function MainDashboard() {
         </div>
 
         {dueDateRows.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 lg:flex lg:gap-6">
             {/* 좌측: 집계 */}
-            <div className="lg:col-span-2">
+            <div className="lg:w-1/3">
               <p className="text-sm font-semibold text-gray-700 mb-3">집계</p>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                   <p className="text-xs text-gray-500">표시 중 주문</p>
                   <p className="text-2xl font-bold text-gray-900">{dueDateRows.length}개</p>
                 </div>
-                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-                  <p className="text-xs text-red-600">지연</p>
-                  <p className="text-2xl font-bold text-red-700">
-                    {dueDateRows.filter(r => Number(r.delayFlag) === 1).length}개
-                  </p>
-                </div>
                 <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                   <p className="text-xs text-green-600">정상</p>
                   <p className="text-2xl font-bold text-green-700">
                     {dueDateRows.filter(r => Number(r.delayFlag) !== 1).length}개
+                  </p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                  <p className="text-xs text-red-600">지연</p>
+                  <p className="text-2xl font-bold text-red-700">
+                    {dueDateRows.filter(r => Number(r.delayFlag) === 1).length}개
                   </p>
                 </div>
                 <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
@@ -865,7 +920,7 @@ export function MainDashboard() {
             </div>
 
             {/* 우측: 상세 */}
-            <div className="lg:col-span-3 overflow-x-auto">
+            <div className="lg:flex-1 overflow-x-auto">
               <p className="text-sm font-semibold text-gray-700 mb-3">실시간 납기 예측 상세</p>
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -874,7 +929,6 @@ export function MainDashboard() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">차량 모델</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">수량</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">현재 공정</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">경과(분)</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">남은 여유(분)</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">중지 누적</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">지연 여부</th>
@@ -893,9 +947,6 @@ export function MainDashboard() {
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{model}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{row.orderQty}</td>
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{row.stageName}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                          {formatMinutesToDayHourMinute(row.elapsedMinutes)}
-                        </td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                           {formatMinutesToDayHourMinute(row.remainingSlackMinutes)}
                         </td>

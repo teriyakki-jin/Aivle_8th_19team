@@ -18,10 +18,28 @@ import java.util.stream.Collectors;
 public class DueDatePredictionService {
 
     private final DueDatePredictionRepository dueDatePredictionRepository;
+    private final DueDatePredictionSseService dueDatePredictionSseService;
 
     @Transactional
     public DueDatePrediction save(DueDatePrediction prediction) {
-        return dueDatePredictionRepository.save(prediction);
+        System.out.println("DUEDATE_SAVE_REACHED");
+        try {
+            DueDatePrediction saved = dueDatePredictionRepository.save(prediction);
+            log.info("DueDatePrediction saved: id={}, orderId={}, stage={}",
+                    saved.getId(), saved.getOrderId(), saved.getSnapshotStage());
+            try {
+                dueDatePredictionSseService.publish(
+                        "dueDatePrediction",
+                        DueDatePredictionResponse.from(saved)
+                );
+            } catch (Exception e) {
+                log.warn("Failed to publish dueDatePrediction SSE: {}", e.getMessage());
+            }
+            return saved;
+        } catch (Exception e) {
+            log.error("DueDatePrediction save failed: {}", e.getMessage(), e);
+            throw e;
+        }
     }
 
     public List<DueDatePredictionResponse> getLatestPerOrder(int limit) {

@@ -40,6 +40,7 @@ public class ProductionSimulationService {
     private final OrderService orderService;
     private final MLProxyService mlProxyService;
     private final ProductionDatasetService productionDatasetService;
+    private final DueDatePredictionTriggerService dueDatePredictionTriggerService;
 
     @Async("simulationExecutor")
     public void simulate(Long productionId) {
@@ -125,19 +126,29 @@ public class ProductionSimulationService {
                             .orElseThrow(() -> new IllegalStateException("ProcessExecution not found: " + peId));
                     pe.complete(LocalDateTime.now());
                     Production production = pe.getProduction();
-                productionSseService.publish(ProductionStreamEvent.builder()
-                        .type("process_execution")
-                        .productionId(productionId)
-                        .orderId(getOrderId(production))
-                        .processExecutionId(pe.getId())
-                        .executionOrder(pe.getExecutionOrder())
-                        .unitIndex(pe.getUnitIndex())
-                        .processExecutionStatus(pe.getStatus())
-                        .startDate(pe.getStartDate())
-                        .endDate(pe.getEndDate())
-                        .build());
+                    productionSseService.publish(ProductionStreamEvent.builder()
+                            .type("process_execution")
+                            .productionId(productionId)
+                            .orderId(getOrderId(production))
+                            .processExecutionId(pe.getId())
+                            .executionOrder(pe.getExecutionOrder())
+                            .unitIndex(pe.getUnitIndex())
+                            .processExecutionStatus(pe.getStatus())
+                            .startDate(pe.getStartDate())
+                            .endDate(pe.getEndDate())
+                            .build());
                     return null;
                 });
+
+                String snapshotStage = toSnapshotStage(processType.getProcessName());
+                if (snapshotStage != null) {
+                    log.info("Trigger duedate: productionId={}, processName={}, stage={}",
+                            productionId, processType.getProcessName(), snapshotStage);
+                    dueDatePredictionTriggerService.triggerOnStage(productionId, snapshotStage);
+                } else {
+                    log.warn("Skip duedate: productionId={}, processName={} (stage mapping missing)",
+                            productionId, processType.getProcessName());
+                }
             }
         }
 
@@ -185,6 +196,18 @@ public class ProductionSimulationService {
             return null;
         }
         return production.getOrderProductionList().get(0).getOrder().getId();
+    }
+
+    private String toSnapshotStage(String processName) {
+        if (processName == null) return null;
+        return switch (processName) {
+            case "프레스" -> "PRESS_DONE";
+            case "차체조립(용접)" -> "WELD_DONE";
+            case "도장" -> "PAINT_DONE";
+            case "의장" -> "ASSEMBLY_DONE";
+            case "검수" -> "INSPECTION_DONE";
+            default -> null;
+        };
     }
 
     private void triggerMlForProcess(Long orderId, Long productionId, String processName, Long processExecutionId) {

@@ -16,6 +16,7 @@ import com.example.automobile_risk.service.dto.ProductionStreamEvent;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -41,6 +42,12 @@ public class ProductionSimulationService {
     private final MLProxyService mlProxyService;
     private final ProductionDatasetService productionDatasetService;
     private final DueDatePredictionTriggerService dueDatePredictionTriggerService;
+
+    @Value("${datasets.base-path:}")
+    private String datasetsBasePath;
+
+    @Value("${datasets.base-url:}")
+    private String datasetsBaseUrl;
 
     @Async("simulationExecutor")
     public void simulate(Long productionId) {
@@ -79,75 +86,86 @@ public class ProductionSimulationService {
         for (int unit = 1; unit <= allocatedQty; unit++) {
             for (ProcessType processType : processTypes) {
                 final int unitIndex = unit;
-                Long peId = tx.execute(status -> {
-                    Production production = productionRepository.findById(productionId)
-                            .orElseThrow(() -> new ProductionNotFoundException(productionId));
+                try {
+                    log.info("Simulation start: productionId={}, unit={}, process={}",
+                            productionId, unitIndex, processType.getProcessName());
+                    Long peId = tx.execute(status -> {
+                        Production production = productionRepository.findById(productionId)
+                                .orElseThrow(() -> new ProductionNotFoundException(productionId));
 
-                    Equipment equipment = pickEquipment(processType.getId());
-                    if (equipment == null) {
-                        throw new IllegalStateException("설비를 찾을 수 없습니다. processType=" + processType.getProcessName());
+                        Equipment equipment = pickEquipment(processType.getId());
+                        if (equipment == null) {
+                            throw new IllegalStateException("설비를 찾을 수 없습니다. processType=" + processType.getProcessName());
+                        }
+
+                        ProcessExecution pe = ProcessExecution.createEntity(
+                                LocalDateTime.now(),
+                                processType.getProcessOrder(),
+                                unitIndex,
+                                production,
+                                processType,
+                                equipment
+                        );
+                        processExecutionRepository.save(pe);
+                        pe.operate(); // READY -> IN_PROGRESS
+                        productionSseService.publish(ProductionStreamEvent.builder()
+                                .type("process_execution")
+                                .productionId(productionId)
+                                .orderId(getOrderId(production))
+                                .processExecutionId(pe.getId())
+                                .executionOrder(pe.getExecutionOrder())
+                                .unitIndex(pe.getUnitIndex())
+                                .processExecutionStatus(pe.getStatus())
+                                .startDate(pe.getStartDate())
+                                .build());
+                        return pe.getId();
+                    });
+
+                    Long orderId = tx.execute(status -> {
+                        Production production = productionRepository.findById(productionId)
+                                .orElseThrow(() -> new ProductionNotFoundException(productionId));
+                        return getOrderId(production);
+                    });
+
+                    triggerMlForProcess(orderId, productionId, processType.getProcessName(), peId);
+
+                    sleepMillis(5000L);
+
+                    tx.execute(status -> {
+                        ProcessExecution pe = processExecutionRepository.findById(peId)
+                                .orElseThrow(() -> new IllegalStateException("ProcessExecution not found: " + peId));
+                        pe.complete(LocalDateTime.now());
+                        Production production = pe.getProduction();
+                        productionSseService.publish(ProductionStreamEvent.builder()
+                                .type("process_execution")
+                                .productionId(productionId)
+                                .orderId(getOrderId(production))
+                                .processExecutionId(pe.getId())
+                                .executionOrder(pe.getExecutionOrder())
+                                .unitIndex(pe.getUnitIndex())
+                                .processExecutionStatus(pe.getStatus())
+                                .startDate(pe.getStartDate())
+                                .endDate(pe.getEndDate())
+                                .build());
+                        return null;
+                    });
+
+                    String snapshotStage = toSnapshotStage(processType.getProcessName());
+                    if (snapshotStage != null) {
+                        log.info("Trigger duedate: productionId={}, processName={}, stage={}",
+                                productionId, processType.getProcessName(), snapshotStage);
+                        dueDatePredictionTriggerService.triggerOnStage(productionId, snapshotStage);
+                    } else {
+                        log.warn("Skip duedate: productionId={}, processName={} (stage mapping missing)",
+                                productionId, processType.getProcessName());
                     }
 
-                    ProcessExecution pe = ProcessExecution.createEntity(
-                            LocalDateTime.now(),
-                            processType.getProcessOrder(),
-                            unitIndex,
-                            production,
-                            processType,
-                            equipment
-                    );
-                    processExecutionRepository.save(pe);
-                    pe.operate(); // READY -> IN_PROGRESS
-                productionSseService.publish(ProductionStreamEvent.builder()
-                        .type("process_execution")
-                        .productionId(productionId)
-                        .orderId(getOrderId(production))
-                        .processExecutionId(pe.getId())
-                        .executionOrder(pe.getExecutionOrder())
-                        .unitIndex(pe.getUnitIndex())
-                        .processExecutionStatus(pe.getStatus())
-                        .startDate(pe.getStartDate())
-                        .build());
-                    return pe.getId();
-                });
-
-                Long orderId = tx.execute(status -> {
-                    Production production = productionRepository.findById(productionId)
-                            .orElseThrow(() -> new ProductionNotFoundException(productionId));
-                    return getOrderId(production);
-                });
-
-                triggerMlForProcess(orderId, productionId, processType.getProcessName(), peId);
-
-                sleepMillis(5000L);
-
-                tx.execute(status -> {
-                    ProcessExecution pe = processExecutionRepository.findById(peId)
-                            .orElseThrow(() -> new IllegalStateException("ProcessExecution not found: " + peId));
-                    pe.complete(LocalDateTime.now());
-                    Production production = pe.getProduction();
-                    productionSseService.publish(ProductionStreamEvent.builder()
-                            .type("process_execution")
-                            .productionId(productionId)
-                            .orderId(getOrderId(production))
-                            .processExecutionId(pe.getId())
-                            .executionOrder(pe.getExecutionOrder())
-                            .unitIndex(pe.getUnitIndex())
-                            .processExecutionStatus(pe.getStatus())
-                            .startDate(pe.getStartDate())
-                            .endDate(pe.getEndDate())
-                            .build());
-                    return null;
-                });
-
-                String snapshotStage = toSnapshotStage(processType.getProcessName());
-                if (snapshotStage != null) {
-                    log.info("Trigger duedate: productionId={}, processName={}, stage={}",
-                            productionId, processType.getProcessName(), snapshotStage);
-                    dueDatePredictionTriggerService.triggerOnStage(productionId, snapshotStage);
-                } else {
-                    log.warn("Skip duedate: productionId={}, processName={} (stage mapping missing)",
-                            productionId, processType.getProcessName());
+                    log.info("Simulation done: productionId={}, unit={}, process={}",
+                            productionId, unitIndex, processType.getProcessName());
+                } catch (Exception e) {
+                    log.error("Simulation failed: productionId={}, unit={}, process={}, msg={}",
+                            productionId, unitIndex, processType.getProcessName(), e.getMessage(), e);
+                    return;
                 }
             }
         }
@@ -363,9 +381,16 @@ public class ProductionSimulationService {
 
     private JsonNode loadJsonDataset(MlInputDataset dataset) {
         try {
-            java.nio.file.Path path = java.nio.file.Paths.get(dataset.getStorageKey());
-            if (!java.nio.file.Files.exists(path)) {
-                log.warn("Dataset file not found: {}", dataset.getStorageKey());
+            String key = dataset.getStorageKey();
+            if (isUrl(key)) {
+                java.io.File file = downloadToTempFile(key);
+                if (file == null) return null;
+                return new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readTree(java.nio.file.Files.newBufferedReader(file.toPath()));
+            }
+            java.nio.file.Path path = resolveLocalPath(key);
+            if (path == null || !java.nio.file.Files.exists(path)) {
+                log.warn("Dataset file not found: {}", key);
                 return null;
             }
             return new com.fasterxml.jackson.databind.ObjectMapper()
@@ -378,9 +403,13 @@ public class ProductionSimulationService {
 
     private java.io.File pickDatasetFile(MlInputDataset dataset) {
         try {
-            java.nio.file.Path path = java.nio.file.Paths.get(dataset.getStorageKey());
-            if (!java.nio.file.Files.exists(path)) {
-                log.warn("Dataset path not found: {}", dataset.getStorageKey());
+            String key = dataset.getStorageKey();
+            if (isUrl(key)) {
+                return downloadToTempFile(key);
+            }
+            java.nio.file.Path path = resolveLocalPath(key);
+            if (path == null || !java.nio.file.Files.exists(path)) {
+                log.warn("Dataset path not found: {}", key);
                 return null;
             }
             if (java.nio.file.Files.isDirectory(path)) {
@@ -402,11 +431,23 @@ public class ProductionSimulationService {
 
     private Map<String, java.io.File> pickBodyAssemblyFiles(MlInputDataset dataset) {
         try {
-            java.nio.file.Path path = java.nio.file.Paths.get(dataset.getStorageKey());
-            if (!java.nio.file.Files.exists(path) || !java.nio.file.Files.isDirectory(path)) {
+            String key = dataset.getStorageKey();
+            Map<String, java.io.File> parts = new HashMap<>();
+            if (isUrl(key) || (datasetsBaseUrl != null && !datasetsBaseUrl.isBlank())) {
+                String prefix = isUrl(key) ? key : buildUrl(datasetsBaseUrl, key);
+                if (!prefix.endsWith("/")) prefix = prefix + "/";
+                putIfDownloaded(parts, "door", prefix + "door_unit01.jpg");
+                putIfDownloaded(parts, "bumper", prefix + "bumper_unit01.jpg");
+                putIfDownloaded(parts, "headlamp", prefix + "headlamp_unit01.jpg");
+                putIfDownloaded(parts, "taillamp", prefix + "taillamp_unit01.jpg");
+                putIfDownloaded(parts, "radiator", prefix + "radiator_unit01.jpg");
+                return parts.isEmpty() ? null : parts;
+            }
+
+            java.nio.file.Path path = resolveLocalPath(key);
+            if (path == null || !java.nio.file.Files.exists(path) || !java.nio.file.Files.isDirectory(path)) {
                 return null;
             }
-            Map<String, java.io.File> parts = new HashMap<>();
             try (java.util.stream.Stream<java.nio.file.Path> stream = java.nio.file.Files.list(path)) {
                 stream.filter(p -> !java.nio.file.Files.isDirectory(p))
                         .forEach(p -> {
@@ -423,5 +464,55 @@ public class ProductionSimulationService {
             log.warn("Failed to pick body assembly files: {} ({})", dataset.getStorageKey(), e.getMessage());
             return null;
         }
+    }
+
+    private boolean isUrl(String value) {
+        if (value == null) return false;
+        String v = value.trim().toLowerCase();
+        return v.startsWith("http://") || v.startsWith("https://");
+    }
+
+    private String buildUrl(String base, String path) {
+        if (base == null || base.isBlank()) return path;
+        String b = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        String p = path.startsWith("/") ? path.substring(1) : path;
+        return b + "/" + p;
+    }
+
+    private java.nio.file.Path resolveLocalPath(String storageKey) {
+        if (storageKey == null || storageKey.isBlank()) return null;
+        if (isUrl(storageKey)) return null;
+        java.nio.file.Path p = java.nio.file.Paths.get(storageKey);
+        if (p.isAbsolute()) return p;
+        if (datasetsBasePath != null && !datasetsBasePath.isBlank()) {
+            return java.nio.file.Paths.get(datasetsBasePath, storageKey);
+        }
+        java.nio.file.Path cwd = java.nio.file.Paths.get(System.getProperty("user.dir"));
+        String cwdName = cwd.getFileName() != null ? cwd.getFileName().toString().toLowerCase() : "";
+        if ("backend".equals(cwdName) && cwd.getParent() != null) {
+            return cwd.getParent().resolve(storageKey);
+        }
+        return cwd.resolve(storageKey);
+    }
+
+    private java.io.File downloadToTempFile(String url) {
+        try {
+            java.net.URL u = new java.net.URL(url);
+            String fileName = java.nio.file.Paths.get(u.getPath()).getFileName().toString();
+            java.nio.file.Path temp = java.nio.file.Files.createTempFile("dataset_", "_" + fileName);
+            try (java.io.InputStream in = u.openStream()) {
+                java.nio.file.Files.copy(in, temp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            temp.toFile().deleteOnExit();
+            return temp.toFile();
+        } catch (Exception e) {
+            log.warn("Failed to download dataset: {} ({})", url, e.getMessage());
+            return null;
+        }
+    }
+
+    private void putIfDownloaded(Map<String, java.io.File> parts, String key, String url) {
+        java.io.File f = downloadToTempFile(url);
+        if (f != null) parts.put(key, f);
     }
 }

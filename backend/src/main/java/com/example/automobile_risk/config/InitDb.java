@@ -282,7 +282,7 @@ public class InitDb {
              *  ML 입력 데이터셋 + 생산 매핑 (초기)
              */
             if (mlInputDatasetRepository.count() == 0) {
-                String base = "C:\\\\pjt\\\\Aivle_8th_19team\\\\ml-service\\\\datasets\\\\production_";
+                String base = "ml-service\\\\datasets\\\\production_";
                 List<MlInputDataset> all = new ArrayList<>();
                 List<MlInputDataset> pressVibration = new ArrayList<>();
                 List<MlInputDataset> pressImage = new ArrayList<>();

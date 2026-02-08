@@ -19,6 +19,7 @@ public class ProcessExecutionListResponse {
     private LocalDateTime startDate;
     private LocalDateTime endDate;
     private Long executionOrder;
+    private Integer unitIndex;
     private ProcessExecutionStatus status;
 
     // Entity -> Dto
@@ -28,6 +29,7 @@ public class ProcessExecutionListResponse {
                 .startDate(processExecution.getStartDate())
                 .endDate(processExecution.getEndDate())
                 .executionOrder((long) processExecution.getExecutionOrder())
+                .unitIndex(processExecution.getUnitIndex())
                 .status(processExecution.getStatus())
                 .build();
     }

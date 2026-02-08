@@ -9,6 +9,7 @@ import {
 } from "react";
 import { productionApi, ProductionDto } from "../api/production";
 import { processExecutionApi, ProcessExecutionDto } from "../api/processExecution";
+import { apiUrl } from "../config/env";
 
 // ML API 기본 URL (Spring Boot)
 
@@ -72,6 +73,7 @@ type ProductionStreamEvent = {
   orderId?: number;
   processExecutionId?: number;
   executionOrder?: number;
+  unitIndex?: number;
   processExecutionStatus?: "READY" | "IN_PROGRESS" | "COMPLETED" | "STOPPED";
   startDate?: string;
   endDate?: string;
@@ -91,6 +93,7 @@ type ProductionItem = {
   baseOffset?: number; // 주문별 랜덤 시작 오프셋
   productionId?: number;
   productionStatus?: string;
+  currentUnitIndex?: number;
 };
 
 function mapExecutionStatus(status?: ProcessExecutionDto["status"]): StageStatus {
@@ -154,8 +157,20 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
           const orderId = p.orderId ?? p.productionId;
           if (!orderId) return;
           const executions = p.productionId ? execMap.get(p.productionId) ?? [] : [];
+          const runningExec = executions.find((e) => e.status === "IN_PROGRESS");
+          const lastCompleted = executions.filter((e) => e.status === "COMPLETED").pop();
+          const unitIndex =
+            runningExec?.unitIndex ??
+            lastCompleted?.unitIndex ??
+            executions[0]?.unitIndex ??
+            undefined;
+
           const stageResults: StageResult[] = PIPELINE_STAGES.map(() => ({ status: "waiting" }));
-          executions.forEach((e) => {
+          const executionsForUnit =
+            unitIndex != null
+              ? executions.filter((e) => e.unitIndex === unitIndex)
+              : executions;
+          executionsForUnit.forEach((e) => {
             const order = (e.executionOrder ?? 0) - 1;
             if (order >= 0 && order < stageResults.length) {
               stageResults[order] = {
@@ -163,7 +178,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
                 startedAt: e.startDate ? new Date(e.startDate).getTime() : undefined,
                 estimatedDuration:
                   e.status === "IN_PROGRESS"
-                    ? (p.orderQty ?? p.plannedQty ?? 0) * 5000
+                    ? 5000
                     : undefined,
               };
             }
@@ -172,7 +187,6 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
           const completedIdx = stageResults.reduce((idx, r, i) => (r.status === "completed" ? i : idx), -1);
           const currentStage = runningIdx >= 0 ? runningIdx : Math.max(0, completedIdx);
           const startedAt = executions[0]?.startDate ?? undefined;
-          const lastCompleted = executions.filter((e) => e.status === "COMPLETED").pop();
           const existing = newMap.get(orderId);
           const dueDate = p.dueDate ?? undefined;
           if (!existing) {
@@ -188,6 +202,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
               productionStatus: p.productionStatus,
               startedAt,
               completedAt: lastCompleted?.endDate,
+              currentUnitIndex: unitIndex,
             });
           } else {
             const next = { ...existing };
@@ -201,6 +216,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
             next.currentStage = currentStage;
             next.startedAt = startedAt ?? next.startedAt;
             next.completedAt = lastCompleted?.endDate ?? next.completedAt;
+            next.currentUnitIndex = unitIndex ?? next.currentUnitIndex;
             newMap.set(orderId, next);
           }
         });
@@ -242,6 +258,10 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
       const next = { ...item };
 
       if (event.type === "process_execution" && event.executionOrder) {
+        if (event.unitIndex && event.unitIndex !== next.currentUnitIndex) {
+          next.stageResults = PIPELINE_STAGES.map(() => ({ status: "waiting" }));
+          next.currentStage = 0;
+        }
         const idx = event.executionOrder - 1;
         if (idx >= 0 && idx < next.stageResults.length) {
           const status = mapExecutionStatus(event.processExecutionStatus);
@@ -250,7 +270,11 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
             ...next.stageResults[idx],
             status,
             startedAt: event.startDate ? new Date(event.startDate).getTime() : next.stageResults[idx].startedAt,
+            estimatedDuration: status === "running" ? 5000 : next.stageResults[idx].estimatedDuration,
           };
+        }
+        if (event.unitIndex) {
+          next.currentUnitIndex = event.unitIndex;
         }
       }
 
@@ -269,6 +293,25 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
       return newMap;
     });
   }, []);
+
+  // SSE 스트림 연결 (전역)
+  useEffect(() => {
+    const source = new EventSource(apiUrl("/api/v1/production/stream"));
+    source.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        applyStreamEvent(data);
+      } catch {
+        // ignore
+      }
+    };
+    source.onerror = () => {
+      source.close();
+    };
+    return () => {
+      source.close();
+    };
+  }, [applyStreamEvent]);
 
   // 자동 재시도 포함 파이프라인 실행
   const startProduction = useCallback(async (orderId: number) => {

@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface MlInputDatasetRepository extends JpaRepository<MlInputDataset, Long> {
     List<MlInputDataset> findByProcessNameOrderByCreatedDateDesc(String processName);
+    List<MlInputDataset> findByProcessNameAndServiceTypeOrderByCreatedDateDesc(String processName, String serviceType);
 }

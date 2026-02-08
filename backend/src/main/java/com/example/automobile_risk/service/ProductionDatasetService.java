@@ -10,7 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
@@ -46,6 +48,21 @@ public class ProductionDatasetService {
         return mappingRepository.save(mapping);
     }
 
+    @Transactional
+    public void assignRandomDatasetsIfMissing(Long productionId) {
+        if (productionId == null) return;
+        Production production = productionRepository.findById(productionId)
+                .orElseThrow(() -> new IllegalArgumentException("Production not found: " + productionId));
+
+        assignIfMissing(production, "프레스", "press_vibration");
+        assignIfMissing(production, "프레스", "press_image");
+        assignIfMissing(production, "용접", "welding_image");
+        assignIfMissing(production, "도장", "paint");
+        assignIfMissing(production, "조립", "body_assembly");
+        assignIfMissing(production, "검사", "windshield");
+        assignIfMissing(production, "검사", "engine");
+    }
+
     private String resolveServiceType(MlInputDataset dataset) {
         if (dataset.getServiceType() != null && !dataset.getServiceType().isBlank()) {
             return dataset.getServiceType();
@@ -62,5 +79,25 @@ public class ProductionDatasetService {
             return "CSV".equals(format) ? "windshield" : "engine";
         }
         return processName;
+    }
+
+    private void assignIfMissing(Production production, String processName, String serviceType) {
+        Optional<ProductionDatasetMapping> existing = mappingRepository
+                .findByProductionIdAndProcessNameAndServiceType(production.getId(), processName, serviceType);
+        if (existing.isPresent()) return;
+
+        List<MlInputDataset> candidates =
+                datasetRepository.findByProcessNameAndServiceTypeOrderByCreatedDateDesc(processName, serviceType);
+        if (candidates == null || candidates.isEmpty()) return;
+
+        int idx = ThreadLocalRandom.current().nextInt(candidates.size());
+        MlInputDataset picked = candidates.get(idx);
+
+        ProductionDatasetMapping mapping = new ProductionDatasetMapping();
+        mapping.setProduction(production);
+        mapping.setProcessName(processName);
+        mapping.setServiceType(serviceType);
+        mapping.setDataset(picked);
+        mappingRepository.save(mapping);
     }
 }

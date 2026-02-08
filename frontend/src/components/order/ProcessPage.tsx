@@ -116,6 +116,9 @@ export function ProcessPage() {
         </div>
         <div className="text-xs text-slate-500 mt-1">
           차량모델: {vehicleModelId} · 할당수량: {allocatedQty}대 · 생산상태: {String(prodStatus)}
+          {prod?.currentUnitIndex ? (
+            <> · {prod.currentUnitIndex}번째 차량 (총 {prod.orderQty ?? allocatedQty}대)</>
+          ) : null}
         </div>
       </div>
     );

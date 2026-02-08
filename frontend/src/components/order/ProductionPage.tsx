@@ -25,7 +25,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { productionApi } from "../../api/production";
-import { apiUrl } from "../../config/env";
 
 const STAGE_ICONS: Record<string, any> = {
   press: Hammer,
@@ -258,7 +257,6 @@ function PipelineView({
                   {result.estimatedDuration && result.startedAt ? (
                     <>
                       <StageProgressBar startedAt={result.startedAt} duration={result.estimatedDuration} />
-                      <StageRemaining startedAt={result.startedAt} duration={result.estimatedDuration} />
                     </>
                   ) : result.startedAt ? (
                     <StageElapsed startedAt={result.startedAt} />
@@ -354,6 +352,9 @@ function ProductionCard({
             <div className="font-semibold text-slate-900">주문 #{production.orderId}</div>
             <div className="text-xs text-slate-500">
               생산 #{production.productionId ?? "-"} · {displayModelName} · {production.orderQty}대
+              {production.currentUnitIndex ? (
+                <> · {production.currentUnitIndex}번째 차량 (총 {production.orderQty}대)</>
+              ) : null}
             </div>
             {production.dueDate && (
               <div className="text-[11px] text-slate-400">
@@ -469,28 +470,7 @@ export function ProductionPage() {
     }).catch(console.error);
   }, [refresh]);
 
-  // SSE 스트림 연결
-  useEffect(() => {
-    const source = new EventSource(apiUrl("/api/v1/production/stream"));
-
-    source.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        applyStreamEvent(data);
-      } catch {
-        // ignore
-      }
-    };
-
-    source.onerror = () => {
-      // 연결 문제 시 안전하게 닫고, 다음 수동 새로고침 유도
-      source.close();
-    };
-
-    return () => {
-      source.close();
-    };
-  }, [applyStreamEvent]);
+  // SSE는 ProductionProvider에서 전역 처리
 
   // ✅ 클릭 이동 로직 보정:
   // - 검사 클릭은 기본 윈드실드로

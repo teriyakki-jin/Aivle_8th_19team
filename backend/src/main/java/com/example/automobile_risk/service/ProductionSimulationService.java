@@ -75,64 +75,70 @@ public class ProductionSimulationService {
             return;
         }
 
-        for (ProcessType processType : processTypes) {
-            Long peId = tx.execute(status -> {
-                Production production = productionRepository.findById(productionId)
-                        .orElseThrow(() -> new ProductionNotFoundException(productionId));
+        for (int unit = 1; unit <= allocatedQty; unit++) {
+            for (ProcessType processType : processTypes) {
+                final int unitIndex = unit;
+                Long peId = tx.execute(status -> {
+                    Production production = productionRepository.findById(productionId)
+                            .orElseThrow(() -> new ProductionNotFoundException(productionId));
 
-                Equipment equipment = pickEquipment(processType.getId());
-                if (equipment == null) {
-                    throw new IllegalStateException("설비를 찾을 수 없습니다. processType=" + processType.getProcessName());
-                }
+                    Equipment equipment = pickEquipment(processType.getId());
+                    if (equipment == null) {
+                        throw new IllegalStateException("설비를 찾을 수 없습니다. processType=" + processType.getProcessName());
+                    }
 
-                ProcessExecution pe = ProcessExecution.createEntity(
-                        LocalDateTime.now(),
-                        processType.getProcessOrder(),
-                        production,
-                        processType,
-                        equipment
-                );
-                processExecutionRepository.save(pe);
-                pe.operate(); // READY -> IN_PROGRESS
+                    ProcessExecution pe = ProcessExecution.createEntity(
+                            LocalDateTime.now(),
+                            processType.getProcessOrder(),
+                            unitIndex,
+                            production,
+                            processType,
+                            equipment
+                    );
+                    processExecutionRepository.save(pe);
+                    pe.operate(); // READY -> IN_PROGRESS
                 productionSseService.publish(ProductionStreamEvent.builder()
                         .type("process_execution")
                         .productionId(productionId)
                         .orderId(getOrderId(production))
                         .processExecutionId(pe.getId())
                         .executionOrder(pe.getExecutionOrder())
+                        .unitIndex(pe.getUnitIndex())
                         .processExecutionStatus(pe.getStatus())
                         .startDate(pe.getStartDate())
                         .build());
-                return pe.getId();
-            });
+                    return pe.getId();
+                });
 
-            Long orderId = tx.execute(status -> {
-                Production production = productionRepository.findById(productionId)
-                        .orElseThrow(() -> new ProductionNotFoundException(productionId));
-                return getOrderId(production);
-            });
+                Long orderId = tx.execute(status -> {
+                    Production production = productionRepository.findById(productionId)
+                            .orElseThrow(() -> new ProductionNotFoundException(productionId));
+                    return getOrderId(production);
+                });
 
-            triggerMlForProcess(orderId, productionId, processType.getProcessName(), peId);
+                triggerMlForProcess(orderId, productionId, processType.getProcessName(), peId);
 
-            sleepMillis(5000L * allocatedQty);
+                sleepMillis(5000L);
 
-            tx.execute(status -> {
-                ProcessExecution pe = processExecutionRepository.findById(peId)
-                        .orElseThrow(() -> new IllegalStateException("ProcessExecution not found: " + peId));
-                pe.complete(LocalDateTime.now());
-                Production production = pe.getProduction();
+                tx.execute(status -> {
+                    ProcessExecution pe = processExecutionRepository.findById(peId)
+                            .orElseThrow(() -> new IllegalStateException("ProcessExecution not found: " + peId));
+                    pe.complete(LocalDateTime.now());
+                    Production production = pe.getProduction();
                 productionSseService.publish(ProductionStreamEvent.builder()
                         .type("process_execution")
                         .productionId(productionId)
                         .orderId(getOrderId(production))
                         .processExecutionId(pe.getId())
                         .executionOrder(pe.getExecutionOrder())
+                        .unitIndex(pe.getUnitIndex())
                         .processExecutionStatus(pe.getStatus())
                         .startDate(pe.getStartDate())
                         .endDate(pe.getEndDate())
                         .build());
-                return null;
-            });
+                    return null;
+                });
+            }
         }
 
         tx.execute(status -> {

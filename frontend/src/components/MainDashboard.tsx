@@ -157,6 +157,7 @@ interface DueDatePredictionRow {
   delayProbability: number;
   predictedDelayMinutes: number;
   createdDate: string;
+  currentUnitIndex?: number;
 }
 
 // ===== Helpers =====
@@ -624,8 +625,8 @@ export function MainDashboard() {
 
   const orderStatusChart = resolvedOrderSummary ? [
     { name: '생성', value: resolvedOrderSummary.created },
+    { name: '진행', value: orderInProgress ?? 0 },
     { name: '완료', value: resolvedOrderSummary.completed },
-    { name: '취소', value: resolvedOrderSummary.cancelled },
   ] : [];
 
   const productionStatusChart = resolvedProductionSummary ? [
@@ -642,6 +643,13 @@ export function MainDashboard() {
     ASSEMBLY_DONE: "의장",
     INSPECTION_DONE: "검사",
   };
+
+  const productionUnitMap = new Map<number, { currentUnitIndex?: number; orderQty?: number }>(
+    Array.from(productionMap?.values?.() ?? []).map((p) => [
+      p.orderId,
+      { currentUnitIndex: p.currentUnitIndex, orderQty: p.orderQty },
+    ])
+  );
 
   const dueDateRowsFromContext = Array.from(productionMap?.values?.() ?? [])
     .map((p) => {
@@ -661,6 +669,7 @@ export function MainDashboard() {
       return {
         orderId: p.orderId,
         orderQty: p.orderQty,
+        currentUnitIndex: p.currentUnitIndex,
         stageName: stageDefs[latestIdx]?.name ?? `단계 ${latestIdx + 1}`,
         stopCountTotal: undefined as number | undefined,
         elapsedMinutes: undefined as number | undefined,
@@ -693,6 +702,7 @@ export function MainDashboard() {
   const dueDateRowsFromServer = (dueDateLatest ?? []).map((row) => ({
     orderId: row.orderId,
     orderQty: row.orderQty,
+    currentUnitIndex: productionUnitMap.get(row.orderId)?.currentUnitIndex,
     stageName: snapshotStageLabel[row.snapshotStage] ?? row.snapshotStage ?? "-",
     stopCountTotal: row.stopCountTotal,
     elapsedMinutes: row.elapsedMinutes,
@@ -928,6 +938,7 @@ export function MainDashboard() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">주문 ID</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">차량 모델</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">수량</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">진행 차량</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">현재 공정</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">남은 여유(분)</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">중지 누적</th>
@@ -946,6 +957,9 @@ export function MainDashboard() {
                         <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">#{row.orderId}</td>
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{model}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{row.orderQty}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                          {row.currentUnitIndex ? `${row.currentUnitIndex} / ${row.orderQty}` : "-"}
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{row.stageName}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                           {formatMinutesToDayHourMinute(row.remainingSlackMinutes)}

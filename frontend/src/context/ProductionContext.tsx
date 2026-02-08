@@ -157,19 +157,20 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
           const orderId = p.orderId ?? p.productionId;
           if (!orderId) return;
           const executions = p.productionId ? execMap.get(p.productionId) ?? [] : [];
-          const runningExec = executions.find((e) => e.status === "IN_PROGRESS");
-          const lastCompleted = executions.filter((e) => e.status === "COMPLETED").pop();
+          const maxCompletedUnit = executions
+            .filter((e) => e.status === "COMPLETED" && e.unitIndex != null)
+            .reduce((max, e) => Math.max(max, e.unitIndex ?? 0), 0);
           const unitIndex =
-            runningExec?.unitIndex ??
-            lastCompleted?.unitIndex ??
-            executions[0]?.unitIndex ??
-            undefined;
+            maxCompletedUnit > 0
+              ? maxCompletedUnit
+              : executions[0]?.unitIndex ?? undefined;
 
           const stageResults: StageResult[] = PIPELINE_STAGES.map(() => ({ status: "waiting" }));
           const executionsForUnit =
             unitIndex != null
               ? executions.filter((e) => e.unitIndex === unitIndex)
               : executions;
+          const lastCompleted = executionsForUnit.filter((e) => e.status === "COMPLETED").pop();
           executionsForUnit.forEach((e) => {
             const order = (e.executionOrder ?? 0) - 1;
             if (order >= 0 && order < stageResults.length) {
@@ -274,7 +275,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
           };
         }
         if (event.unitIndex) {
-          next.currentUnitIndex = event.unitIndex;
+          next.currentUnitIndex = Math.max(next.currentUnitIndex ?? 0, event.unitIndex);
         }
       }
 

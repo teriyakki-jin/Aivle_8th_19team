@@ -14,8 +14,8 @@ public class AsyncConfig {
     @Bean(name = "simulationExecutor")
     public Executor simulationExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
+        executor.setCorePoolSize(10);
+        executor.setMaxPoolSize(10);
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("sim-");
         executor.initialize();

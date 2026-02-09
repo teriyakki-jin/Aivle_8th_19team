@@ -5,8 +5,8 @@ import com.example.automobile_risk.entity.MlInputDataset;
 import com.example.automobile_risk.entity.ProcessExecution;
 import com.example.automobile_risk.entity.ProcessType;
 import com.example.automobile_risk.entity.Production;
-import com.example.automobile_risk.entity.enumclass.DefectSnapshotStage;
 import com.example.automobile_risk.entity.enumclass.DatasetFormat;
+import com.example.automobile_risk.entity.enumclass.DefectSnapshotStage;
 import com.example.automobile_risk.entity.enumclass.EquipmentStatus;
 import com.example.automobile_risk.exception.ProductionNotFoundException;
 import com.example.automobile_risk.repository.EquipmentRepository;
@@ -40,10 +40,10 @@ public class ProductionSimulationService {
     private final PlatformTransactionManager transactionManager;
     private final ProductionSseService productionSseService;
     private final OrderService orderService;
+    private final DefectSummaryService defectSummaryService;
     private final MLProxyService mlProxyService;
     private final ProductionDatasetService productionDatasetService;
     private final DueDatePredictionTriggerService dueDatePredictionTriggerService;
-    private final DefectSummaryService defectSummaryService;
 
     @Value("${datasets.base-path:}")
     private String datasetsBasePath;
@@ -183,7 +183,6 @@ public class ProductionSimulationService {
                         DefectSnapshotStage.COMPLETED,
                         production.getEndDate()
                 );
-                // Try to complete related orders when production completes.
                 List<Long> orderIds = orderService.findRelatedOrderIdsByProduction(productionId);
                 for (Long orderId : orderIds) {
                     orderService.tryCompleteOrder(orderId);

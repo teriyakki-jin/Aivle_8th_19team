@@ -889,7 +889,9 @@ export function MainDashboard() {
       </div>
 
       {/* 공정별 결함 요약 섹션 */}
-      <DefectSummarySection />
+      <div className="mb-8">
+        <DefectSummarySection />
+      </div>
 
       {/* Order / Production KPI Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

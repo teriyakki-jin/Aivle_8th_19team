@@ -8,6 +8,7 @@ import { productionApi, ProductionDto } from '../api/production';
 import { apiUrl } from '../config/env';
 import { debugAwsEnvironment, validateToken, handleAuthError } from '../utils/auth';
 import { useProduction } from '../context/ProductionContext';
+import { DefectSummarySection } from './Board/DefectSummarySection';
 
 // ===== Types =====
 
@@ -886,6 +887,9 @@ export function MainDashboard() {
           </div>
         )}
       </div>
+
+      {/* 공정별 결함 요약 섹션 */}
+      <DefectSummarySection />
 
       {/* Order / Production KPI Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

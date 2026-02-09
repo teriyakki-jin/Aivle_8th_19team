@@ -1,7 +1,10 @@
 package com.example.automobile_risk.service;
 
+import com.example.automobile_risk.controller.dto.ProcessEventCreateForm;
 import com.example.automobile_risk.entity.DueDatePrediction;
 import com.example.automobile_risk.entity.MLAnalysisResult;
+import com.example.automobile_risk.entity.enumclass.EventSource;
+import com.example.automobile_risk.entity.enumclass.EventType;
 import com.example.automobile_risk.repository.MLAnalysisResultRepository;
 import com.example.automobile_risk.service.DueDatePredictionService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,6 +38,7 @@ public class MLProxyService {
     private final MLAnalysisResultRepository mlAnalysisResultRepository;
     private final DueDatePredictionService dueDatePredictionService;
     private final ObjectMapper objectMapper;
+    private final ProcessEventService processEventService;
 
     @Value("${ml-service.base-url:http://localhost:8000}")
     private String mlServiceBaseUrl;
@@ -239,10 +243,81 @@ public class MLProxyService {
             mlAnalysisResultRepository.save(result);
             log.info("Saved ML analysis result for {}: ID={}", serviceType, result.getId());
 
+            // 이상 판정 시 ProcessEvent 생성
+            if (isAbnormal(result) && context != null && context.orderId != null) {
+                createDefectEvent(result, context, serviceType);
+            }
+
         } catch (Exception e) {
             log.error("Error saving ML analysis result: {}", e.getMessage(), e);
             // DB 저장 실패해도 API 응답은 반환
         }
+    }
+
+    /**
+     * ML 분석 결과가 이상인지 판단
+     */
+    private boolean isAbnormal(MLAnalysisResult result) {
+        String status = result.getStatus();
+        if (status == null) return false;
+
+        return "ABNORMAL".equalsIgnoreCase(status)
+                || "NG".equalsIgnoreCase(status)
+                || "FAIL".equalsIgnoreCase(status);
+    }
+
+    /**
+     * 이상 판정 시 ProcessEvent 생성
+     */
+    private void createDefectEvent(MLAnalysisResult result, MlContext context, String serviceType) {
+        try {
+            ProcessEventCreateForm form = new ProcessEventCreateForm();
+            form.setOrderId(context.orderId);
+            form.setProcess(context.processName);
+            form.setEventType(EventType.DEFECT);
+            form.setEventCode("ML_" + serviceType.toUpperCase());
+            form.setSeverity(determineSeverity(result));
+            form.setQtyAffected(1);
+            form.setLineHold(false);
+            form.setSource(EventSource.VISION);
+            form.setMessage(buildDefectMessage(result, serviceType));
+
+            Long eventId = processEventService.createProcessEvent(form);
+            log.info("Created ProcessEvent for ML defect: eventId={}, orderId={}, process={}, serviceType={}",
+                    eventId, context.orderId, context.processName, serviceType);
+        } catch (Exception e) {
+            log.warn("Failed to create ProcessEvent for ML defect: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 결함 심각도 결정 (confidence 기반)
+     */
+    private Integer determineSeverity(MLAnalysisResult result) {
+        Double confidence = result.getConfidence();
+        if (confidence == null) return 3; // 기본값
+
+        if (confidence >= 0.9) return 5; // 매우 높은 확신
+        if (confidence >= 0.7) return 4;
+        if (confidence >= 0.5) return 3;
+        return 2;
+    }
+
+    /**
+     * 결함 메시지 생성
+     */
+    private String buildDefectMessage(MLAnalysisResult result, String serviceType) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[ML 자동 탐지] ").append(serviceType);
+
+        if (result.getConfidence() != null) {
+            sb.append(" (신뢰도: ").append(String.format("%.1f%%", result.getConfidence() * 100)).append(")");
+        }
+        if (result.getMessage() != null && !result.getMessage().isBlank()) {
+            sb.append(" - ").append(result.getMessage());
+        }
+
+        return sb.toString();
     }
 
     /**

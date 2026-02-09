@@ -225,8 +225,66 @@ public class ProductionSimulationService {
 
     private String toSnapshotStage(String processName) {
         if (processName == null) return null;
-        return             switch (processName) {
-                case "\uD504\uB808\uC2A4" -> {
+        return switch (processName) {
+            case "프레스" -> "PRESS_DONE";
+            case "차체조립(용접)" -> "WELD_DONE";
+            case "도장" -> "PAINT_DONE";
+            case "의장" -> "ASSEMBLY_DONE";
+            case "검수" -> "INSPECTION_DONE";
+            default -> null;
+        };
+    }
+
+    private void triggerMlForProcess(Long orderId, Long productionId, String processName, Long processExecutionId) {
+        if (orderId == null || processName == null || processExecutionId == null) return;
+
+        int offset = (int) (Math.abs(processExecutionId) % 10);
+        String normalizedProcess = normalizeProcessName(processName);
+        MLProxyService.MlContext context = new MLProxyService.MlContext(
+                orderId,
+                productionId,
+                processExecutionId,
+                normalizedProcess
+        );
+        MlInputDataset vibrationDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "press_vibration"
+        );
+        MlInputDataset pressImageDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "press_image"
+        );
+        MlInputDataset weldingDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "welding_image"
+        );
+        MlInputDataset paintDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "paint"
+        );
+        MlInputDataset bodyDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "body_assembly"
+        );
+        MlInputDataset windshieldDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "windshield"
+        );
+        MlInputDataset engineDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "engine"
+        );
+
+        try {
+            switch (processName) {
+                case "프레스" -> {
                     if (vibrationDataset != null && vibrationDataset.getFormat() == DatasetFormat.JSON) {
                         JsonNode body = loadJsonDataset(vibrationDataset);
                         if (body != null) {
@@ -248,7 +306,7 @@ public class ProductionSimulationService {
                         mlProxyService.analyzePressImage(offset, context);
                     }
                 }
-                case "\uCC28\uCCB4\uC870\uB9BD(\uC6A9\uC811)" -> {
+                case "차체조립(용접)" -> {
                     if (weldingDataset != null && weldingDataset.getFormat() == DatasetFormat.IMAGE) {
                         java.io.File file = pickDatasetFile(weldingDataset);
                         if (file != null) {
@@ -260,7 +318,7 @@ public class ProductionSimulationService {
                         mlProxyService.analyzeWeldingImageAuto(offset, context);
                     }
                 }
-                case "\uB3C4\uC7A5" -> {
+                case "도장" -> {
                     if (paintDataset != null && paintDataset.getFormat() == DatasetFormat.IMAGE) {
                         java.io.File file = pickDatasetFile(paintDataset);
                         if (file != null) {
@@ -272,7 +330,7 @@ public class ProductionSimulationService {
                         mlProxyService.analyzePaintAuto(offset, context);
                     }
                 }
-                case "\uC870\uB9BD" -> {
+                case "의장" -> {
                     if (bodyDataset != null && bodyDataset.getFormat() == DatasetFormat.IMAGE) {
                         Map<String, java.io.File> parts = pickBodyAssemblyFiles(bodyDataset);
                         if (parts != null && parts.size() == 5) {
@@ -289,7 +347,7 @@ public class ProductionSimulationService {
                         mlProxyService.analyzeBodyAssemblyBatchAuto(0.5, offset, context);
                     }
                 }
-                case "\uAC80\uC0AC" -> {
+                case "검수" -> {
                     if (windshieldDataset != null && windshieldDataset.getFormat() == DatasetFormat.CSV) {
                         java.io.File file = pickDatasetFile(windshieldDataset);
                         if (file != null) {
@@ -322,9 +380,9 @@ public class ProductionSimulationService {
 
     private String normalizeProcessName(String processTypeName) {
         return switch (processTypeName) {
-            case "\uCC28\uCCB4\uC870\uB9BD(\uC6A9\uC811)" -> "\uC6A9\uC811";
-            case "\uC870\uB9BD" -> "\uC870\uB9BD";
-            case "\uAC80\uC0AC" -> "\uAC80\uC0AC";
+            case "차체조립(용접)" -> "용접";
+            case "의장" -> "조립";
+            case "검수" -> "검사";
             default -> processTypeName;
         };
     }
@@ -466,7 +524,3 @@ public class ProductionSimulationService {
         if (f != null) parts.put(key, f);
     }
 }
-
-
-
-

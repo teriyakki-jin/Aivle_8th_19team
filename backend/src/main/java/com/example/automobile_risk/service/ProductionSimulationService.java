@@ -345,6 +345,7 @@ public class ProductionSimulationService {
                         java.io.File file = pickDatasetFile(windshieldDataset);
                         if (file != null) {
                             mlProxyService.analyzeWindshieldFile("left", file, context);
+                            mlProxyService.analyzeWindshieldFile("right", file, context);
                         } else {
                             mlProxyService.analyzeWindshieldAuto(offset, context);
                         }

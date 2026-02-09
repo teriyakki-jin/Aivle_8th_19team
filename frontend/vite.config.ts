@@ -68,7 +68,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
         },
         '/ml-api': {
-          target: 'http://automobile-risk-prod-alb-1328935863.ap-northeast-2.elb.amazonaws.com',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/ml-api/, ''),
         },

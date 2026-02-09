@@ -56,10 +56,9 @@ export function LandingPage() {
           backgroundPosition: 'center',
         }}
       >
-        
-        <div className="absolute inset-0 -z-10 bg-background/60"></div>
+        <div className="absolute inset-0 bg-background/95"></div>
         <div className="container relative">
-          <div className="max-w-3xl space-y-6 rounded-md bg-background/70 backdrop-blur-sm border border-border/50 p-6 md:p-8">
+          <div className="max-w-3xl space-y-6 rounded-md bg-background/70 backdrop-blur-md border border-border/50 p-6 md:p-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-sm mb-6">
               <span className="text-xs font-mono text-primary">AI 기반 솔루션</span>
             </div>
@@ -504,8 +503,6 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-precise border-border py-16">
       {/* Trusted Customers */}
         <section className="border-t border-precise border-border py-20 bg-white">
         <div className="container">

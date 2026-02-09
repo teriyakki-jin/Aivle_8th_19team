@@ -303,6 +303,23 @@ export function MainDashboard() {
     return await res.json();
   }, []);
 
+  // --- SAFE fetch helper (res.ok 체크 + token/credentials) ---
+  const safeFetchJson = useCallback(async (url: string) => {
+    const token = localStorage.getItem('token');
+
+    const res = await fetch(apiUrl(url), {
+      method: 'GET',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
+    }
+
+    return await res.json();
+  }, []);
+
   const fetchDashboard = useCallback(async () => {
     try {
       const json = await safeFetchJson('/api/v1/dashboard/main');
@@ -381,6 +398,11 @@ export function MainDashboard() {
     // 2) 예측 오버뷰도 폴링
     fetchPrediction();
     predPollRef.current = setInterval(fetchPrediction, 3_000);
+    pollRef.current = setInterval(fetchDashboard, 5_000);
+
+    // 2) 예측 오버뷰도 폴링
+    fetchPrediction();
+    predPollRef.current = setInterval(fetchPrediction, 5_000);
 
     // 3) 주문/생산 목록도 폴링 (order/production 페이지와 동기화)
     fetchOrders();

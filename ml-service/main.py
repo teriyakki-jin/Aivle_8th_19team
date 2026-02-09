@@ -14,8 +14,16 @@ from pydantic import BaseModel
 import press
 import windshield
 import engine
-from chat_bot import chat as chatbot_chat
 from paint import service as paint_service
+
+# chatbot import (실패해도 서버 시작 가능)
+try:
+    from chat_bot import chat as chatbot_chat
+    CHATBOT_AVAILABLE = True
+except Exception as e:
+    print(f"Warning: chat_bot module failed to load: {e}")
+    CHATBOT_AVAILABLE = False
+    chatbot_chat = None
 import body_assembly
 from body_assembly import service as body_service
 from welding_image.pipeline import full_pipeline
@@ -122,20 +130,36 @@ def health():
 # =========================
 # Chatbot (LangChain Agent + Tools)
 # =========================
-@app.post("/api/v1/chatbot/query", response_model=ChatbotResponse)
+@app.post("/api/v1/smartfactory/chatbot", response_model=ChatbotResponse)
 def chatbot_query(request: ChatbotRequest):
     """
     공정 관리 AI 챗봇 - 실시간 API 연동
+    이 엔드포인트가 실패해도 다른 ML 서비스에 영향 없음
     """
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
+    try:
+        if not CHATBOT_AVAILABLE:
+            return ChatbotResponse(
+                content="죄송합니다. 챗봇 서비스가 현재 사용 불가능합니다. 관리자에게 문의해주세요."
+            )
 
-    if not request.session_id or not request.message.strip():
-        raise HTTPException(status_code=400, detail="session_id and message are required")
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        if not api_key:
+            return ChatbotResponse(
+                content="죄송합니다. 챗봇 서비스 설정이 완료되지 않았습니다. 관리자에게 문의해주세요."
+            )
 
-    answer = chatbot_chat(request.session_id, request.message)
-    return ChatbotResponse(content=answer)
+        if not request.session_id or not request.message.strip():
+            return ChatbotResponse(content="메시지를 입력해주세요.")
+
+        answer = chatbot_chat(request.session_id, request.message)
+        return ChatbotResponse(content=answer)
+
+    except Exception as e:
+        print(f"Chatbot error: {e}")
+        traceback.print_exc()
+        return ChatbotResponse(
+            content="죄송합니다. 요청을 처리하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        )
 
 # =========================
 # Windshield (기존 유지)

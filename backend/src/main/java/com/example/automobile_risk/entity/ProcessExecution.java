@@ -24,6 +24,7 @@ public class ProcessExecution extends BaseTimeEntity {
     private LocalDateTime endDate;
 
     private int executionOrder;
+    private int unitIndex;
 
     @Enumerated(EnumType.STRING)
     private ProcessExecutionStatus status;
@@ -52,6 +53,7 @@ public class ProcessExecution extends BaseTimeEntity {
     public static ProcessExecution createEntity(
             LocalDateTime startDate,
             int executionOrder,
+            int unitIndex,
             Production production,
             ProcessType processType,
             Equipment equipment
@@ -60,6 +62,7 @@ public class ProcessExecution extends BaseTimeEntity {
         return ProcessExecution.builder()
                 .startDate(startDate)
                 .executionOrder(executionOrder)
+                .unitIndex(unitIndex)
                 .status(READY)
                 .production(production)
                 .processType(processType)

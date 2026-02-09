@@ -19,4 +19,6 @@ public class InventoryAdjustForm {
 
     @NotNull
     private InventoryChangeType changeType;
+
+    private String remark;
 }

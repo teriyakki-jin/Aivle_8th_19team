@@ -21,4 +21,6 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long> {
             @Param("status") EquipmentStatus status
     );
 
+    List<Equipment> findByProcessTypeId(Long processTypeId);
+
 }

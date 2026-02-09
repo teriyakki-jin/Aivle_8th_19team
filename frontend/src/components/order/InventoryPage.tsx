@@ -22,11 +22,18 @@ export function InventoryPage() {
 
   const [adjustPartId, setAdjustPartId] = useState<number | "">("");
   const [adjustQty, setAdjustQty] = useState("");
+  const [adjustRemark, setAdjustRemark] = useState("");
   const [adjustType, setAdjustType] =
-    useState<"IN" | "OUT" | "ADJUST" | "SCRAP">("IN");
+    useState<"IN" | "OUT" | "IN_PLANNED" | "OUT_PLANNED" | "ADJUST" | "SCRAP">("IN");
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [adjustError, setAdjustError] = useState<string | null>(null);
   const [adjustSuccess, setAdjustSuccess] = useState<string | null>(null);
+
+  const [safetyPartId, setSafetyPartId] = useState<number | "">("");
+  const [safetyQty, setSafetyQty] = useState("");
+  const [safetyLoading, setSafetyLoading] = useState(false);
+  const [safetyError, setSafetyError] = useState<string | null>(null);
+  const [safetySuccess, setSafetySuccess] = useState<string | null>(null);
 
   const [selectedPartId, setSelectedPartId] = useState<number | null>(null);
   const [history, setHistory] = useState<InventoryHistoryDto[]>([]);
@@ -42,6 +49,10 @@ export function InventoryPage() {
       setItems(normalized);
       if (normalized.length > 0 && adjustPartId === "") {
         setAdjustPartId(normalized[0].partId);
+      }
+      if (normalized.length > 0 && safetyPartId === "") {
+        setSafetyPartId(normalized[0].partId);
+        setSafetyQty(String(normalized[0].safetyQty ?? 0));
       }
     } catch (e: any) {
       setError(e?.message ?? "재고 목록 조회 실패");
@@ -89,6 +100,8 @@ export function InventoryPage() {
     if (adjustType === "IN") normalizedQty = Math.abs(qtyNum);
     if (adjustType === "OUT" || adjustType === "SCRAP")
       normalizedQty = -Math.abs(qtyNum);
+    if (adjustType === "IN_PLANNED") normalizedQty = Math.abs(qtyNum);
+    if (adjustType === "OUT_PLANNED") normalizedQty = -Math.abs(qtyNum);
 
     setAdjustLoading(true);
     try {
@@ -96,9 +109,11 @@ export function InventoryPage() {
         partId: partIdNum,
         qty: normalizedQty,
         changeType: adjustType,
+        remark: adjustRemark.trim() ? adjustRemark.trim() : undefined,
       });
       setAdjustSuccess("재고 증감이 반영되었습니다.");
       setAdjustQty("");
+      setAdjustRemark("");
       await refresh();
       if (selectedPartId === partIdNum) {
         await loadHistory(partIdNum);
@@ -107,6 +122,38 @@ export function InventoryPage() {
       setAdjustError(e?.message ?? "재고 증감 처리 실패");
     } finally {
       setAdjustLoading(false);
+    }
+  };
+
+  const submitSafety = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSafetyError(null);
+    setSafetySuccess(null);
+
+    const partIdNum = Number(safetyPartId);
+    const safetyNum = Number(safetyQty);
+
+    if (!partIdNum || Number.isNaN(partIdNum)) {
+      setSafetyError("부품 ID를 선택해주세요.");
+      return;
+    }
+    if (Number.isNaN(safetyNum) || safetyNum < 0) {
+      setSafetyError("안전 재고는 0 이상 숫자로 입력해주세요.");
+      return;
+    }
+
+    setSafetyLoading(true);
+    try {
+      await inventoryApi.updateSafety({
+        partId: partIdNum,
+        safetyQty: safetyNum,
+      });
+      setSafetySuccess("안전 재고가 저장되었습니다.");
+      await refresh();
+    } catch (e: any) {
+      setSafetyError(e?.message ?? "안전 재고 저장 실패");
+    } finally {
+      setSafetyLoading(false);
     }
   };
 
@@ -140,100 +187,184 @@ export function InventoryPage() {
         </div>
       )}
 
-      {/* 재고 증감 폼 */}
-      <div className="bg-white rounded-xl border shadow-sm">
-        <div className="px-4 py-3 border-b bg-slate-50 rounded-t-xl">
-          <span className="font-semibold text-slate-700">재고 증감(입출고)</span>
-        </div>
-
-        <form onSubmit={submitAdjust} className="p-4 space-y-3">
-          {/* 입력 + 버튼 한 줄 */}
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
-            {/* 부품 ID */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                부품 ID
-              </label>
-              <select
-                className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                value={adjustPartId}
-                onChange={(e) =>
-                  setAdjustPartId(
-                    e.target.value === "" ? "" : Number(e.target.value)
-                  )
-                }
-              >
-                {items.length === 0 && (
-                  <option value="">부품 목록 없음</option>
-                )}
-                {items.map((item) => (
-                  <option key={item.partId} value={item.partId}>
-                    #{item.partId} {item.partName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 수량 */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                수량
-              </label>
-              <input
-                className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                value={adjustQty}
-                onChange={(e) => setAdjustQty(e.target.value)}
-                placeholder="예: 10"
-                inputMode="numeric"
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                입고/출고는 부호가 자동 처리됩니다.
-              </p>
-            </div>
-
-            {/* 변경 유형 */}
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                변경 유형
-              </label>
-              <select
-                className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                value={adjustType}
-                onChange={(e) =>
-                  setAdjustType(e.target.value as typeof adjustType)
-                }
-              >
-                <option value="IN">입고</option>
-                <option value="OUT">출고</option>
-                <option value="ADJUST">조정</option>
-                <option value="SCRAP">폐기</option>
-              </select>
-            </div>
-
-            {/* 재고 반영 버튼 */}
-            <div className="flex lg:items-end lg:justify-end mt-6">
-              <button
-                type="submit"
-                disabled={adjustLoading}
-                className="px-4 h-10 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center justify-center"
-              >
-                {adjustLoading ? "처리 중..." : "재고 반영"}
-              </button>
-            </div>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* 재고 증감 폼 */}
+        <div className="bg-white rounded-xl border shadow-sm xl:col-span-2">
+          <div className="px-4 py-3 border-b bg-slate-50 rounded-t-xl">
+            <span className="font-semibold text-slate-700">재고 증감(입출고)</span>
           </div>
 
-          {/* 에러 / 성공 메시지: grid 밖으로 분리 */}
-          {adjustError && (
-            <div className="mt-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
-              {adjustError}
+          <form onSubmit={submitAdjust} className="p-4 space-y-3">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  부품 ID
+                </label>
+                <select
+                  className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  value={adjustPartId}
+                  onChange={(e) =>
+                    setAdjustPartId(
+                      e.target.value === "" ? "" : Number(e.target.value)
+                    )
+                  }
+                >
+                  {items.length === 0 && (
+                    <option value="">부품 목록 없음</option>
+                  )}
+                  {items.map((item) => (
+                    <option key={item.partId} value={item.partId}>
+                      #{item.partId} {item.partName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  수량
+                </label>
+                <input
+                  className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  value={adjustQty}
+                  onChange={(e) => setAdjustQty(e.target.value)}
+                  placeholder="예: 10"
+                  inputMode="numeric"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  입고/출고는 부호가 자동 처리됩니다.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  변경 유형
+                </label>
+                <select
+                  className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  value={adjustType}
+                  onChange={(e) =>
+                    setAdjustType(e.target.value as typeof adjustType)
+                  }
+                >
+                  <option value="IN">입고</option>
+                  <option value="OUT">출고</option>
+                  <option value="IN_PLANNED">입고(예정)</option>
+                  <option value="OUT_PLANNED">출고(예정)</option>
+                  <option value="ADJUST">조정</option>
+                  <option value="SCRAP">폐기</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  비고
+                </label>
+                <input
+                  className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  value={adjustRemark}
+                  onChange={(e) => setAdjustRemark(e.target.value)}
+                  placeholder="예: 2월 입고 예정"
+                  maxLength={200}
+                />
+              </div>
+
+              <div className="flex lg:items-end lg:justify-end mt-6">
+                <button
+                  type="submit"
+                  disabled={adjustLoading}
+                  className="px-4 h-10 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center justify-center"
+                >
+                  {adjustLoading ? "처리 중..." : "재고 반영"}
+                </button>
+              </div>
             </div>
-          )}
-          {adjustSuccess && (
-            <div className="mt-2 animate-pulse text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2">
-              {adjustSuccess}
+
+            {adjustError && (
+              <div className="mt-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
+                {adjustError}
+              </div>
+            )}
+            {adjustSuccess && (
+              <div className="mt-2 animate-pulse text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                {adjustSuccess}
+              </div>
+            )}
+          </form>
+        </div>
+
+        {/* 안전 재고 설정 */}
+        <div className="bg-white rounded-xl border shadow-sm xl:col-span-1">
+          <div className="px-4 py-3 border-b bg-slate-50 rounded-t-xl">
+            <span className="font-semibold text-slate-700">안전 재고 설정</span>
+          </div>
+
+          <form onSubmit={submitSafety} className="p-3 space-y-3">
+            <div className="grid grid-cols-1 gap-3 items-start">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  부품 ID
+                </label>
+                <select
+                  className="w-full border rounded-lg px-3 py-1.5 text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  value={safetyPartId}
+                  onChange={(e) => {
+                    const id = e.target.value === "" ? "" : Number(e.target.value);
+                    setSafetyPartId(id);
+                    const picked = items.find((item) => item.partId === id);
+                    if (picked) setSafetyQty(String(picked.safetyQty ?? 0));
+                  }}
+                >
+                  {items.length === 0 && (
+                    <option value="">부품 목록 없음</option>
+                  )}
+                  {items.map((item) => (
+                    <option key={item.partId} value={item.partId}>
+                      #{item.partId} {item.partName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  안전 재고
+                </label>
+                <input
+                  className="w-full border rounded-lg px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  value={safetyQty}
+                  onChange={(e) => setSafetyQty(e.target.value)}
+                  placeholder="예: 100"
+                  inputMode="numeric"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  0 이상 숫자만 입력 가능합니다.
+                </p>
+              </div>
+
+              <div className="flex items-end justify-end">
+                <button
+                  type="submit"
+                  disabled={safetyLoading}
+                  className="px-3 h-9 text-sm font-medium rounded-md bg-emerald-600 text-white hover:bg-emerald-700 inline-flex items-center justify-center"
+                >
+                  {safetyLoading ? "저장 중..." : "안전 재고 저장"}
+                </button>
+              </div>
             </div>
-          )}
-        </form>
+
+            {safetyError && (
+              <div className="mt-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-2">
+                {safetyError}
+              </div>
+            )}
+            {safetySuccess && (
+              <div className="mt-2 animate-pulse text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2">
+                {safetySuccess}
+              </div>
+            )}
+          </form>
+        </div>
       </div>
 
       {/* 재고 목록 */}
@@ -259,6 +390,9 @@ export function InventoryPage() {
                   현재 수량
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  안전 재고
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                   이력
                 </th>
               </tr>
@@ -268,7 +402,7 @@ export function InventoryPage() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-4 py-8 text-center text-slate-500"
                   >
                     불러오는 중...
@@ -277,7 +411,7 @@ export function InventoryPage() {
               ) : items.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={5}
                     className="px-4 py-8 text-center text-slate-500"
                   >
                     재고 데이터가 없습니다.
@@ -297,6 +431,9 @@ export function InventoryPage() {
                     </td>
                     <td className="px-4 py-3 text-slate-900 font-semibold">
                       {item.currentQty}
+                    </td>
+                    <td className="px-4 py-3 text-slate-900 font-semibold">
+                      {item.safetyQty}
                     </td>
                     <td className="px-4 py-3">
                       <button
@@ -342,55 +479,68 @@ export function InventoryPage() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 border-b">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    변경 유형
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    변경 수량
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    변경 후 수량
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    발생 시각
-                  </th>
-                </tr>
-              </thead>
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  변경 유형
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  변경 수량
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  변경 후 수량
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  참조
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  비고
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                  발생 시각
+                </th>
+              </tr>
+            </thead>
 
-              <tbody className="divide-y divide-slate-100">
-                {historyLoading ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-8 text-center text-slate-500"
-                    >
-                      불러오는 중...
-                    </td>
-                  </tr>
-                ) : history.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="px-4 py-8 text-center text-slate-500"
-                    >
-                      이력 데이터가 없습니다.
-                    </td>
-                  </tr>
-                ) : (
-                  history.map((h) => (
+            <tbody className="divide-y divide-slate-100">
+              {historyLoading ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center text-slate-500"
+                  >
+                    불러오는 중...
+                  </td>
+                </tr>
+              ) : history.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center text-slate-500"
+                  >
+                    이력 데이터가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                history.map((h) => (
                     <tr
                       key={h.id}
                       className="hover:bg-slate-50 transition-colors"
                     >
                       <td className="px-4 py-3 text-slate-700 font-medium">
-                        {h.changeType}
+                        {h.changeTypeLabel ?? h.changeType}
                       </td>
                       <td className="px-4 py-3 text-slate-900 font-semibold">
                         {h.changeQty}
                       </td>
                       <td className="px-4 py-3 text-slate-900 font-semibold">
                         {h.afterQty}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 text-sm">
+                        {h.referenceId ? `#${h.referenceId}` : "-"}
+                        {h.referenceType ? ` · ${h.referenceType}` : ""}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 text-sm">
+                        {h.remark ?? "-"}
                       </td>
                       <td className="px-4 py-3 text-slate-600 text-sm">
                         {formatDateTime(h.occuredAt)}

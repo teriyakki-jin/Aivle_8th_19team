@@ -21,6 +21,13 @@ public class MLProxyController {
 
     private final MLProxyService mlProxyService;
 
+    private MLProxyService.MlContext buildContext(Long orderId, String processName) {
+        if (orderId == null && (processName == null || processName.isBlank())) {
+            return null;
+        }
+        return new MLProxyService.MlContext(orderId, null, null, processName);
+    }
+
     /**
      * 윈드실드 분석
      * POST /api/v1/ml/windshield
@@ -28,10 +35,12 @@ public class MLProxyController {
     @PostMapping("/windshield")
     public ResponseEntity<JsonNode> analyzeWindshield(
             @RequestParam("side") String side,
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
         try {
             log.info("Windshield analysis request - side: {}, file: {}", side, file.getOriginalFilename());
-            JsonNode result = mlProxyService.analyzeWindshield(side, file);
+            JsonNode result = mlProxyService.analyzeWindshield(side, file, buildContext(orderId, processName));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Error in windshield analysis: {}", e.getMessage(), e);
@@ -45,10 +54,12 @@ public class MLProxyController {
      */
     @PostMapping("/engine")
     public ResponseEntity<JsonNode> analyzeEngine(
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
         try {
             log.info("Engine analysis request - file: {}", file.getOriginalFilename());
-            JsonNode result = mlProxyService.analyzeEngine(file);
+            JsonNode result = mlProxyService.analyzeEngine(file, buildContext(orderId, processName));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Error in engine analysis: {}", e.getMessage(), e);
@@ -62,10 +73,12 @@ public class MLProxyController {
      */
     @PostMapping("/welding/image/auto")
     public ResponseEntity<JsonNode> analyzeWeldingImageAuto(
-            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
         try {
             log.info("Welding image auto analysis request - offset: {}", offset);
-            JsonNode result = mlProxyService.analyzeWeldingImageAuto(offset);
+            JsonNode result = mlProxyService.analyzeWeldingImageAuto(offset, buildContext(orderId, processName));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Error in welding image analysis: {}", e.getMessage(), e);
@@ -79,10 +92,12 @@ public class MLProxyController {
      */
     @PostMapping("/paint/auto")
     public ResponseEntity<JsonNode> analyzePaintAuto(
-            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
         try {
             log.info("Paint auto analysis request - offset: {}", offset);
-            JsonNode result = mlProxyService.analyzePaintAuto(offset);
+            JsonNode result = mlProxyService.analyzePaintAuto(offset, buildContext(orderId, processName));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Error in paint analysis: {}", e.getMessage(), e);
@@ -96,10 +111,12 @@ public class MLProxyController {
      */
     @PostMapping("/press/vibration")
     public ResponseEntity<JsonNode> analyzePressVibration(
-            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
         try {
             log.info("Press vibration analysis request - offset: {}", offset);
-            JsonNode result = mlProxyService.analyzePressVibration(offset);
+            JsonNode result = mlProxyService.analyzePressVibration(offset, buildContext(orderId, processName));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Error in press vibration analysis: {}", e.getMessage(), e);
@@ -113,10 +130,12 @@ public class MLProxyController {
      */
     @PostMapping("/press/image")
     public ResponseEntity<JsonNode> analyzePressImage(
-            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
         try {
             log.info("Press image analysis request - offset: {}", offset);
-            JsonNode result = mlProxyService.analyzePressImage(offset);
+            JsonNode result = mlProxyService.analyzePressImage(offset, buildContext(orderId, processName));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Error in press image analysis: {}", e.getMessage(), e);
@@ -130,10 +149,12 @@ public class MLProxyController {
      */
     @PostMapping("/windshield/auto")
     public ResponseEntity<JsonNode> analyzeWindshieldAuto(
-            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
         try {
             log.info("Windshield auto analysis request - offset: {}", offset);
-            JsonNode result = mlProxyService.analyzeWindshieldAuto(offset);
+            JsonNode result = mlProxyService.analyzeWindshieldAuto(offset, buildContext(orderId, processName));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Error in windshield auto analysis: {}", e.getMessage(), e);
@@ -147,10 +168,12 @@ public class MLProxyController {
      */
     @PostMapping("/engine/auto")
     public ResponseEntity<JsonNode> analyzeEngineAuto(
-            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
         try {
             log.info("Engine auto analysis request - offset: {}", offset);
-            JsonNode result = mlProxyService.analyzeEngineAuto(offset);
+            JsonNode result = mlProxyService.analyzeEngineAuto(offset, buildContext(orderId, processName));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Error in engine auto analysis: {}", e.getMessage(), e);
@@ -165,10 +188,12 @@ public class MLProxyController {
     @PostMapping("/body/inspect/batch/auto")
     public ResponseEntity<JsonNode> analyzeBodyAssemblyBatchAuto(
             @RequestParam(value = "conf", required = false, defaultValue = "0.5") Double confidence,
-            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset) {
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
         try {
             log.info("Body assembly batch auto analysis request - confidence: {}, offset: {}", confidence, offset);
-            JsonNode result = mlProxyService.analyzeBodyAssemblyBatchAuto(confidence, offset);
+            JsonNode result = mlProxyService.analyzeBodyAssemblyBatchAuto(confidence, offset, buildContext(orderId, processName));
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Error in body assembly analysis: {}", e.getMessage(), e);

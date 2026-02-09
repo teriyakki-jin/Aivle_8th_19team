@@ -16,6 +16,7 @@ public class InventoryResponse {
     private Long partId;
     private String partName;
     private int currentQty;
+    private int safetyQty;
 
     // Entity -> Dto
     public static InventoryResponse from(Inventory inventory) {
@@ -24,6 +25,7 @@ public class InventoryResponse {
                 .partId(inventory.getPart().getId())
                 .partName(inventory.getPart().getPartName())
                 .currentQty(inventory.getCurrentQty())
+                .safetyQty(inventory.getSafetyQty())
                 .build();
     }
 }

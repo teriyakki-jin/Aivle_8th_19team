@@ -3,6 +3,8 @@ package com.example.automobile_risk.service;
 import com.example.automobile_risk.controller.dto.OrderCreateForm;
 import com.example.automobile_risk.controller.dto.OrderUpdateForm;
 import com.example.automobile_risk.entity.Order;
+import com.example.automobile_risk.entity.OrderProduction;
+import com.example.automobile_risk.entity.Production;
 import com.example.automobile_risk.entity.VehicleModel;
 import com.example.automobile_risk.entity.enumclass.DefectSnapshotStage;
 import com.example.automobile_risk.entity.enumclass.OrderStatus;
@@ -10,6 +12,7 @@ import com.example.automobile_risk.exception.OrderNotFoundException;
 import com.example.automobile_risk.exception.VehicleModelNotFoundException;
 import com.example.automobile_risk.repository.OrderProductionRepository;
 import com.example.automobile_risk.repository.OrderRepository;
+import com.example.automobile_risk.repository.ProductionRepository;
 import com.example.automobile_risk.repository.VehicleModelRepository;
 import com.example.automobile_risk.service.dto.OrderDetailResponse;
 import com.example.automobile_risk.service.dto.OrderListResponse;
@@ -32,6 +35,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final VehicleModelRepository vehicleModelRepository;
     private final OrderProductionRepository orderProductionRepository;
+    private final ProductionRepository productionRepository;
     private final DefectSummaryService defectSummaryService;
 
     /**
@@ -52,6 +56,21 @@ public class OrderService {
         );
 
         Order savedOrder = orderRepository.save(order);
+
+        // 주문 생성 시 생산 1:1 생성 및 전체 할당
+        Production production = Production.of(
+                orderCreateForm.getOrderDate(),
+                orderCreateForm.getOrderQty(),
+                vehicleModel
+        );
+        Production savedProduction = productionRepository.save(production);
+
+        OrderProduction orderProduction = OrderProduction.createOrderProduction(
+                savedOrder,
+                savedProduction,
+                orderCreateForm.getOrderQty()
+        );
+        orderProductionRepository.save(orderProduction);
 
         return savedOrder.getId();
     }

@@ -34,6 +34,9 @@ public class ProductionService {
     private final InventoryRepository inventoryRepository;
     private final InventoryHistoryRepository inventoryHistoryRepository;
     private final DefectSummaryService defectSummaryService;
+    private final ProductionSimulationService productionSimulationService;
+    private final ProductionSseService productionSseService;
+    private final ProductionDatasetService productionDatasetService;
 
     /**
      *  1. 생산 생성
@@ -132,14 +135,32 @@ public class ProductionService {
                     -requiredTotal,
                     inventory.getCurrentQty(),
                     LocalDateTime.now(),
-                    InventoryChangeType.OUT
+                    InventoryChangeType.OUT,
+                    null
             );
+            history.setReference(productionId, "PRODUCTION");
+            history.setRemark(vehicleModel.getModelName() + " (" + plannedQty + ")");
 
             inventoryHistoryRepository.save(history);
         }
 
         // 5. 생산 시작
         production.start();
+
+        productionSseService.publish(com.example.automobile_risk.service.dto.ProductionStreamEvent.builder()
+                .type("production")
+                .productionId(productionId)
+                .orderId(production.getOrderProductionList().isEmpty() ? null
+                        : production.getOrderProductionList().get(0).getOrder().getId())
+                .productionStatus(production.getProductionStatus())
+                .startDate(production.getStartDate())
+                .build());
+
+        // 생산 시작 시 데이터셋 랜덤 할당 (미할당 시)
+        productionDatasetService.assignRandomDatasetsIfMissing(productionId);
+
+        // 6. 백엔드 시뮬레이션 시작 (비동기)
+        productionSimulationService.simulate(productionId);
 
         return production.getId();
     }
@@ -179,6 +200,14 @@ public class ProductionService {
 
         production.stop();
 
+        productionSseService.publish(com.example.automobile_risk.service.dto.ProductionStreamEvent.builder()
+                .type("production")
+                .productionId(productionId)
+                .orderId(production.getOrderProductionList().isEmpty() ? null
+                        : production.getOrderProductionList().get(0).getOrder().getId())
+                .productionStatus(production.getProductionStatus())
+                .build());
+
         return production.getId();
     }
 
@@ -192,6 +221,14 @@ public class ProductionService {
                 .orElseThrow(() -> new ProductionNotFoundException(productionId));
 
         production.restart();
+
+        productionSseService.publish(com.example.automobile_risk.service.dto.ProductionStreamEvent.builder()
+                .type("production")
+                .productionId(productionId)
+                .orderId(production.getOrderProductionList().isEmpty() ? null
+                        : production.getOrderProductionList().get(0).getOrder().getId())
+                .productionStatus(production.getProductionStatus())
+                .build());
 
         return production.getId();
     }

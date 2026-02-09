@@ -20,6 +20,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -34,10 +39,25 @@ public class MLProxyService {
     @Value("${ml-service.base-url:http://localhost:8000}")
     private String mlServiceBaseUrl;
 
+    @Value("${ml-service.press-image-dir:}")
+    private String pressImageDirOverride;
+
+    @RequiredArgsConstructor
+    public static class MlContext {
+        public final Long orderId;
+        public final Long productionId;
+        public final Long processExecutionId;
+        public final String processName;
+    }
+
     /**
      * FastAPI 엔드포인트 호출 및 결과 저장
      */
     public JsonNode callMLServiceAndSave(String endpoint, MultiValueMap<String, Object> body, String serviceType) {
+        return callMLServiceAndSave(endpoint, body, serviceType, null);
+    }
+
+    public JsonNode callMLServiceAndSave(String endpoint, MultiValueMap<String, Object> body, String serviceType, MlContext context) {
         try {
             // 1. FastAPI 호출
             String url = mlServiceBaseUrl + endpoint;
@@ -59,7 +79,7 @@ public class MLProxyService {
             JsonNode jsonResponse = objectMapper.readTree(response.getBody());
 
             // 3. DB에 저장
-            saveAnalysisResult(jsonResponse, serviceType);
+            saveAnalysisResult(jsonResponse, serviceType, context);
 
             log.info("ML Service call successful for {}: {}", serviceType, jsonResponse);
 
@@ -82,6 +102,10 @@ public class MLProxyService {
      * 파일 없이 FastAPI 호출 (offset 지원)
      */
     public JsonNode callMLServiceWithoutFile(String endpoint, String serviceType, int offset) {
+        return callMLServiceWithoutFile(endpoint, serviceType, offset, null);
+    }
+
+    public JsonNode callMLServiceWithoutFile(String endpoint, String serviceType, int offset, MlContext context) {
         try {
             // offset 파라미터 추가
             String separator = endpoint.contains("?") ? "&" : "?";
@@ -101,7 +125,7 @@ public class MLProxyService {
             );
 
             JsonNode jsonResponse = objectMapper.readTree(response.getBody());
-            saveAnalysisResult(jsonResponse, serviceType);
+            saveAnalysisResult(jsonResponse, serviceType, context);
 
             return jsonResponse;
 
@@ -115,6 +139,10 @@ public class MLProxyService {
      * JSON 바디로 FastAPI 호출
      */
     public JsonNode callMLServiceWithJson(String endpoint, JsonNode body, String serviceType) {
+        return callMLServiceWithJson(endpoint, body, serviceType, null);
+    }
+
+    public JsonNode callMLServiceWithJson(String endpoint, JsonNode body, String serviceType, MlContext context) {
         try {
             String url = mlServiceBaseUrl + endpoint;
             log.info("Calling ML Service (json): {}", url);
@@ -132,7 +160,7 @@ public class MLProxyService {
             );
 
             JsonNode jsonResponse = objectMapper.readTree(response.getBody());
-            saveAnalysisResult(jsonResponse, serviceType);
+            saveAnalysisResult(jsonResponse, serviceType, context);
 
             return jsonResponse;
         } catch (Exception e) {
@@ -145,10 +173,21 @@ public class MLProxyService {
      * ML 분석 결과를 DB에 저장
      */
     private void saveAnalysisResult(JsonNode jsonResponse, String serviceType) {
+        saveAnalysisResult(jsonResponse, serviceType, null);
+    }
+
+    private void saveAnalysisResult(JsonNode jsonResponse, String serviceType, MlContext context) {
         try {
             MLAnalysisResult result = MLAnalysisResult.builder()
                     .serviceType(serviceType)
                     .build();
+
+            if (context != null) {
+                result.setOrderId(context.orderId);
+                result.setProductionId(context.productionId);
+                result.setProcessExecutionId(context.processExecutionId);
+                result.setProcessName(context.processName);
+            }
 
             // 공통 필드 추출
             if (jsonResponse.has("status")) {
@@ -221,13 +260,17 @@ public class MLProxyService {
      * 윈드실드 분석
      */
     public JsonNode analyzeWindshield(String side, MultipartFile file) throws IOException {
+        return analyzeWindshield(side, file, null);
+    }
+
+    public JsonNode analyzeWindshield(String side, MultipartFile file, MlContext context) throws IOException {
         File tempFile = convertMultipartFileToFile(file);
         try {
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("side", side);
             body.add("file", new FileSystemResource(tempFile));
 
-            return callMLServiceAndSave("/api/v1/smartfactory/windshield", body, "windshield");
+            return callMLServiceAndSave("/api/v1/smartfactory/windshield", body, "windshield", context);
         } finally {
             tempFile.delete();
         }
@@ -237,12 +280,16 @@ public class MLProxyService {
      * 엔진 진동 분석
      */
     public JsonNode analyzeEngine(MultipartFile file) throws IOException {
+        return analyzeEngine(file, null);
+    }
+
+    public JsonNode analyzeEngine(MultipartFile file, MlContext context) throws IOException {
         File tempFile = convertMultipartFileToFile(file);
         try {
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("file", new FileSystemResource(tempFile));
 
-            return callMLServiceAndSave("/api/v1/smartfactory/engine", body, "engine");
+            return callMLServiceAndSave("/api/v1/smartfactory/engine", body, "engine", context);
         } finally {
             tempFile.delete();
         }
@@ -252,48 +299,135 @@ public class MLProxyService {
      * 용접 이미지 분석 (자동)
      */
     public JsonNode analyzeWeldingImageAuto(int offset) {
-        return callMLServiceWithoutFile("/api/v1/smartfactory/welding/image/auto", "welding_image", offset);
+        return analyzeWeldingImageAuto(offset, null);
+    }
+
+    public JsonNode analyzeWeldingImageAuto(int offset, MlContext context) {
+        return callMLServiceWithoutFile("/api/v1/smartfactory/welding/image/auto", "welding_image", offset, context);
+    }
+
+    public JsonNode analyzeWeldingImageFile(File file, MlContext context) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new FileSystemResource(file));
+        return callMLServiceAndSave("/api/v1/welding/image", body, "welding_image", context);
     }
 
     /**
      * 도장 품질 분석 (자동)
      */
     public JsonNode analyzePaintAuto(int offset) {
-        return callMLServiceWithoutFile("/api/v1/smartfactory/paint/auto", "paint", offset);
+        return analyzePaintAuto(offset, null);
+    }
+
+    public JsonNode analyzePaintAuto(int offset, MlContext context) {
+        return callMLServiceWithoutFile("/api/v1/smartfactory/paint/auto", "paint", offset, context);
+    }
+
+    public JsonNode analyzePaintFile(File file, MlContext context) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new FileSystemResource(file));
+        return callMLServiceAndSave("/api/v1/smartfactory/paint", body, "paint", context);
     }
 
     /**
      * 프레스 진동 분석
      */
     public JsonNode analyzePressVibration(int offset) {
-        return callMLServiceWithoutFile("/api/v1/smartfactory/press/vibration", "press_vibration", offset);
+        return analyzePressVibration(offset, null);
+    }
+
+    public JsonNode analyzePressVibration(int offset, MlContext context) {
+        return callMLServiceWithoutFile("/api/v1/smartfactory/press/vibration", "press_vibration", offset, context);
+    }
+
+    public JsonNode analyzePressVibrationJson(JsonNode bodyJson, MlContext context) {
+        return callMLServiceWithJson("/api/v1/smartfactory/press/vibration", bodyJson, "press_vibration", context);
     }
 
     /**
      * 프레스 이미지 분석
      */
     public JsonNode analyzePressImage(int offset) {
-        return callMLServiceWithoutFile("/api/v1/smartfactory/press/image", "press_image", offset);
+        return analyzePressImage(offset, null);
+    }
+
+    public JsonNode analyzePressImage(int offset, MlContext context) {
+        return callMLServiceWithoutFile("/api/v1/smartfactory/press/image", "press_image", offset, context);
+    }
+
+    public JsonNode analyzePressImageFile(File file, int offset, MlContext context) {
+        try {
+            Path sampleDir = resolvePressSampleDir();
+            if (sampleDir != null) {
+                Files.createDirectories(sampleDir);
+                String fileName = "dataset_press_image" + getExtension(file.getName());
+                Path target = sampleDir.resolve(fileName);
+                Files.copy(file.toPath(), target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to sync press image dataset: {}", e.getMessage());
+        }
+        return analyzePressImage(offset, context);
+    }
+
+    private Path resolvePressSampleDir() {
+        if (pressImageDirOverride != null && !pressImageDirOverride.isBlank()) {
+            return Paths.get(pressImageDirOverride);
+        }
+        Path base = Paths.get(System.getProperty("user.dir"));
+        Path root = base.getParent() != null ? base.getParent() : base;
+        return root.resolve("ml-service").resolve("press").resolve("sample_images");
+    }
+
+    private String getExtension(String name) {
+        int idx = name.lastIndexOf('.');
+        if (idx < 0) return ".jpg";
+        return name.substring(idx);
     }
 
     /**
      * 윈드실드 분석 (자동)
      */
     public JsonNode analyzeWindshieldAuto(int offset) {
-        return callMLServiceWithoutFile("/api/v1/smartfactory/windshield/auto", "windshield", offset);
+        return analyzeWindshieldAuto(offset, null);
+    }
+
+    public JsonNode analyzeWindshieldAuto(int offset, MlContext context) {
+        return callMLServiceWithoutFile("/api/v1/smartfactory/windshield/auto", "windshield", offset, context);
+    }
+
+    public JsonNode analyzeWindshieldFile(String side, File file, MlContext context) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("side", side);
+        body.add("file", new FileSystemResource(file));
+        return callMLServiceAndSave("/api/v1/smartfactory/windshield", body, "windshield", context);
     }
 
     /**
      * 엔진 진동 분석 (자동)
      */
     public JsonNode analyzeEngineAuto(int offset) {
-        return callMLServiceWithoutFile("/api/v1/smartfactory/engine/auto", "engine", offset);
+        return analyzeEngineAuto(offset, null);
+    }
+
+    public JsonNode analyzeEngineAuto(int offset, MlContext context) {
+        return callMLServiceWithoutFile("/api/v1/smartfactory/engine/auto", "engine", offset, context);
+    }
+
+    public JsonNode analyzeEngineFile(File file, MlContext context) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new FileSystemResource(file));
+        return callMLServiceAndSave("/api/v1/smartfactory/engine", body, "engine", context);
     }
 
     /**
      * 차체 조립 분석 (자동 배치)
      */
     public JsonNode analyzeBodyAssemblyBatchAuto(Double confidence, int offset) {
+        return analyzeBodyAssemblyBatchAuto(confidence, offset, null);
+    }
+
+    public JsonNode analyzeBodyAssemblyBatchAuto(Double confidence, int offset, MlContext context) {
         try {
             String url = mlServiceBaseUrl + "/api/v1/smartfactory/body/inspect/batch/auto?offset=" + offset;
             log.info("Calling ML Service (body batch auto): {} with offset: {}", url, offset);
@@ -314,7 +448,7 @@ public class MLProxyService {
             );
 
             JsonNode jsonResponse = objectMapper.readTree(response.getBody());
-            saveAnalysisResult(jsonResponse, "body_assembly");
+            saveAnalysisResult(jsonResponse, "body_assembly", context);
 
             return jsonResponse;
 
@@ -324,14 +458,48 @@ public class MLProxyService {
         }
     }
 
+    public JsonNode analyzeBodyAssemblyBatchFiles(
+            Map<String, File> partFiles,
+            Double confidence,
+            MlContext context
+    ) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("conf", confidence != null ? confidence : 0.5);
+        addIfPresent(body, "door_file", partFiles.get("door"));
+        addIfPresent(body, "bumper_file", partFiles.get("bumper"));
+        addIfPresent(body, "headlamp_file", partFiles.get("headlamp"));
+        addIfPresent(body, "taillamp_file", partFiles.get("taillamp"));
+        addIfPresent(body, "radiator_file", partFiles.get("radiator"));
+        return callMLServiceAndSave("/api/v1/smartfactory/body/inspect/batch", body, "body_assembly", context);
+    }
+
+    public JsonNode analyzeBodyAssemblyFile(File file, MlContext context) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("part", "door");
+        body.add("file", new FileSystemResource(file));
+        return callMLServiceAndSave("/api/v1/smartfactory/body/inspect", body, "body_assembly", context);
+    }
+
+    private void addIfPresent(MultiValueMap<String, Object> body, String key, File file) {
+        if (file == null) return;
+        body.add(key, new FileSystemResource(file));
+    }
+
     /**
      * 납기 지연 예측
      */
     public JsonNode analyzeDueDate(JsonNode body) {
+        System.out.println("DUEDATE_ANALYZE_START");
         JsonNode result = callMLServiceWithJson("/api/v1/smartfactory/duedate", body, "duedate");
+        System.out.println("DUEDATE_ANALYZE_AFTER_CALL");
         try {
             DueDatePrediction prediction = buildDueDatePrediction(body, result);
             dueDatePredictionService.save(prediction);
+            log.info("DueDate ML saved: orderId={}, stage={}, delayFlag={}, delayProb={}",
+                    prediction.getOrderId(),
+                    prediction.getSnapshotStage(),
+                    prediction.getDelayFlag(),
+                    prediction.getDelayProbability());
         } catch (Exception e) {
             log.warn("Failed to save due date prediction: {}", e.getMessage());
         }

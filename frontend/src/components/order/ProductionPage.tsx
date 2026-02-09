@@ -24,6 +24,7 @@ import {
   ExternalLink,
   XCircle,
 } from "lucide-react";
+import { productionApi } from "../../api/production";
 
 const STAGE_ICONS: Record<string, any> = {
   press: Hammer,
@@ -139,6 +140,21 @@ function StageElapsed({ startedAt }: { startedAt: number }) {
   return <span className="text-[7px] text-slate-400 leading-none">경과 {formatSecToMMSS(elapsedSec)}</span>;
 }
 
+function StageRemaining({ startedAt, duration }: { startedAt: number; duration: number }) {
+  const [remainSec, setRemainSec] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      const elapsed = Date.now() - startedAt;
+      const remain = Math.max(0, Math.floor((duration - elapsed) / 1000));
+      setRemainSec(remain);
+    }, 500);
+    return () => clearInterval(t);
+  }, [startedAt, duration]);
+
+  return <span className="text-[7px] text-slate-400 leading-none">남은 {formatSecToMMSS(remainSec)}</span>;
+}
+
 function StageIcon({
   stage,
   result,
@@ -239,7 +255,9 @@ function PipelineView({
                   </div>
 
                   {result.estimatedDuration && result.startedAt ? (
-                    <StageProgressBar startedAt={result.startedAt} duration={result.estimatedDuration} />
+                    <>
+                      <StageProgressBar startedAt={result.startedAt} duration={result.estimatedDuration} />
+                    </>
                   ) : result.startedAt ? (
                     <StageElapsed startedAt={result.startedAt} />
                   ) : null}
@@ -274,22 +292,29 @@ function PipelineView({
 function ProductionCard({
   production,
   onStart,
+  onStop,
+  onRestart,
   onStageClick,
   onViewDetail,
   getModelName,
 }: {
   production: ProductionItem;
   onStart: () => void;
+  onStop: () => void;
+  onRestart: () => void;
   onStageClick: (stageId: string, stage: (typeof PIPELINE_STAGES)[0], orderId?: number) => void;
   onViewDetail: (page: string, orderId?: number) => void;
   getModelName: (modelId: number | string) => string;
 }) {
   const stages = PIPELINE_STAGES;
+  const displayModelName =
+    production.vehicleModelName ?? getModelName(production.vehicleModelId);
   const isRunning = production.stageResults.some((r) => r.status === "running");
   const isCompleted = production.stageResults.every((r) => r.status === "completed");
   const hasAnyAnomaly = production.stageResults.some((r) => r.hasAnomaly);
   const hasError = production.stageResults.some((r) => r.status === "error");
   const isWaiting = production.stageResults.every((r) => r.status === "waiting");
+  const isStopped = production.productionStatus === "STOPPED";
 
   return (
     <div className={`bg-white rounded-xl border shadow-sm overflow-hidden ${hasAnyAnomaly ? "border-orange-300" : ""}`}>
@@ -326,8 +351,16 @@ function ProductionCard({
           <div>
             <div className="font-semibold text-slate-900">주문 #{production.orderId}</div>
             <div className="text-xs text-slate-500">
-              {getModelName(production.vehicleModelId)} · {production.orderQty}대
+              생산 #{production.productionId ?? "-"} · {displayModelName} · {production.orderQty}대
+              {production.currentUnitIndex ? (
+                <> · {production.currentUnitIndex}번째 차량 (총 {production.orderQty}대)</>
+              ) : null}
             </div>
+            {production.dueDate && (
+              <div className="text-[11px] text-slate-400">
+                납기 {new Date(production.dueDate).toLocaleDateString("ko-KR")}
+              </div>
+            )}
           </div>
         </div>
 
@@ -343,12 +376,27 @@ function ProductionCard({
               생산 완료 (이상 {production.stageResults.filter((r) => r.hasAnomaly).length}건)
             </span>
           ) : isRunning ? (
-            <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 inline-flex items-center gap-2">
-              <TrafficGreenLight size={10} />
-              {stages[production.currentStage]?.name} 공정 중
-            </span>
+            <>
+              <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 inline-flex items-center gap-2">
+                <TrafficGreenLight size={10} />
+                {stages[production.currentStage]?.name} 공정 중
+              </span>
+              <button
+                onClick={onStop}
+                className="px-3 py-1 text-xs font-medium rounded-full bg-red-50 text-red-700 hover:bg-red-100"
+              >
+                중지
+              </button>
+            </>
           ) : hasError ? (
             <span className="px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-700">오류 발생</span>
+          ) : isStopped ? (
+            <button
+              onClick={onRestart}
+              className="px-4 py-1.5 text-xs font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600"
+            >
+              재시작
+            </button>
           ) : isWaiting ? (
             <button
               onClick={onStart}
@@ -404,7 +452,7 @@ function ProductionCard({
 
 export function ProductionPage() {
   const navigate = useNavigate();
-  const { productions, loading, error, refresh, startProduction } = useProduction();
+  const { productions, loading, error, refresh, startProduction, applyStreamEvent } = useProduction();
   const [vehicleModels, setVehicleModels] = useState<VehicleModelDto[]>([]);
 
   // 차량 모델 ID -> 이름 매핑
@@ -421,6 +469,8 @@ export function ProductionPage() {
       setVehicleModels(Array.isArray(data) ? data : []);
     }).catch(console.error);
   }, [refresh]);
+
+  // SSE는 ProductionProvider에서 전역 처리
 
   // ✅ 클릭 이동 로직 보정:
   // - 검사 클릭은 기본 윈드실드로
@@ -440,11 +490,27 @@ export function ProductionPage() {
   };
 
   const productionList = Array.from(productions.values()).sort((a, b) => {
-    const aRunning = a.stageResults.some((r) => r.status === "running");
-    const bRunning = b.stageResults.some((r) => r.status === "running");
-    if (aRunning && !bRunning) return -1;
-    if (!aRunning && bRunning) return 1;
-    return a.orderId - b.orderId;
+    const statusRank = (s?: string) => {
+      switch (s) {
+        case "IN_PROGRESS":
+          return 0;
+        case "PLANNED":
+          return 1;
+        case "STOPPED":
+          return 2;
+        case "COMPLETED":
+          return 3;
+        case "CANCELLED":
+          return 4;
+        default:
+          return 5;
+      }
+    };
+    const rankDiff = statusRank(a.productionStatus) - statusRank(b.productionStatus);
+    if (rankDiff !== 0) return rankDiff;
+    const aId = a.productionId ?? a.orderId;
+    const bId = b.productionId ?? b.orderId;
+    return bId - aId;
   });
 
   return (
@@ -487,6 +553,16 @@ export function ProductionPage() {
               key={production.orderId}
               production={production}
               onStart={() => startProduction(production.orderId)}
+              onStop={async () => {
+                if (!production.productionId) return;
+                await productionApi.stop(production.productionId);
+                await refresh();
+              }}
+              onRestart={async () => {
+                if (!production.productionId) return;
+                await productionApi.restart(production.productionId);
+                await refresh();
+              }}
               onStageClick={handleStageClick}
               onViewDetail={handleViewDetail}
               getModelName={getModelName}

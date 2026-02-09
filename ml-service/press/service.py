@@ -456,15 +456,30 @@ async def predict_press_image_sim():
 
     with model_lock:
         if cnn_model is None:
+            img_path = _pick_next_sample_image_path()
+            image_b64 = None
+            source = None
+            note = "CNN not loaded -> mock"
+            if img_path and PIL_AVAILABLE:
+                try:
+                    img = Image.open(img_path).convert("RGB")
+                    buf = BytesIO()
+                    img.save(buf, format="JPEG", quality=85)
+                    image_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+                    source = os.path.basename(img_path)
+                    note = "CNN not loaded -> image only"
+                except Exception as e:
+                    print(f"[PRESS] sample image load failed -> fallback: {e}")
+
             probs = np.random.dirichlet(np.ones(len(classes)), size=1)[0]
             idx = int(np.argmax(probs))
             return {
                 "predicted_class": classes[idx],
                 "confidence": float(probs[idx]),
                 "all_scores": dict(zip(classes, [float(p) for p in probs])),
-                "note": "CNN not loaded -> mock",
-                "image_base64": None,
-                "source": None,
+                "note": note,
+                "image_base64": image_b64,
+                "source": source,
             }
 
         shp = cnn_model.input_shape

@@ -1,11 +1,3 @@
-/**
- * Design Philosophy: Swiss Design meets Automotive Engineering
- * - Precise grid system with mathematical proportions
- * - Deep charcoal (#1e293b) + silver gray (#64748b) + signature blue (#3b82f6)
- * - IBM Plex Sans/Mono typography for technical credibility
- * - Minimal animations: fade-in only, color transitions on hover
- * - 1px precision borders, clean sectioning
- */
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -56,7 +48,7 @@ export function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section 
+      <section
         className="relative py-28 md:py-36 overflow-hidden"
         style={{
           backgroundImage: `url('https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-1_1770266116000_na1fn_aGVyby1ibHVlcHJpbnQtYmc.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTFfMTc3MDI2NjExNjAwMF9uYTFmbl9hR1Z5YnkxaWJIVmxjSEpwYm5RdFltYy5wbmc~eC1vc3MtcHJvY2Vzcz1pbWFnZS9yZXNpemUsd18xOTIwLGhfMTkyMC9mb3JtYXQsd2VicC9xdWFsaXR5LHFfODAiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3OTg3NjE2MDB9fX1dfQ__&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=pEYTfnm8fpVkH75w0-C7SBvSqlLb-C~wJVEQqDW73p5ZMfQGH0AIPwJ9mNKLUy4NVXN8UrPboRtKuCBtuXHPi2-dEej0tx9LyT4zL2FifMUZqM~~WxCCETB2eFZHOtFG5b8mp~Np5zbRc2iYIenjOVUxld6M7EOK6HLa5y9b5qdThsWZ7X-V9MCLgv6Ur9cpNxvzxzon0K~v31gbp7aZRjHp0iVKp~p1RN2gjTg-vzqCR5jWmP2uHN70CyX3urGiFgDYnk45pRfbOZiGwY5vKw3m8lelSm92Etcuh7Eha53gdf~zX45k6NQp57UAbhxhuj9bffWAO6voymxQV99gZQ__')`,
@@ -75,10 +67,10 @@ export function LandingPage() {
               자동차 공정 이상 탐지 및<br />납기 리스크 예측 플랫폼
             </h1>
             <p className="text-base md:text-lg lg:text-xl text-foreground/80 leading-relaxed drop-shadow-sm">
-              인공지능 기반 실시간 모니터링으로 생산 공정의 이상을 사전에 감지하고, 
+              인공지능 기반 실시간 모니터링으로 생산 공정의 이상을 사전에 감지하고,
               납기 지연 리스크를 정확하게 예측하여 자동차 제조 프로세스의 효율성을 극대화합니다.
             </p>
-            
+
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 md:gap-8 pt-8 border-t border-border">
               <div>
@@ -104,8 +96,8 @@ export function LandingPage() {
           <div className="max-w-3xl mx-auto text-center mb-12 md:mb-16">
             <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight">서비스 소개</h2>
             <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-              자동차 제조 공정의 복잡성과 납기 관리의 어려움을 해결하기 위해 설계된 
-              통합 관리 플랫폼입니다. 최신 AI 기술과 빅데이터 분석을 통해 
+              자동차 제조 공정의 복잡성과 납기 관리의 어려움을 해결하기 위해 설계된
+              통합 관리 플랫폼입니다. 최신 AI 기술과 빅데이터 분석을 통해
               생산 현장의 모든 단계를 실시간으로 모니터링하고 최적화합니다.
             </p>
           </div>
@@ -117,8 +109,8 @@ export function LandingPage() {
               </div>
               <h3 className="text-xl font-semibold mb-3 tracking-tight">실시간 공정 모니터링</h3>
               <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                생산 라인의 센서와 이미지 데이터를 실시간으로 수집하고 분석하여 
-                공정 상태를 한눈에 파악할 수 있습니다. 이상 징후 발생 시 
+                생산 라인의 센서와 이미지 데이터를 실시간으로 수집하고 분석하여
+                공정 상태를 한눈에 파악할 수 있습니다. 이상 징후 발생 시
                 즉각적인 알림을 통해 신속한 대응이 가능합니다.
               </p>
             </Card>
@@ -129,8 +121,8 @@ export function LandingPage() {
               </div>
               <h3 className="text-xl font-semibold mb-3 tracking-tight">AI 기반 이상 탐지</h3>
               <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                센서 데이터와 이미지 분석을 통해 미세한 이상 신호도 놓치지 않고 감지합니다. 
-                머신러닝 알고리즘이 정상 패턴을 학습하여 오탐률을 최소화하고 
+                센서 데이터와 이미지 분석을 통해 미세한 이상 신호도 놓치지 않고 감지합니다.
+                머신러닝 알고리즘이 정상 패턴을 학습하여 오탐률을 최소화하고
                 생산 중단 시간을 효과적으로 줄입니다.
               </p>
             </Card>
@@ -141,8 +133,8 @@ export function LandingPage() {
               </div>
               <h3 className="text-xl font-semibold mb-3 tracking-tight">납기 리스크 예측</h3>
               <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                공급망 데이터, 생산 진행률, 외부 변수를 종합 분석하여 
-                납기 지연 가능성을 사전에 예측합니다. 리스크 수준에 따라 
+                공급망 데이터, 생산 진행률, 외부 변수를 종합 분석하여
+                납기 지연 가능성을 사전에 예측합니다. 리스크 수준에 따라
                 우선순위를 설정하고 선제적 조치를 취할 수 있습니다.
               </p>
             </Card>
@@ -153,7 +145,7 @@ export function LandingPage() {
               </div>
               <h3 className="text-xl font-semibold mb-3 tracking-tight">통합 대시보드</h3>
               <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                공정별 이상 여부, 생산 진행 현황, 납기 리스크를 한 화면에서 확인할 수 있습니다. 
+                공정별 이상 여부, 생산 진행 현황, 납기 리스크를 한 화면에서 확인할 수 있습니다.
                 실시간 데이터와 공정 이력을 함께 제공해 현장 대응과 의사결정을 빠르게 지원합니다.
               </p>
             </Card>
@@ -204,7 +196,7 @@ export function LandingPage() {
                 </ul>
               </div>
               <div className="order-1 md:order-2">
-                <img 
+                <img
                   src="https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-2_1770266116000_na1fn_ZmVhdHVyZS1hbm9tYWx5LWRldGVjdGlvbi5wbmc~.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTJfMTc3MDI2NjExNjAwMF9uYTFmbl9abVZoZEhWeVpTMXlhWE5yTFhCeVpXUnBZM1JwYjI0LnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=beu4TPhWzzIVMjFO4CDiq-4iAa7J8QKZYp-e-csTpc4CR3EKzUdUKMe2k1~lkEHAfL5Fvv3ZhUS3zt7Cbo9-CkdLHJIWzBwd9oBAedr6N1DYpvrgUppqUkbfbxHU1iyjzURMeG4SA0uUXGbBxrP0280aUK2Av6LB9Zhz7j~1uZa-nOH2nTVZeMuPiO0MvWNQJkKftoiBElLAC4tgjXTm9WiqQxngIWqyOpS08GYUtOuN~y~zKB2Z1SNJc0BeKuyjsqSqk3ywCXlPjrFEDJvCr83ssodAYM2Nlk3Ps6gigXHfg3TyiRG~NmO1MVVoF~VfTX9C-PmEQfqw23udGpgOpA__"
                   alt="실시간 공정 모니터링"
                   className="w-full rounded border border-precise border-border/70 opacity-70 saturate-50 contrast-90 grayscale mix-blend-multiply"
@@ -215,7 +207,7 @@ export function LandingPage() {
             {/* Feature 2 */}
             <div className="grid md:grid-cols-2 gap-14 items-center">
               <div>
-                <img 
+                <img
                   src="https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-3_1770266116000_na1fn_ZmVhdHVyZS1yaXNrLXByZWRpY3Rpb24.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTNfMTc3MDI2NjExNjAwMF9uYTFmbl9abVZoZEhWeVpTMXlhWE5yTFhCeVpXUnBZM1JwYjI0LnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=beu4TPhWzzIVMjFO4CDiq-4iAa7J8QKZYp-e-csTpc4CR3EKzUdUKMe2k1~lkEHAfL5Fvv3ZhUS3zt7Cbo9-CkdLHJIWzBwd9oBAedr6N1DYpvrgUppqUkbfbxHU1iyjzURMeG4SA0uUXGbBxrP0280aUK2Av6LB9Zhz7j~1uZa-nOH2nTVZeMuPiO0MvWNQJkKftoiBElLAC4tgjXTm9WiqQxngIWqyOpS08GYUtOuN~y~zKB2Z1SNJc0BeKuyjsqSqk3ywCXlPjrFEDJvCr83ssodAYM2Nlk3Ps6gigXHfg3TyiRG~NmO1MVVoF~VfTX9C-PmEQfqw23udGpgOpA__"
                   alt="AI 기반 이상 탐지"
                   className="w-full rounded border border-precise border-border/70 opacity-70 saturate-50 contrast-90 grayscale mix-blend-multiply"
@@ -227,8 +219,8 @@ export function LandingPage() {
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">AI 기반 이상 탐지 (센서/이미지)</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
-                  센서 데이터와 카메라 이미지를 동시에 분석하여 정상 패턴을 학습합니다. 
-                  미세한 이상 신호부터 육안으로 확인하기 어려운 결함까지 
+                  센서 데이터와 카메라 이미지를 동시에 분석하여 정상 패턴을 학습합니다.
+                  미세한 이상 신호부터 육안으로 확인하기 어려운 결함까지
                   정확하게 감지하여 품질 문제를 조기에 발견합니다.
                 </p>
                 <ul className="space-y-3">
@@ -262,7 +254,7 @@ export function LandingPage() {
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">공정별 생산 진행 관리 및 상태 시각화</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
-                  프레스, 용접, 도장, 의장 등 공정별 진행률과 상태를 실시간으로 추적합니다. 
+                  프레스, 용접, 도장, 의장 등 공정별 진행률과 상태를 실시간으로 추적합니다.
                   지연 징후를 빠르게 확인하고 생산 효율을 개선할 수 있습니다.
                 </p>
                 <ul className="space-y-3">
@@ -287,7 +279,7 @@ export function LandingPage() {
                 </ul>
               </div>
               <div className="order-1 md:order-2">
-                <img 
+                <img
                   src="https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-4_1770266116000_na1fn_ZmVhdHVyZS1wcm9kdWN0aW9uLW1hbmFnZW1lbnQ.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTRfMTc3MDI2NjExNjAwMF9uYTFmbl9abVZoZEhWeVpTMXlhWE5yTFhCeVpXUnBZM1JwYjI0LnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=beu4TPhWzzIVMjFO4CDiq-4iAa7J8QKZYp-e-csTpc4CR3EKzUdUKMe2k1~lkEHAfL5Fvv3ZhUS3zt7Cbo9-CkdLHJIWzBwd9oBAedr6N1DYpvrgUppqUkbfbxHU1iyjzURMeG4SA0uUXGbBxrP0280aUK2Av6LB9Zhz7j~1uZa-nOH2nTVZeMuPiO0MvWNQJkKftoiBElLAC4tgjXTm9WiqQxngIWqyOpS08GYUtOuN~y~zKB2Z1SNJc0BeKuyjsqSqk3ywCXlPjrFEDJvCr83ssodAYM2Nlk3Ps6gigXHfg3TyiRG~NmO1MVVoF~VfTX9C-PmEQfqw23udGpgOpA__"
                   alt="공정별 생산 진행 관리"
                   className="w-full rounded border border-precise border-border/70 opacity-70 saturate-50 contrast-90 grayscale mix-blend-multiply"
@@ -298,7 +290,7 @@ export function LandingPage() {
             {/* Feature 4 */}
             <div className="grid md:grid-cols-2 gap-14 items-center">
               <div>
-                <img 
+                <img
                   src="https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-5_1770266116000_na1fn_ZmVhdHVyZS1yZWFsdGltZS1tb25pdG9yaW5n.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTVfMTc3MDI2NjExNjAwMF9uYTFmbl9abVZoZEhWeVpTMXlhWE5yTFhCeVpXUnBZM1JwYjI0LnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=beu4TPhWzzIVMjFO4CDiq-4iAa7J8QKZYp-e-csTpc4CR3EKzUdUKMe2k1~lkEHAfL5Fvv3ZhUS3zt7Cbo9-CkdLHJIWzBwd9oBAedr6N1DYpvrgUppqUkbfbxHU1iyjzURMeG4SA0uUXGbBxrP0280aUK2Av6LB9Zhz7j~1uZa-nOH2nTVZeMuPiO0MvWNQJkKftoiBElLAC4tgjXTm9WiqQxngIWqyOpS08GYUtOuN~y~zKB2Z1SNJc0BeKuyjsqSqk3ywCXlPjrFEDJvCr83ssodAYM2Nlk3Ps6gigXHfg3TyiRG~NmO1MVVoF~VfTX9C-PmEQfqw23udGpgOpA__"
                   alt="납기 리스크 예측"
                   className="w-full rounded border border-precise border-border/70 opacity-70 saturate-50 contrast-90 grayscale mix-blend-multiply"
@@ -310,7 +302,7 @@ export function LandingPage() {
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">납기 리스크 예측 및 상태 표시</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
-                  각 주문의 지연 여부와 지연 확률, 예상 지연 시간을 실시간으로 제공합니다. 
+                  각 주문의 지연 여부와 지연 확률, 예상 지연 시간을 실시간으로 제공합니다.
                   이를 통해 납기 리스크를 빠르게 파악하고 대응 우선순위를 결정할 수 있습니다
                 </p>
                 <ul className="space-y-3">
@@ -344,8 +336,8 @@ export function LandingPage() {
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">주문 관리 및 생산 연계</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
-                  주문 정보, 생산 계획, 재고 현황을 통합 관리합니다. 
-                  주문에서 배송까지 전체 라이프사이클을 추적하고 
+                  주문 정보, 생산 계획, 재고 현황을 통합 관리합니다.
+                  주문에서 배송까지 전체 라이프사이클을 추적하고
                   생산 진행 상황과 자동으로 연계하여 효율적인 운영이 가능합니다.
                 </p>
                 <ul className="space-y-3">
@@ -370,7 +362,7 @@ export function LandingPage() {
                 </ul>
               </div>
               <div className="order-1 md:order-2">
-                <img 
+                <img
                   src="https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-6_1770266116000_na1fn_ZmVhdHVyZS1vcmRlci1tYW5hZ2VtZW50.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTZfMTc3MDI2NjExNjAwMF9uYTFmbl9abVZoZEhWeVpTMXlhWE5yTFhCeVpXUnBZM1JwYjI0LnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=beu4TPhWzzIVMjFO4CDiq-4iAa7J8QKZYp-e-csTpc4CR3EKzUdUKMe2k1~lkEHAfL5Fvv3ZhUS3zt7Cbo9-CkdLHJIWzBwd9oBAedr6N1DYpvrgUppqUkbfbxHU1iyjzURMeG4SA0uUXGbBxrP0280aUK2Av6LB9Zhz7j~1uZa-nOH2nTVZeMuPiO0MvWNQJkKftoiBElLAC4tgjXTm9WiqQxngIWqyOpS08GYUtOuN~y~zKB2Z1SNJc0BeKuyjsqSqk3ywCXlPjrFEDJvCr83ssodAYM2Nlk3Ps6gigXHfg3TyiRG~NmO1MVVoF~VfTX9C-PmEQfqw23udGpgOpA__"
                   alt="주문 관리 및 생산 연계"
                   className="w-full rounded border border-precise border-border/70 opacity-70 saturate-50 contrast-90 grayscale mix-blend-multiply"
@@ -403,7 +395,7 @@ export function LandingPage() {
                 <div className="flex-1 pt-2">
                   <h3 className="text-xl font-semibold mb-3 tracking-tight">회원 가입 또는 로그인</h3>
                   <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                    플랫폼에 회원가입하거나 기존 계정으로 로그인하세요. 
+                    플랫폼에 회원가입하거나 기존 계정으로 로그인하세요.
                     간단한 정보 입력만으로 계정을 생성할 수 있으며, 공정 관리자와 생산 관리자로 권한이 구분됩니다.
                   </p>
                 </div>
@@ -419,7 +411,7 @@ export function LandingPage() {
                 <div className="flex-1 pt-2">
                   <h3 className="text-xl font-semibold mb-3 tracking-tight">대시보드에서 전체 현황 확인</h3>
                   <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                    로그인 후 메인 대시보드에서 전체 생산 현황을 한눈에 확인합니다. 
+                    로그인 후 메인 대시보드에서 전체 생산 현황을 한눈에 확인합니다.
                     실시간 KPI와 생산/주문 상태, 납기 리스크 정보를 직관적으로 파악할 수 있습니다.
                   </p>
                 </div>
@@ -435,7 +427,7 @@ export function LandingPage() {
                 <div className="flex-1 pt-2">
                   <h3 className="text-xl font-semibold mb-3 tracking-tight">좌측 메뉴에서 공정별 페이지 이동</h3>
                   <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                    좌측 메뉴에서 프레스, 용접, 도장, 의장, 검사 등 공정별 상세 페이지로 이동합니다. 
+                    좌측 메뉴에서 프레스, 용접, 도장, 의장, 검사 등 공정별 상세 페이지로 이동합니다.
                     공정별 실시간 모니터링 데이터와 분석 결과를 확인할 수 있습니다.
                   </p>
                 </div>
@@ -451,7 +443,7 @@ export function LandingPage() {
                 <div className="flex-1 pt-2">
                   <h3 className="text-xl font-semibold mb-3 tracking-tight">이상 탐지 결과와 결함 목록 확인</h3>
                   <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                    각 공정 페이지에서 AI가 탐지한 이상 현황과 결함 목록을 확인합니다. 
+                    각 공정 페이지에서 AI가 탐지한 이상 현황과 결함 목록을 확인합니다.
                     결함 유형, 신뢰도 등 핵심 정보를 통해 빠르게 대응할 수 있습니다.
                   </p>
                 </div>
@@ -467,7 +459,7 @@ export function LandingPage() {
                 <div className="flex-1 pt-2">
                   <h3 className="text-xl font-semibold mb-3 tracking-tight">주문/생산/재고 페이지에서 업무 처리 및 상태 점검</h3>
                   <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
-                    주문 관리, 생산 진행, 재고 현황을 한 곳에서 관리합니다. 
+                    주문 관리, 생산 진행, 재고 현황을 한 곳에서 관리합니다.
                     주문 상태, 생산 진행률, 납기 예측 정보를 확인하며 업무를 처리할 수 있습니다.
                   </p>
                 </div>
@@ -521,7 +513,7 @@ export function LandingPage() {
               <h2 className="text-3xl md:text-4xl font-semibold mb-3 tracking-tight text-black">희망하는 고객사</h2>
             <p className="text-base text-muted-foreground">자동차 제조 현장의 혁신을 함께할 파트너를 찾습니다.</p>
           </div>
-          
+
             <div className="flex items-center justify-center">
               <img
                 src="/images/all.png"

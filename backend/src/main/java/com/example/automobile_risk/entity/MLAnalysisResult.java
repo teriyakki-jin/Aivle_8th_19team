@@ -72,6 +72,27 @@ public class MLAnalysisResult extends BaseTimeEntity {
     private String additionalInfo;
 
     /**
+     * 주문 ID
+     */
+    private Long orderId;
+
+    /**
+     * 생산 ID
+     */
+    private Long productionId;
+
+    /**
+     * 공정 실행 ID
+     */
+    private Long processExecutionId;
+
+    /**
+     * 공정명 (예: 프레스, 용접 등)
+     */
+    @Column(length = 100)
+    private String processName;
+
+    /**
      * 분석 시간 (밀리초)
      */
     private Long inferenceTimeMs;

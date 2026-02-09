@@ -1,6 +1,8 @@
 package com.example.automobile_risk.config;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,13 +12,19 @@ import com.example.automobile_risk.entity.Bom;
 import com.example.automobile_risk.entity.Equipment;
 import com.example.automobile_risk.entity.Inventory;
 import com.example.automobile_risk.entity.InventoryHistory;
+import com.example.automobile_risk.entity.MlInputDataset;
 import com.example.automobile_risk.entity.Order;
+import com.example.automobile_risk.entity.OrderProduction;
 import com.example.automobile_risk.entity.Part;
 import com.example.automobile_risk.entity.ProcessType;
+import com.example.automobile_risk.entity.Production;
 import com.example.automobile_risk.entity.VehicleModel;
+import com.example.automobile_risk.entity.enumclass.DatasetFormat;
 import com.example.automobile_risk.entity.enumclass.InventoryChangeType;
 import com.example.automobile_risk.entity.enumclass.Unit;
 import com.example.automobile_risk.entity.enumclass.UserRole;
+import com.example.automobile_risk.repository.MlInputDatasetRepository;
+import com.example.automobile_risk.repository.ProductionDatasetMappingRepository;
 import com.example.automobile_risk.repository.UserRepository;
 import com.example.automobile_risk.service.AuthService;
 import com.example.automobile_risk.service.PressFeatureAggregationService;
@@ -47,6 +55,8 @@ public class InitDb {
         private final PressFeatureAggregationService pressFeatureAggregationService;
         private final AuthService authService;
         private final UserRepository userRepository;
+        private final MlInputDatasetRepository mlInputDatasetRepository;
+        private final ProductionDatasetMappingRepository productionDatasetMappingRepository;
 
         public void vehicleModelDbInit() {
 
@@ -79,9 +89,6 @@ public class InitDb {
 
             VehicleModel capser_ax1 = createVehicleModel("캐스퍼 AX1", "경형", "가솔린", "2021년 9월부터 판매 중인 전륜구동 경형 SUV", true);
             VehicleModel kona_sx2 = createVehicleModel("코나 SX2", "소형", "전기", "2017년부터 생산 중인 전륜구동 소형 SUV", true);
-            VehicleModel veracruz = createVehicleModel("베라쿠르즈 EN", "준대형 SUV", "가솔린", "전륜구동 기반 유니 바디 형식의 준대형 SUV. 프로젝트명은 EN", true);
-            VehicleModel stella_SL = createVehicleModel("스텔라 SL", "중형 세단", "가솔린", "쏘나타의 1세대 격으로, 쏘나타가 스텔라와 공유하는 부분이 많았기 때문에 사실상 같은 차종으로 봐도 무방하다.", true);
-            VehicleModel pony = createVehicleModel("포니", "중형 세단", "가솔린", "첫 독자생산 모델(고유모델)이자, 대한민국 자동차 개발사상 최초로 독자생산된 국산 자동차다.", true);
             em.persist(avante_CN8);
             em.persist(sonata_DN8);
             em.persist(grandeur_GN7);
@@ -90,9 +97,6 @@ public class InitDb {
 
             em.persist(capser_ax1);
             em.persist(kona_sx2);
-            em.persist(veracruz);
-            em.persist(stella_SL);
-            em.persist(pony);
 
             /**
              *  부품
@@ -188,38 +192,6 @@ public class InitDb {
             em.persist(kona_sx2_bumper);
             em.persist(kona_sx2_radiatorGrill);
 
-            Bom veracruz_headLamp = createBom(2, veracruz, headLamp);
-            Bom veracruz_tailLamp = createBom(2, veracruz, tailLamp);
-            Bom veracruz_door = createBom(4, veracruz, door);
-            Bom veracruz_bumper = createBom(2, veracruz, bumper);
-            Bom veracruz_radiatorGrill = createBom(1, veracruz, radiatorGrill);
-            em.persist(veracruz_headLamp);
-            em.persist(veracruz_tailLamp);
-            em.persist(veracruz_door);
-            em.persist(veracruz_bumper);
-            em.persist(veracruz_radiatorGrill);
-
-            Bom stella_SL_headLamp = createBom(2, stella_SL, headLamp);
-            Bom stella_SL_tailLamp = createBom(2, stella_SL, tailLamp);
-            Bom stella_SL_door = createBom(4, stella_SL, door);
-            Bom stella_SL_bumper = createBom(2, stella_SL, bumper);
-            Bom stella_SL_radiatorGrill = createBom(1, stella_SL, radiatorGrill);
-            em.persist(stella_SL_headLamp);
-            em.persist(stella_SL_tailLamp);
-            em.persist(stella_SL_door);
-            em.persist(stella_SL_bumper);
-            em.persist(stella_SL_radiatorGrill);
-
-            Bom pony_headLamp = createBom(2, pony, headLamp);
-            Bom pony_tailLamp = createBom(2, pony, tailLamp);
-            Bom pony_door = createBom(4, pony, door);
-            Bom pony_bumper = createBom(2, pony, bumper);
-            Bom pony_radiatorGrill = createBom(1, pony, radiatorGrill);
-            em.persist(pony_headLamp);
-            em.persist(pony_tailLamp);
-            em.persist(pony_door);
-            em.persist(pony_bumper);
-            em.persist(pony_radiatorGrill);
 
             /**
              *  현 재고
@@ -238,11 +210,11 @@ public class InitDb {
             /**
              *  재고 이력
              */
-            InventoryHistory ih_headLamp_IN_10 = InventoryHistory.of(headLamp, 10, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.IN);
-            InventoryHistory ih_tailLamp_OUT_10 = InventoryHistory.of(tailLamp, -10, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.OUT);
-            InventoryHistory ih_door_OUT_20 = InventoryHistory.of(door, 20, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.IN);
-            InventoryHistory ih_bumper_OUT_10 = InventoryHistory.of(bumper, -10, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.ADJUST);
-            InventoryHistory ih_radiatorGrill_OUT_50 = InventoryHistory.of(radiatorGrill, -50, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.SCRAP);
+            InventoryHistory ih_headLamp_IN_10 = InventoryHistory.of(headLamp, 10, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.IN, null);
+            InventoryHistory ih_tailLamp_OUT_10 = InventoryHistory.of(tailLamp, -10, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.OUT, null);
+            InventoryHistory ih_door_OUT_20 = InventoryHistory.of(door, 20, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.IN, null);
+            InventoryHistory ih_bumper_OUT_10 = InventoryHistory.of(bumper, -10, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.ADJUST, null);
+            InventoryHistory ih_radiatorGrill_OUT_50 = InventoryHistory.of(radiatorGrill, -50, inventory_headLamp.getCurrentQty(), LocalDateTime.now(), InventoryChangeType.SCRAP, null);
             em.persist(ih_headLamp_IN_10);
             em.persist(ih_tailLamp_OUT_10);
             em.persist(ih_door_OUT_20);
@@ -260,7 +232,24 @@ public class InitDb {
             em.persist(order3);
 
             /**
-             *  생산
+             *  생산 (주문과 1:1 연결)
+             */
+            Production production1 = Production.of(order1.getOrderDate(), order1.getOrderQty(), avante_CN8);
+            Production production2 = Production.of(order2.getOrderDate(), order2.getOrderQty(), sonata_DN8);
+            Production production3 = Production.of(order3.getOrderDate(), order3.getOrderQty(), grandeur_GN7);
+            em.persist(production1);
+            em.persist(production2);
+            em.persist(production3);
+
+            OrderProduction op1 = OrderProduction.createOrderProduction(order1, production1, order1.getOrderQty());
+            OrderProduction op2 = OrderProduction.createOrderProduction(order2, production2, order2.getOrderQty());
+            OrderProduction op3 = OrderProduction.createOrderProduction(order3, production3, order3.getOrderQty());
+            em.persist(op1);
+            em.persist(op2);
+            em.persist(op3);
+
+            /**
+             *  공정 타입
              */
             ProcessType stamping = ProcessType.createProcessType("프레스", 1, true);
             ProcessType welding = ProcessType.createProcessType("차체조립(용접)", 2, true);
@@ -288,6 +277,123 @@ public class InitDb {
             em.persist(paintEquipment_1);
             em.persist(assemblyEquipment_1);
             em.persist(inspectionEquipment_1);
+
+            /**
+             *  ML 입력 데이터셋 + 생산 매핑 (초기)
+             */
+            if (mlInputDatasetRepository.count() == 0) {
+                String base = "ml-service\\\\datasets\\\\production_";
+                List<MlInputDataset> all = new ArrayList<>();
+                List<MlInputDataset> pressVibration = new ArrayList<>();
+                List<MlInputDataset> pressImage = new ArrayList<>();
+                List<MlInputDataset> weldingImage = new ArrayList<>();
+                List<MlInputDataset> paintImage = new ArrayList<>();
+                List<MlInputDataset> bodyAssembly = new ArrayList<>();
+                List<MlInputDataset> windshield = new ArrayList<>();
+                List<MlInputDataset> engine = new ArrayList<>();
+
+                for (int i = 1; i <= 10; i++) {
+                    MlInputDataset pressVib = MlInputDataset.builder()
+                            .processName("프레스")
+                            .serviceType("press_vibration")
+                            .name("press_vibration_unit01_p" + i)
+                            .format(DatasetFormat.JSON)
+                            .storageKey(base + i + "\\\\press\\\\press_vibration_unit01.json")
+                            .description("press vibration json sample for production " + i)
+                            .build();
+                    MlInputDataset pressImg = MlInputDataset.builder()
+                            .processName("프레스")
+                            .serviceType("press_image")
+                            .name("press_image_unit01_p" + i)
+                            .format(DatasetFormat.IMAGE)
+                            .storageKey(base + i + "\\\\press\\\\press_image_unit01.jpg")
+                            .description("press image sample for production " + i)
+                            .build();
+                    MlInputDataset weldImg = MlInputDataset.builder()
+                            .processName("용접")
+                            .serviceType("welding_image")
+                            .name("welding_unit01_p" + i)
+                            .format(DatasetFormat.IMAGE)
+                            .storageKey(base + i + "\\\\welding\\\\welding_unit01.jpg")
+                            .description("welding image sample for production " + i)
+                            .build();
+                    MlInputDataset paintImg = MlInputDataset.builder()
+                            .processName("도장")
+                            .serviceType("paint")
+                            .name("paint_unit01_p" + i)
+                            .format(DatasetFormat.IMAGE)
+                            .storageKey(base + i + "\\\\paint\\\\paint_unit01.jpg")
+                            .description("paint image sample for production " + i)
+                            .build();
+                    MlInputDataset bodyImg = MlInputDataset.builder()
+                            .processName("조립")
+                            .serviceType("body_assembly")
+                            .name("body_assembly_parts_p" + i)
+                            .format(DatasetFormat.IMAGE)
+                            .storageKey(base + i + "\\\\body_assembly")
+                            .description("body assembly part images for production " + i)
+                            .build();
+                    MlInputDataset inspectionCsv = MlInputDataset.builder()
+                            .processName("검사")
+                            .serviceType("windshield")
+                            .name("windshield_left_p" + i)
+                            .format(DatasetFormat.CSV)
+                            .storageKey(base + i + "\\\\inspection\\\\windshield_left.csv")
+                            .description("windshield csv sample for production " + i)
+                            .build();
+                    MlInputDataset inspectionEngine = MlInputDataset.builder()
+                            .processName("검사")
+                            .serviceType("engine")
+                            .name("engine_p" + i)
+                            .format(DatasetFormat.ARFF)
+                            .storageKey(base + i + "\\\\inspection\\\\engine.arff")
+                            .description("engine arff sample for production " + i)
+                            .build();
+
+                    all.add(pressVib);
+                    all.add(pressImg);
+                    all.add(weldImg);
+                    all.add(paintImg);
+                    all.add(bodyImg);
+                    all.add(inspectionCsv);
+                    all.add(inspectionEngine);
+
+                    pressVibration.add(pressVib);
+                    pressImage.add(pressImg);
+                    weldingImage.add(weldImg);
+                    paintImage.add(paintImg);
+                    bodyAssembly.add(bodyImg);
+                    windshield.add(inspectionCsv);
+                    engine.add(inspectionEngine);
+                }
+
+                mlInputDatasetRepository.saveAll(all);
+
+                // 생산 1~3에 공정별 데이터셋 매핑 (초기 기본)
+                mapDatasetIfEmpty(production1.getId(), "프레스", pressVibration.get(0));
+                mapDatasetIfEmpty(production1.getId(), "프레스", pressImage.get(0));
+                mapDatasetIfEmpty(production1.getId(), "용접", weldingImage.get(0));
+                mapDatasetIfEmpty(production1.getId(), "도장", paintImage.get(0));
+                mapDatasetIfEmpty(production1.getId(), "조립", bodyAssembly.get(0));
+                mapDatasetIfEmpty(production1.getId(), "검사", windshield.get(0));
+                mapDatasetIfEmpty(production1.getId(), "검사", engine.get(0));
+
+                mapDatasetIfEmpty(production2.getId(), "프레스", pressVibration.get(1));
+                mapDatasetIfEmpty(production2.getId(), "프레스", pressImage.get(1));
+                mapDatasetIfEmpty(production2.getId(), "용접", weldingImage.get(1));
+                mapDatasetIfEmpty(production2.getId(), "도장", paintImage.get(1));
+                mapDatasetIfEmpty(production2.getId(), "조립", bodyAssembly.get(1));
+                mapDatasetIfEmpty(production2.getId(), "검사", windshield.get(1));
+                mapDatasetIfEmpty(production2.getId(), "검사", engine.get(1));
+
+                mapDatasetIfEmpty(production3.getId(), "프레스", pressVibration.get(2));
+                mapDatasetIfEmpty(production3.getId(), "프레스", pressImage.get(2));
+                mapDatasetIfEmpty(production3.getId(), "용접", weldingImage.get(2));
+                mapDatasetIfEmpty(production3.getId(), "도장", paintImage.get(2));
+                mapDatasetIfEmpty(production3.getId(), "조립", bodyAssembly.get(2));
+                mapDatasetIfEmpty(production3.getId(), "검사", windshield.get(2));
+                mapDatasetIfEmpty(production3.getId(), "검사", engine.get(2));
+            }
         }
 
         public void OrderAndProductionDbInit() {
@@ -320,6 +426,22 @@ public class InitDb {
                     .vehicleModel(vehicleModel)
                     .part(part)
                     .build();
+        }
+
+        private void mapDatasetIfEmpty(Long productionId, String processName, MlInputDataset dataset) {
+            if (productionId == null || dataset == null) return;
+            boolean exists = productionDatasetMappingRepository
+                    .findByProductionIdAndProcessNameAndServiceType(productionId, processName, dataset.getServiceType())
+                    .isPresent();
+            if (exists) return;
+
+            em.createNativeQuery(
+                            "insert into production_dataset_mappings (created_date, last_modified_date, process_name, service_type, production_id, ml_input_dataset_id) values (now(), now(), ?, ?, ?, ?)")
+                    .setParameter(1, processName)
+                    .setParameter(2, dataset.getServiceType())
+                    .setParameter(3, productionId)
+                    .setParameter(4, dataset.getId())
+                    .executeUpdate();
         }
 
     }

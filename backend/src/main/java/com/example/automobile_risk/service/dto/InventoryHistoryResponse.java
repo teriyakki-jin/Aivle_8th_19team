@@ -19,6 +19,10 @@ public class InventoryHistoryResponse {
     private int changeQty;
     private int afterQty;
     private InventoryChangeType changeType;
+    private String changeTypeLabel;
+    private String remark;
+    private Long referenceId;
+    private String referenceType;
     private LocalDateTime occuredAt;
 
     public static InventoryHistoryResponse from(InventoryHistory h) {
@@ -27,6 +31,10 @@ public class InventoryHistoryResponse {
                 .changeQty(h.getChangeQty())
                 .afterQty(h.getAfterQty())
                 .changeType(h.getChangeType())
+                .changeTypeLabel(h.getChangeType() != null ? h.getChangeType().getLabel() : null)
+                .remark(h.getRemark())
+                .referenceId(h.getReferenceId())
+                .referenceType(h.getReferenceType())
                 .occuredAt(h.getOccuredAt())
                 .build();
     }

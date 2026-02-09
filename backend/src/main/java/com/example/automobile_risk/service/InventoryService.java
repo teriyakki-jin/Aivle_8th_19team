@@ -40,7 +40,7 @@ public class InventoryService {
         Part part = partRepository.findById(partId)
                 .orElseThrow(() -> new PartNotFoundException(partId));
 
-        Inventory inventory = Inventory.of(part, form.getInitialQty());
+        Inventory inventory = Inventory.of(part, form.getInitialQty(), form.getSafetyQty());
         Inventory savedInventory = inventoryRepository.save(inventory);
 
         InventoryHistory inventoryHistory = InventoryHistory.of(
@@ -48,7 +48,8 @@ public class InventoryService {
                 form.getInitialQty(),
                 inventory.getCurrentQty(),
                 LocalDateTime.now(),
-                InventoryChangeType.IN
+                InventoryChangeType.IN,
+                null
         );
 
         inventoryHistoryRepository.save(inventoryHistory);
@@ -65,17 +66,31 @@ public class InventoryService {
         Inventory inventory = inventoryRepository.findByPartId(form.getPartId())
                 .orElseThrow(() -> new IllegalStateException("재고가 존재하지 않습니다."));
 
-        inventory.adjust(form.getQty());
+        boolean planned = InventoryChangeType.isPlanned(form.getChangeType());
+        if (!planned) {
+            inventory.adjust(form.getQty());
+        }
 
         InventoryHistory history = InventoryHistory.of(
                 inventory.getPart(),
                 form.getQty(),
                 inventory.getCurrentQty(),
                 LocalDateTime.now(),
-                form.getChangeType()
+                form.getChangeType(),
+                form.getRemark()
         );
 
         inventoryHistoryRepository.save(history);
+    }
+
+    /**
+     *  안전 재고 설정
+     */
+    @Transactional
+    public void updateSafetyQty(Long partId, int safetyQty) {
+        Inventory inventory = inventoryRepository.findByPartId(partId)
+                .orElseThrow(() -> new IllegalStateException("재고가 존재하지 않습니다."));
+        inventory.updateSafetyQty(safetyQty);
     }
 
     /**

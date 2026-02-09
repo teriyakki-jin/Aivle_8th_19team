@@ -3,7 +3,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Paintbrush, Timer, Target } from "lucide-react";
 import { OrderSelector } from "./OrderSelector";
-import { ML_API_BASE, ML_IMAGE_BASE } from "../config/env";
+import { ML_IMAGE_BASE } from "../config/env";
+import { mlResultsApi, MLAnalysisResultDto } from "../api/mlResults";
 
 type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
@@ -56,8 +57,6 @@ type HistoryItem = {
 };
 
 const API_BASE = ML_IMAGE_BASE; // 이미지용
-const AUTO_ENDPOINT = `${ML_API_BASE}/paint/auto`;
-const POLL_MS = 5000;
 
 function cn(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -189,9 +188,8 @@ function CurrentImage({ url }: { url: string }) {
   );
 }
 
-const PaintQualityDashboardInner: React.FC = () => {
+const PaintQualityDashboardInner: React.FC<{ orderId: number | null }> = ({ orderId }) => {
   const navigate = useNavigate();
-  const firstRunRef = useRef(true);
   const inFlightRef = useRef(false);
 
   const [current, setCurrent] = useState<HistoryItem | null>(null);
@@ -250,59 +248,55 @@ const PaintQualityDashboardInner: React.FC = () => {
     } as HistoryItem;
   };
 
-  const pushHistory = (item: HistoryItem) => {
-    setCurrent(item);
-    setHistory((prev) => {
-      if (prev.length > 0 && prev[0].resultId === item.resultId) {
-        const copy = [...prev];
-        copy[0] = item;
-        return copy;
-      }
-      return [item, ...prev].slice(0, 50);
-    });
-  };
-
-  const fetchAutoOnce = async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-
-    try {
-      const res = await fetch(AUTO_ENDPOINT, { method: "POST" });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`AUTO API error ${res.status}: ${text || res.statusText}`);
-      }
-
-      const json = (await res.json()) as PaintApiResponse;
-      if (!json?.data) throw new Error("AUTO 응답 형식이 올바르지 않습니다. (data 없음)");
-
-      setError(null);
-
-      // ✅ source 노출 제거: auto_note만 허용(있을 때만)
-      setAutoInfo(json.auto_note ?? "");
-
-      const item = buildHistoryItem(json, new Date().toISOString());
-      pushHistory(item);
-    } catch (e: any) {
-      setError(e?.message || "AUTO 분석 중 오류가 발생했습니다.");
-    } finally {
-      inFlightRef.current = false;
-    }
-  };
-
   useEffect(() => {
-    if (firstRunRef.current) {
-      firstRunRef.current = false;
-      fetchAutoOnce();
-    }
+    if (!orderId) return;
+    let mounted = true;
 
-    const id = window.setInterval(() => {
-      fetchAutoOnce();
-    }, POLL_MS);
+    const parseAdditional = (item: MLAnalysisResultDto): PaintApiResponse | null => {
+      if (!item.additionalInfo) return null;
+      try {
+        return JSON.parse(item.additionalInfo);
+      } catch {
+        return null;
+      }
+    };
 
-    return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const load = async () => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      try {
+        const list = await mlResultsApi.list({
+          orderId,
+          serviceType: "paint",
+          limit: 50,
+        });
+        if (!mounted) return;
+
+        const items: HistoryItem[] = [];
+        for (const it of list) {
+          const json = parseAdditional(it);
+          if (!json?.data) continue;
+          const item = buildHistoryItem(json, it.createdDate ?? new Date().toISOString());
+          items.push(item);
+        }
+        setHistory(items);
+        setCurrent(items[0] ?? null);
+        setAutoInfo("");
+        setError(null);
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || "ML 결과 조회 실패");
+      } finally {
+        if (!mounted) return;
+        inFlightRef.current = false;
+      }
+    };
+
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [orderId]);
 
   const latest = history[0];
 
@@ -325,10 +319,6 @@ const PaintQualityDashboardInner: React.FC = () => {
             <div>
               <h2 className="text-3xl font-bold text-gray-900">도장 품질 관리</h2>
               <p className="text-gray-600 mt-1">도장 결함 탐지 및 이력 관리</p>
-              <p className="text-xs text-gray-500 mt-1">
-                Polling:{" "}
-                {POLL_MS / 1000}s
-              </p>
               {autoInfo ? <p className="text-xs text-gray-500 mt-1">{autoInfo}</p> : null}
             </div>
           </div>
@@ -592,7 +582,7 @@ const PaintQualityDashboardInner: React.FC = () => {
         </div>
 
         <div className="mt-3 text-xs text-gray-500">
-          * AUTO는 {POLL_MS / 1000}초 주기로 자동 실행됩니다.
+          * 주문에 저장된 ML 결과를 표시합니다.
         </div>
       </Card>
     </div>
@@ -602,7 +592,7 @@ const PaintQualityDashboardInner: React.FC = () => {
 export const PaintQualityDashboard: React.FC = () => {
   return (
     <OrderSelector processName="도장 품질">
-      {(_orderId) => <PaintQualityDashboardInner />}
+      {(_orderId) => <PaintQualityDashboardInner orderId={_orderId} />}
     </OrderSelector>
   );
 };

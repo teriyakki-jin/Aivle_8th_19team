@@ -21,6 +21,7 @@ public class Inventory extends BaseTimeEntity {
     private Part part;
 
     private int currentQty;   // 현재 가용 수량
+    private int safetyQty;    // 안전 재고 수량
 
     @Enumerated(EnumType.STRING)
     private InventoryStatus status;
@@ -35,10 +36,14 @@ public class Inventory extends BaseTimeEntity {
      *  생산 생성
      */
     public static Inventory of(Part part, int currentQty) {
+        return of(part, currentQty, 0);
+    }
 
+    public static Inventory of(Part part, int currentQty, int safetyQty) {
         return Inventory.builder()
                 .part(part)
                 .currentQty(currentQty)
+                .safetyQty(safetyQty)
                 .status(InventoryStatus.AVAILABLE)
                 .build();
     }
@@ -49,5 +54,12 @@ public class Inventory extends BaseTimeEntity {
         }
 
         this.currentQty += qty;
+    }
+
+    public void updateSafetyQty(int safetyQty) {
+        if (safetyQty < 0) {
+            throw new IllegalArgumentException("안전 재고는 0 이상이어야 합니다.");
+        }
+        this.safetyQty = safetyQty;
     }
 }

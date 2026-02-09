@@ -13,7 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/paint-analysis")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = {"http://localhost:3000", "http://127.0.0.1:3000"}, allowCredentials = "true")
 public class PaintAnalysisController {
     
     private final PaintAnalysisService paintAnalysisService;

@@ -468,6 +468,41 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* CTA Section */}
+      <section 
+        id="contact"
+        className="py-24 border-t border-precise border-border relative overflow-hidden scroll-mt-24"
+        style={{
+          backgroundImage: `url('https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-5_1770266107000_na1fn_Y3RhLWJhY2tncm91bmQ.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTVfMTc3MDI2NjEwNzAwMF9uYTFmbl9ZM1JoTFdKaFkydG5jbTkxYm1RLnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=dmi3Iqj1~dtAeU-RJl4WCtYPmkx-lQ4D3~FmCx~h8EYykJzMW6IjMYAE0xBPYviZ2-D5sNQekHvI4zDHgutDStx94u-HZg5jkCSF-ltfrWCzbKtvvDbRRaOLsxIC3YD3Ha0~nErna0rxdUH0u--WttZgORjgByFVkdW96HiNjHCRaSZFlIvOLMnX-fnbiWw~6Kt4vadeBNcpaLwkerBQyHEqs~r-dwXfZZglzD6sizf6N9CaQD7geKnjf3xxqjrwS0vgRXACL6o4PIKDcy-4B3cTfKelLmDhbtgEGGjWU3RfmM4uwcT~3J7CTzMvdwc389Qa6qM7sBcq-6jJ497phg__')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        <div className="absolute inset-0 bg-background/95"></div>
+        <div className="container relative">
+          <div className="max-w-3xl mx-auto text-center space-y-4">
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
+              지금 바로 시작하세요
+            </h2>
+            <p className="text-base md:text-lg text-muted-foreground">
+              무료 데모를 통해 플랫폼의 강력한 기능을 직접 경험해보세요. 
+              전문 컨설턴트가 귀사의 생산 환경에 최적화된 솔루션을 제안해드립니다.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-5 justify-center">
+              <Button size="lg" className="text-base" asChild>
+                <Link to="/signup">
+                  무료 데모 신청
+                  <ArrowRight className="ml-2 w-5 h-5" />
+                </Link>
+              </Button>
+              <Button size="lg" variant="outline" className="text-base" asChild>
+                <a href="#contact">영업팀 문의하기</a>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Trusted Customers */}
         <section className="border-t border-precise border-border py-20 bg-white">
         <div className="container">

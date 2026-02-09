@@ -19,6 +19,7 @@ import { OrderPage } from "./components/order/OrderPage";
 import { ProductionPage } from "./components/order/ProductionPage";
 import { ProcessPage } from "./components/order/ProcessPage";
 import { InventoryPage } from "./components/order/InventoryPage";
+import { DebugPanel } from "./components/DebugPanel";
 import { TermsOfServicePage } from './components/TermsOfServicePage';
 import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
 import { ProductionProvider } from "./context/ProductionContext";
@@ -41,6 +42,7 @@ function Layout({
       <Sidebar username={username} role={role} onLogout={onLogout} />
       <main className="flex-1 overflow-auto">{children}</main>
       <AIChatbot />
+      {import.meta.env.PROD && <DebugPanel />}
     </div>
   );
 }

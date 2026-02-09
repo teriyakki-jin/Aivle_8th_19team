@@ -94,7 +94,7 @@ export function OrderSelector({ processName, children }: OrderSelectorProps) {
       <div className="mb-6">
         <h2 className="text-xl font-bold text-slate-900">{processName} - 주문 선택</h2>
         <p className="text-sm text-slate-500 mt-1">
-          분석할 주문을 선택하세요. 현재 {runningProductions.length}개의 생산이 진행 중입니다.
+          확인할 주문을 선택하세요. 현재 {runningProductions.length}개의 생산이 진행 중입니다.
         </p>
       </div>
 

@@ -32,5 +32,8 @@ build/
 ### VS Code ###
 .vscode/
 
+### Build outputs ###
+bin/
+
 ### Local config ###
 #src/main/resources/application-prod.properties

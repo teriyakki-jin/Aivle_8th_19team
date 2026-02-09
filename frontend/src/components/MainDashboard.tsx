@@ -376,11 +376,6 @@ export function MainDashboard() {
   useEffect(() => {
     // 1) 항상 폴링을 켜서 "SSE 이벤트가 안 와도" 갱신되게 함
     fetchDashboard();
-    pollRef.current = setInterval(fetchDashboard, 3_000);
-
-    // 2) 예측 오버뷰도 폴링
-    fetchPrediction();
-    predPollRef.current = setInterval(fetchPrediction, 3_000);
     pollRef.current = setInterval(fetchDashboard, 5_000);
 
     // 2) 예측 오버뷰도 폴링

@@ -157,7 +157,7 @@ export function BatteryDashboard() {
                                 }`}
                         >
                             {isMonitoring ? <Pause className="w-5 h-5" /> : <PlayCircle className="w-5 h-5" />}
-                            {isMonitoring ? 'STOP MONITORING' : 'START MONITORING'}
+                            {isMonitoring ? '모니터링 중지' : '모니터링 시작'}
                         </button>
                     </div>
                 </div>
@@ -327,7 +327,7 @@ export function BatteryDashboard() {
                 <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200 overflow-hidden">
                     <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <Activity className="w-5 h-5 text-blue-600" />
-                        Real-time Process Logs
+                        실시간 공정 로그
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         {dataBuffer.slice(-5).reverse().map((d, i) => (
@@ -337,7 +337,7 @@ export function BatteryDashboard() {
                                     <span className="text-[10px] font-bold text-gray-400">{d.time}</span>
                                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${d.prediction === 'OK' ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-700'
                                         }`}>
-                                        {d.prediction}
+                                        {d.prediction === 'OK' ? '양품' : '불량'}
                                     </span>
                                 </div>
                                 <div className="text-sm font-bold text-gray-900">{d.RealPower}W</div>

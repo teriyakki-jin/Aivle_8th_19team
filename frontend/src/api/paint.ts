@@ -5,9 +5,14 @@ export async function uploadPaintImage(file: File): Promise<PaintPredictResponse
   const formData = new FormData();
   formData.append("file", file);
 
+  const token = localStorage.getItem("token");
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
   const res = await fetch(`${ML_API_BASE}/paint`, {
     method: "POST",
     body: formData,
+    headers,
   });
 
   if (!res.ok) {

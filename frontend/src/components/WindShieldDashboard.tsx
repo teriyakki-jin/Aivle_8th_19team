@@ -302,7 +302,7 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
     if (systemStatus === "WAITING") {
       list.push({
         id: 4,
-        issue: "CSV 로드 실패 또는 데이터 없음 (/public/data 확인)",
+        issue: "로딩 중",
         severity: "주의",
         time: nowHHMMSS(),
       });
@@ -339,7 +339,7 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
                   윈드실드 사이드 몰딩 공정
                 </h2>
                 <p className="text-gray-600 mt-1">
-                  윈드실드 실시간 품질 판정 (자동 모니터링)
+                  윈드실드 실시간 품질 판정
                 </p>
               </div>
             </div>
@@ -416,7 +416,7 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
                   </span>
                 ) : (
                   <span className="text-xs text-gray-500">
-                    CSV 로딩 후 자동으로 요청이 시작됩니다
+                    
                   </span>
                 )}
               </div>
@@ -609,7 +609,7 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
         <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-200 overflow-hidden mb-8">
           <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <Activity className="w-5 h-5 text-indigo-600" />
-            Real-time Process Logs (최근 5개)
+            실시간 공정 로그 (최근 5개)
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

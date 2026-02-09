@@ -83,12 +83,19 @@ type ProductionItem = {
   baseOffset?: number; // 주문별 랜덤 시작 오프셋
 };
 
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  const token = localStorage.getItem("token");
+  const h: Record<string, string> = { ...extra };
+  if (token) h["Authorization"] = `Bearer ${token}`;
+  return h;
+}
+
 // ML API 호출 함수
 async function callMLApi(endpoint: string, offset: number = 0): Promise<any> {
   try {
     const separator = endpoint.includes("?") ? "&" : "?";
     const url = `${ML_API_BASE}${endpoint}${separator}offset=${offset}`;
-    const res = await fetch(url, { method: "POST" });
+    const res = await fetch(url, { method: "POST", headers: authHeaders() });
     if (!res.ok) throw new Error(`API Error: ${res.status}`);
     return await res.json();
   } catch (error) {
@@ -102,7 +109,7 @@ async function callDueDateApi(payload: any): Promise<any> {
     const url = `${ML_API_BASE}/duedate`;
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error(`DueDate API Error: ${res.status}`);

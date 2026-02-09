@@ -17,7 +17,11 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import org.springframework.beans.factory.annotation.Value;
+
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -26,6 +30,9 @@ public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Value("${cors.allowed-origins:}")
+    private String extraOrigins;
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -114,10 +121,23 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://127.0.0.1:3000")); // Frontend origins
+
+        List<String> origins = new ArrayList<>(Arrays.asList(
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://127.0.0.1:3000",
+                "http://127.0.0.1:5173",
+                "https://d33ujyrx3odob1.cloudfront.net"
+        ));
+        // 환경변수 CORS_ALLOWED_ORIGINS 로 추가 origin 지정 가능 (쉼표 구분)
+        if (extraOrigins != null && !extraOrigins.isBlank()) {
+            origins.addAll(Arrays.asList(extraOrigins.split(",")));
+        }
+        configuration.setAllowedOrigins(origins);
+
         configuration.setAllowedMethods(Arrays.asList("GET", "PATCH", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
-        configuration.setAllowCredentials(true); // Enable credentials
+        configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

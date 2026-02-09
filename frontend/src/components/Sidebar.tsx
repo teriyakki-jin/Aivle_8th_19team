@@ -142,44 +142,29 @@ export function Sidebar({ username, role, onLogout }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-slate-700">
-        {/* ✅ 모드 전환 버튼 */}
+      <div className="p-4 bg-slate-900">
         {!forcedMode && (
           <button
             onClick={handleSwitchMode}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors mb-3"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors mb-2"
           >
             <ArrowLeftRight className="w-5 h-5" />
             <span>{mode === "process" ? "주문생산으로 이동" : "이상탐지로 이동"}</span>
           </button>
         )}
 
-        {/* Logout */}
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors mb-3"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition-colors mb-3"
         >
           <LogOut className="w-5 h-5" />
           <span>로그아웃</span>
         </button>
-        
-        <div className="space-y-1 mb-3">
-          <Link
-            to="/terms"
-            className="block text-xs text-slate-400 hover:text-slate-300 px-4 py-1"
-          >
-            이용약관
-          </Link>
-          <Link
-            to="/privacy"
-            className="block text-xs text-slate-400 hover:text-slate-300 px-4 py-1"
-          >
-            개인정보처리방침
-          </Link>
-        </div>
 
-        <div className="text-xs text-slate-500">
-          마지막 업데이트: {new Date().toLocaleTimeString("ko-KR")}
+        <div className="flex items-center gap-3 px-4 text-xs text-slate-700">
+          <Link to="/terms" className="hover:text-slate-500 transition-colors">이용약관</Link>
+          <span>·</span>
+          <Link to="/privacy" className="hover:text-slate-500 transition-colors">개인정보처리방침</Link>
         </div>
       </div>
     </aside>

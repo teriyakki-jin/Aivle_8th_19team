@@ -485,18 +485,15 @@ export function LandingPage() {
               지금 바로 시작하세요
             </h2>
             <p className="text-base md:text-lg text-muted-foreground">
-              무료 데모를 통해 플랫폼의 강력한 기능을 직접 경험해보세요. 
-              전문 컨설턴트가 귀사의 생산 환경에 최적화된 솔루션을 제안해드립니다.
+              회원가입만 하면 AI 기반 공정 이상 탐지와 납기 리스크 예측 기능을 바로 체험할 수 있습니다.
+              실시간 모니터링부터 생산 현황 분석까지, 스마트 팩토리의 핵심 기능을 직접 경험해보세요.
             </p>
-            <div className="flex flex-col sm:flex-row gap-5 justify-center">
+            <div className="flex justify-center">
               <Button size="lg" className="text-base" asChild>
                 <Link to="/signup">
-                  무료 데모 신청
+                  시작하기
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="text-base" asChild>
-                <a href="#contact">영업팀 문의하기</a>
               </Button>
             </div>
           </div>

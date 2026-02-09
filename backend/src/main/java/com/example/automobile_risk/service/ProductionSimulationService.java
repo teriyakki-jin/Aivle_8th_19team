@@ -6,6 +6,7 @@ import com.example.automobile_risk.entity.ProcessExecution;
 import com.example.automobile_risk.entity.ProcessType;
 import com.example.automobile_risk.entity.Production;
 import com.example.automobile_risk.entity.enumclass.DatasetFormat;
+import com.example.automobile_risk.entity.enumclass.DefectSnapshotStage;
 import com.example.automobile_risk.entity.enumclass.EquipmentStatus;
 import com.example.automobile_risk.exception.ProductionNotFoundException;
 import com.example.automobile_risk.repository.EquipmentRepository;
@@ -39,6 +40,7 @@ public class ProductionSimulationService {
     private final PlatformTransactionManager transactionManager;
     private final ProductionSseService productionSseService;
     private final OrderService orderService;
+    private final DefectSummaryService defectSummaryService;
     private final MLProxyService mlProxyService;
     private final ProductionDatasetService productionDatasetService;
     private final DueDatePredictionTriggerService dueDatePredictionTriggerService;
@@ -95,7 +97,7 @@ public class ProductionSimulationService {
 
                         Equipment equipment = pickEquipment(processType.getId());
                         if (equipment == null) {
-                            throw new IllegalStateException("설비를 찾을 수 없습니다. processType=" + processType.getProcessName());
+                            throw new IllegalStateException("Equipment not found for processType=" + processType.getProcessName());
                         }
 
                         ProcessExecution pe = ProcessExecution.createEntity(
@@ -176,7 +178,11 @@ public class ProductionSimulationService {
             long remaining = processExecutionRepository.countNotCompletedByProductionId(productionId);
             if (remaining == 0) {
                 production.complete(LocalDateTime.now());
-                // 연관 주문 완료 처리
+                defectSummaryService.captureSnapshotForProduction(
+                        productionId,
+                        DefectSnapshotStage.COMPLETED,
+                        production.getEndDate()
+                );
                 List<Long> orderIds = orderService.findRelatedOrderIdsByProduction(productionId);
                 for (Long orderId : orderIds) {
                     orderService.tryCompleteOrder(orderId);

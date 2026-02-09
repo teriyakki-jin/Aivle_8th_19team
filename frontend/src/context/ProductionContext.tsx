@@ -7,7 +7,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { productionApi, ProductionDto } from "../api/production";
+import { productionApi, ProductionCompletePayload, ProductionDto } from "../api/production";
 import { processExecutionApi, ProcessExecutionDto } from "../api/processExecution";
 import { apiUrl } from "../config/env";
 
@@ -130,6 +130,7 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
 
   // 실행 중인 생산 추적 (중복 실행 방지)
   const runningProductions = useRef<Set<number>>(new Set());
+  const completedProductions = useRef<Set<number>>(new Set());
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -234,6 +235,54 @@ export function ProductionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const finalizeCompleted = async () => {
+      const items = Array.from(productions.values());
+      for (const production of items) {
+        const productionId = production.productionId;
+        if (!productionId) continue;
+        if (completedProductions.current.has(productionId)) continue;
+        if (production.productionStatus === "COMPLETED") {
+          completedProductions.current.add(productionId);
+          continue;
+        }
+        if (production.productionStatus && production.productionStatus !== "IN_PROGRESS") {
+          continue;
+        }
+
+        const isCompleted = production.stageResults.every((r) => r.status === "completed");
+        const unitIndex = Number(production.currentUnitIndex ?? 0);
+        const totalQty = Math.max(1, Number(production.orderQty ?? 1));
+        if (!isCompleted || unitIndex < totalQty) continue;
+
+        const qty = Math.max(1, Number(production.orderQty ?? 1));
+        const serialNumbers = Array.from({ length: qty }, (_, i) => `SN-${productionId}-${i + 1}`);
+        const payload: ProductionCompletePayload = {
+          endDate: new Date().toISOString().replace("Z", ""),
+          serialNumbers,
+        };
+
+        try {
+          completedProductions.current.add(productionId);
+          await productionApi.complete(productionId, payload);
+          if (!cancelled) {
+            await refresh();
+          }
+        } catch (e) {
+          completedProductions.current.delete(productionId);
+        }
+      }
+    };
+
+    void finalizeCompleted();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [productions, refresh]);
 
   const applyStreamEvent = useCallback((event: ProductionStreamEvent) => {
     setProductions((prev) => {

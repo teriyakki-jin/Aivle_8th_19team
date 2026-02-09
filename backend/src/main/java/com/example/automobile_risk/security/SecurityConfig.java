@@ -1,7 +1,6 @@
 package com.example.automobile_risk.security;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,6 +17,9 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import org.springframework.beans.factory.annotation.Value;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -28,9 +30,9 @@ public class SecurityConfig {
 
     private final UserDetailsServiceImpl userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    
-    @Value("${cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000,https://d33ujyrx3odob1.cloudfront.net}")
-    private String allowedOrigins;
+
+    @Value("${cors.allowed-origins:}")
+    private String extraOrigins;
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -119,16 +121,23 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        
-        // 허용된 도메인들을 환경 변수에서 읽어옴
-        List<String> origins = Arrays.asList(allowedOrigins.split(","));
+
+        List<String> origins = new ArrayList<>(Arrays.asList(
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://127.0.0.1:3000",
+                "http://127.0.0.1:5173",
+                "https://d33ujyrx3odob1.cloudfront.net"
+        ));
+        // 환경변수 CORS_ALLOWED_ORIGINS 로 추가 origin 지정 가능 (쉼표 구분)
+        if (extraOrigins != null && !extraOrigins.isBlank()) {
+            origins.addAll(Arrays.asList(extraOrigins.split(",")));
+        }
         configuration.setAllowedOrigins(origins);
-        
+
         configuration.setAllowedMethods(Arrays.asList("GET", "PATCH", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*")); // 모든 헤더 허용
-        configuration.setAllowCredentials(true); // Enable credentials
-        configuration.setMaxAge(3600L); // preflight 요청 캐시 시간 설정
-        
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

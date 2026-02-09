@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, RefreshCcw, Factory, Image as ImageIcon, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { OrderSelector } from "./OrderSelector";
 import { ML_IMAGE_BASE } from "../config/env";
@@ -195,18 +195,11 @@ function JudgeBadge({ judgement }: { judgement: "양품" | "불량" | "대기" }
 ===================== */
 
 export function WeldingImageDashboard() {
-  const [searchParams] = useSearchParams();
-  const orderId = searchParams.get("orderId");
-
-  if (!orderId) {
-    return (
-      <OrderSelector processName="용접 공정">
-        {(selectedOrderId) => <WeldingImageDashboardContent orderId={selectedOrderId} />}
-      </OrderSelector>
-    );
-  }
-
-  return <WeldingImageDashboardContent orderId={parseInt(orderId, 10)} />;
+  return (
+    <OrderSelector processName="용접 공정">
+      {(selectedOrderId) => <WeldingImageDashboardContent orderId={selectedOrderId} />}
+    </OrderSelector>
+  );
 }
 
 function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
@@ -349,7 +342,6 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
             </div>
             <div>
               <h2 className="text-3xl font-bold text-gray-900">용접 이미지 검사</h2>
-              <p className="text-gray-600 mt-1">주문별 저장 결과 표시</p>
               <p className="text-xs text-gray-500 mt-1">
                 최근 갱신: <span className="font-mono">{lastUpdated}</span>
               </p>
@@ -514,7 +506,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
 
       {/* Table */}
       <Card
-        title="최근 검사 결과"
+        title="최근 분석 이력"
         badge={
           <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
             최근 {Math.min(history.length, 50)}건

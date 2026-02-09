@@ -2,7 +2,6 @@ import os
 import shutil
 import uuid
 import traceback
-from threading import Lock
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
@@ -11,13 +10,11 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from langchain.chains import ConversationChain
-from langchain.memory import ConversationBufferMemory
-from langchain_openai import ChatOpenAI
 
 import press
 import windshield
 import engine
+from chat_bot import chat as chatbot_chat
 from paint import service as paint_service
 import body_assembly
 from body_assembly import service as body_service
@@ -43,9 +40,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CHATBOT_SESSIONS = {}
-CHATBOT_LOCK = Lock()
-
 
 class ChatbotRequest(BaseModel):
     session_id: str
@@ -55,20 +49,6 @@ class ChatbotRequest(BaseModel):
 class ChatbotResponse(BaseModel):
     content: str
     dataSummary: Optional[str] = None
-
-
-def get_chatbot_chain(session_id: str) -> ConversationChain:
-    with CHATBOT_LOCK:
-        chain = CHATBOT_SESSIONS.get(session_id)
-        if chain:
-            return chain
-
-        model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        llm = ChatOpenAI(model=model_name, temperature=0.2)
-        memory = ConversationBufferMemory(return_messages=True)
-        chain = ConversationChain(llm=llm, memory=memory)
-        CHATBOT_SESSIONS[session_id] = chain
-        return chain
 
 
 
@@ -140,10 +120,13 @@ def health():
     }
 
 # =========================
-# Chatbot (LangChain Memory)
+# Chatbot (LangChain Agent + Tools)
 # =========================
 @app.post("/api/v1/chatbot/query", response_model=ChatbotResponse)
 def chatbot_query(request: ChatbotRequest):
+    """
+    공정 관리 AI 챗봇 - 실시간 API 연동
+    """
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key:
         raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
@@ -151,8 +134,7 @@ def chatbot_query(request: ChatbotRequest):
     if not request.session_id or not request.message.strip():
         raise HTTPException(status_code=400, detail="session_id and message are required")
 
-    chain = get_chatbot_chain(request.session_id)
-    answer = chain.predict(input=request.message)
+    answer = chatbot_chat(request.session_id, request.message)
     return ChatbotResponse(content=answer)
 
 # =========================

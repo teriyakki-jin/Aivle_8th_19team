@@ -626,37 +626,4 @@ public class MLProxyService {
         if (node == null || node.isNull()) return null;
         return node.asText();
     }
-
-    /**
-     * Chatbot 쿼리 (DB 저장 없이 단순 프록시)
-     */
-    public JsonNode chatbotQuery(String sessionId, String message) {
-        try {
-            String url = mlServiceBaseUrl + "/api/v1/chatbot/query";
-            log.info("Calling Chatbot Service: {}", url);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            String body = objectMapper.writeValueAsString(Map.of(
-                "session_id", sessionId,
-                "message", message
-            ));
-
-            HttpEntity<String> requestEntity = new HttpEntity<>(body, headers);
-
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    requestEntity,
-                    String.class
-            );
-
-            return objectMapper.readTree(response.getBody());
-
-        } catch (Exception e) {
-            log.error("Error calling chatbot service: {}", e.getMessage(), e);
-            throw new RuntimeException("Chatbot 서비스 호출 실패: " + e.getMessage(), e);
-        }
-    }
 }

@@ -123,7 +123,7 @@ export const BoardListPage = () => {
                                         </div>
                                     ) : (
                                         <div>
-                                            <p className="text-gray-600 line-clamp-3 mb-4">
+                                            <p className="text-gray-900 line-clamp-3 mb-4">
                                                 {stripHtml(post.content)}
                                             </p>
                                             <div className="flex justify-between items-center">

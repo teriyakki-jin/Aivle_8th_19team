@@ -169,6 +169,9 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
     { time: string; sensor_0: number; sensor_1: number; sensor_2: number }[]
   >([]);
   const [lastUpdated, setLastUpdated] = useState<string>("--:--:--");
+  const [historyBuffer, setHistoryBuffer] = useState<
+    { time: string; sortKey: number; type: string; status: string; detail: string; statusTone: "green" | "red" | "blue" }[]
+  >([]);
 
   const defectDistribution = useMemo(() => {
     return DEFECT_TYPES.map((type) => ({
@@ -295,6 +298,49 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
           setVibrationHistory([]);
           setSensorHistory([]);
         }
+
+        // Build combined history
+        const histEntries: typeof historyBuffer = [];
+        if (imageList) {
+          imageList.forEach((item) => {
+            const info = parseAdditional(item) || {};
+            const predClass = info.predicted_class ?? info.prediction_class ?? "-";
+            const conf = info.confidence ?? 0;
+            const time = item.createdDate
+              ? new Date(item.createdDate).toLocaleTimeString()
+              : nowHHMMSS();
+            const sortKey = item.createdDate ? new Date(item.createdDate).getTime() : Date.now();
+            histEntries.push({
+              time,
+              sortKey,
+              type: "이미지",
+              status: toKo(predClass),
+              detail: `신뢰도 ${(conf * 100).toFixed(1)}%`,
+              statusTone: "blue",
+            });
+          });
+        }
+        if (vibList) {
+          vibList.forEach((item) => {
+            const info = parseAdditional(item) || {};
+            const isAnom = info.is_anomaly ?? 0;
+            const err = info.reconstruction_error ?? item.reconstructionError ?? 0;
+            const time = item.createdDate
+              ? new Date(item.createdDate).toLocaleTimeString()
+              : nowHHMMSS();
+            const sortKey = item.createdDate ? new Date(item.createdDate).getTime() : Date.now();
+            histEntries.push({
+              time,
+              sortKey,
+              type: "진동",
+              status: isAnom ? "이상" : "정상",
+              detail: `복원 오차 ${Number(err).toFixed(4)}`,
+              statusTone: isAnom ? "red" : "green",
+            });
+          });
+        }
+        histEntries.sort((a, b) => b.sortKey - a.sortKey);
+        setHistoryBuffer(histEntries.slice(0, 30));
       } catch (e) {
         console.error("Failed to fetch press results:", e);
       } finally {
@@ -510,7 +556,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                     <XAxis dataKey="time" tick={{ fontSize: 10 }} tickMargin={6} />
                     <YAxis stroke="#94a3b8" domain={["auto", "auto"]} />
-                    <Tooltip contentStyle={{ backgroundColor: "white", border: "1px solid #f1f5f9", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }} />
+                    <Tooltip contentStyle={{ backgroundColor: "white", border: "1px solid #f1f5f9", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }} labelStyle={{ color: "#111827" }} itemStyle={{ color: "#111827" }} />
                     <Legend />
                     <Line type="monotone" dataKey="sensor_0" stroke="#2563eb" strokeWidth={2} dot={false} isAnimationActive={false} />
                     <Line type="monotone" dataKey="sensor_1" stroke="#10b981" strokeWidth={2} dot={false} isAnimationActive={false} />
@@ -529,7 +575,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                     <XAxis dataKey="time" tick={{ fontSize: 10 }} tickMargin={6} />
                     <YAxis stroke="#94a3b8" domain={["auto", "auto"]} />
-                    <Tooltip contentStyle={{ backgroundColor: "white", border: "1px solid #f1f5f9", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }} />
+                    <Tooltip contentStyle={{ backgroundColor: "white", border: "1px solid #f1f5f9", borderRadius: "12px", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }} labelStyle={{ color: "#111827" }} itemStyle={{ color: "#111827" }} />
                     <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={2} dot={false} isAnimationActive={false} name="복원 오차" />
                   </LineChart>
                 </ResponsiveContainer>
@@ -540,6 +586,7 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
       </div>
 
       {/* Bottom: Defect Distribution */}
+      <div className="mb-8">
       <Card
         title="결함 유형 분포"
         badge={
@@ -573,6 +620,8 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
                   borderRadius: "12px",
                   boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                 }}
+                labelStyle={{ color: "#111827" }}
+                itemStyle={{ color: "#111827" }}
               />
               <Bar dataKey="value" fill="#6366f1" radius={[10, 10, 0, 0]} barSize={28} name="누적 확률" />
             </BarChart>
@@ -581,6 +630,68 @@ function PressMachineDashboardContent({ orderId }: { orderId: number | null }) {
 
         <div className="mt-2 text-xs text-gray-500">
           * 누적 값이 커질수록 막대가 커집니다. 필요 시 "누적 초기화"로 리셋하세요.
+        </div>
+      </Card>
+      </div>
+
+      {/* History Table */}
+      <Card
+        title="최근 분석 이력"
+        badge={
+          <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
+            최근 {Math.min(historyBuffer.length, 30)}건
+          </span>
+        }
+      >
+        <div className="overflow-auto max-h-[420px] rounded-2xl border border-gray-200">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200 sticky top-0">
+              <tr className="text-left text-gray-600">
+                <th className="p-3 font-semibold">시간</th>
+                <th className="p-3 font-semibold">유형</th>
+                <th className="p-3 font-semibold">상태</th>
+                <th className="p-3 font-semibold">상세</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyBuffer.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="text-center p-10 text-gray-400">
+                    분석 이력이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                historyBuffer.map((entry, idx) => (
+                  <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="p-3 whitespace-nowrap text-gray-700">{entry.time}</td>
+                    <td className="p-3">
+                      <span className={cn(
+                        "px-2 py-1 rounded-full border text-xs font-bold",
+                        entry.type === "이미지"
+                          ? "text-blue-700 bg-blue-50 border-blue-200"
+                          : "text-purple-700 bg-purple-50 border-purple-200"
+                      )}>
+                        {entry.type}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <span className={cn(
+                        "px-2 py-1 rounded-full border text-xs font-bold",
+                        entry.statusTone === "green"
+                          ? "text-green-700 bg-green-50 border-green-200"
+                          : entry.statusTone === "red"
+                          ? "text-red-700 bg-red-50 border-red-200"
+                          : "text-blue-700 bg-blue-50 border-blue-200"
+                      )}>
+                        {entry.status}
+                      </span>
+                    </td>
+                    <td className="p-3 text-gray-800">{entry.detail}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </Card>
     </div>

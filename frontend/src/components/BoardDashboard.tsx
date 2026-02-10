@@ -200,7 +200,7 @@ export function BoardDashboard() {
                                 placeholder="게시글 제목을 입력하세요"
                                 value={newTitle}
                                 onChange={(e) => setNewTitle(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
                                 required
                             />
                         </div>
@@ -258,7 +258,7 @@ export function BoardDashboard() {
                                             type="text"
                                             value={editTitle}
                                             onChange={(e) => setEditTitle(e.target.value)}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                                         />
                                     </div>
                                     <div>
@@ -348,7 +348,7 @@ export function BoardDashboard() {
                                     ) : (
                                         <div>
                                             <div 
-                                                className="prose max-w-none line-clamp-3 mb-4 text-gray-600"
+                                                className="prose max-w-none line-clamp-3 mb-4 text-gray-900"
                                                 dangerouslySetInnerHTML={{ __html: post.content }}
                                             />
                                             <button

@@ -34,7 +34,6 @@ public class ChatbotController {
     @PostMapping("/query")
     public ResponseEntity<?> chatbotQuery(@RequestBody Map<String, Object> request) {
         try {
-            // /api/v1/smartfactory/* 는 ALB에서 ml-service로 라우팅됨
             String url = mlServiceBaseUrl + "/api/v1/smartfactory/chatbot";
 
             HttpHeaders headers = new HttpHeaders();
@@ -57,7 +56,6 @@ public class ChatbotController {
                 .body(response.getBody());
 
         } catch (ResourceAccessException e) {
-            // ML 서비스 연결 실패 (네트워크 오류)
             log.warn("Chatbot ML service unreachable: {}", e.getMessage());
             return ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -67,7 +65,6 @@ public class ChatbotController {
                 ));
 
         } catch (HttpClientErrorException | HttpServerErrorException e) {
-            // ML 서비스에서 에러 응답
             log.warn("Chatbot ML service error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
             return ResponseEntity
                 .status(e.getStatusCode())
@@ -75,7 +72,6 @@ public class ChatbotController {
                 .body(e.getResponseBodyAsString());
 
         } catch (Exception e) {
-            // 기타 예외
             log.error("Chatbot proxy unexpected error: {}", e.getMessage(), e);
             return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)

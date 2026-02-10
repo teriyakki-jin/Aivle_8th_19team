@@ -196,9 +196,9 @@ export function LandingPage() {
               </div>
               <div className="order-1 md:order-2">
                 <img
-                  src="https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-2_1770266116000_na1fn_ZmVhdHVyZS1hbm9tYWx5LWRldGVjdGlvbi5wbmc~.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTJfMTc3MDI2NjExNjAwMF9uYTFmbl9abVZoZEhWeVpTMXlhWE5yTFhCeVpXUnBZM1JwYjI0LnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=beu4TPhWzzIVMjFO4CDiq-4iAa7J8QKZYp-e-csTpc4CR3EKzUdUKMe2k1~lkEHAfL5Fvv3ZhUS3zt7Cbo9-CkdLHJIWzBwd9oBAedr6N1DYpvrgUppqUkbfbxHU1iyjzURMeG4SA0uUXGbBxrP0280aUK2Av6LB9Zhz7j~1uZa-nOH2nTVZeMuPiO0MvWNQJkKftoiBElLAC4tgjXTm9WiqQxngIWqyOpS08GYUtOuN~y~zKB2Z1SNJc0BeKuyjsqSqk3ywCXlPjrFEDJvCr83ssodAYM2Nlk3Ps6gigXHfg3TyiRG~NmO1MVVoF~VfTX9C-PmEQfqw23udGpgOpA__"
+                  src="/images/기능01.png"
                   alt="실시간 공정 모니터링"
-                  className="w-full rounded border border-precise border-border/70 opacity-70 saturate-50 contrast-90 grayscale mix-blend-multiply"
+                  className="w-full rounded border border-precise border-border/70"
                 />
               </div>
             </div>
@@ -207,9 +207,9 @@ export function LandingPage() {
             <div className="grid md:grid-cols-2 gap-14 items-center">
               <div>
                 <img
-                  src="https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-3_1770266116000_na1fn_ZmVhdHVyZS1yaXNrLXByZWRpY3Rpb24.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTNfMTc3MDI2NjExNjAwMF9uYTFmbl9abVZoZEhWeVpTMXlhWE5yTFhCeVpXUnBZM1JwYjI0LnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=beu4TPhWzzIVMjFO4CDiq-4iAa7J8QKZYp-e-csTpc4CR3EKzUdUKMe2k1~lkEHAfL5Fvv3ZhUS3zt7Cbo9-CkdLHJIWzBwd9oBAedr6N1DYpvrgUppqUkbfbxHU1iyjzURMeG4SA0uUXGbBxrP0280aUK2Av6LB9Zhz7j~1uZa-nOH2nTVZeMuPiO0MvWNQJkKftoiBElLAC4tgjXTm9WiqQxngIWqyOpS08GYUtOuN~y~zKB2Z1SNJc0BeKuyjsqSqk3ywCXlPjrFEDJvCr83ssodAYM2Nlk3Ps6gigXHfg3TyiRG~NmO1MVVoF~VfTX9C-PmEQfqw23udGpgOpA__"
+                  src="/images/기능02.png"
                   alt="AI 기반 이상 탐지"
-                  className="w-full rounded border border-precise border-border/70 opacity-70 saturate-50 contrast-90 grayscale mix-blend-multiply"
+                  className="w-full rounded border border-precise border-border/70"
                 />
               </div>
               <div>
@@ -218,7 +218,7 @@ export function LandingPage() {
                 </div>
                 <h3 className="text-2xl font-semibold mb-4 tracking-tight">AI 기반 이상 탐지 (센서/이미지)</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
-                  센서 데이터와 카메라 이미지를 동시에 분석하여 정상 패턴을 학습합니다.
+                  센서 데이터와 카메라 이미지를 분석하여 정상 패턴을 학습합니다.
                   미세한 이상 신호부터 육안으로 확인하기 어려운 결함까지
                   정확하게 감지하여 품질 문제를 조기에 발견합니다.
                 </p>
@@ -278,10 +278,14 @@ export function LandingPage() {
                 </ul>
               </div>
               <div className="order-1 md:order-2">
-                <img
-                  src="https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-4_1770266116000_na1fn_ZmVhdHVyZS1wcm9kdWN0aW9uLW1hbmFnZW1lbnQ.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTRfMTc3MDI2NjExNjAwMF9uYTFmbl9abVZoZEhWeVpTMXlhWE5yTFhCeVpXUnBZM1JwYjI0LnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=beu4TPhWzzIVMjFO4CDiq-4iAa7J8QKZYp-e-csTpc4CR3EKzUdUKMe2k1~lkEHAfL5Fvv3ZhUS3zt7Cbo9-CkdLHJIWzBwd9oBAedr6N1DYpvrgUppqUkbfbxHU1iyjzURMeG4SA0uUXGbBxrP0280aUK2Av6LB9Zhz7j~1uZa-nOH2nTVZeMuPiO0MvWNQJkKftoiBElLAC4tgjXTm9WiqQxngIWqyOpS08GYUtOuN~y~zKB2Z1SNJc0BeKuyjsqSqk3ywCXlPjrFEDJvCr83ssodAYM2Nlk3Ps6gigXHfg3TyiRG~NmO1MVVoF~VfTX9C-PmEQfqw23udGpgOpA__"
-                  alt="공정별 생산 진행 관리"
-                  className="w-full rounded border border-precise border-border/70 opacity-70 saturate-50 contrast-90 grayscale mix-blend-multiply"
+                <video
+                  className="w-full rounded border border-precise border-border/70"
+                  src="/video/기능03.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="auto"
                 />
               </div>
             </div>
@@ -290,9 +294,9 @@ export function LandingPage() {
             <div className="grid md:grid-cols-2 gap-14 items-center">
               <div>
                 <img
-                  src="https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-5_1770266116000_na1fn_ZmVhdHVyZS1yZWFsdGltZS1tb25pdG9yaW5n.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTVfMTc3MDI2NjExNjAwMF9uYTFmbl9abVZoZEhWeVpTMXlhWE5yTFhCeVpXUnBZM1JwYjI0LnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=beu4TPhWzzIVMjFO4CDiq-4iAa7J8QKZYp-e-csTpc4CR3EKzUdUKMe2k1~lkEHAfL5Fvv3ZhUS3zt7Cbo9-CkdLHJIWzBwd9oBAedr6N1DYpvrgUppqUkbfbxHU1iyjzURMeG4SA0uUXGbBxrP0280aUK2Av6LB9Zhz7j~1uZa-nOH2nTVZeMuPiO0MvWNQJkKftoiBElLAC4tgjXTm9WiqQxngIWqyOpS08GYUtOuN~y~zKB2Z1SNJc0BeKuyjsqSqk3ywCXlPjrFEDJvCr83ssodAYM2Nlk3Ps6gigXHfg3TyiRG~NmO1MVVoF~VfTX9C-PmEQfqw23udGpgOpA__"
+                  src="/images/기능04.png"
                   alt="납기 리스크 예측"
-                  className="w-full rounded border border-precise border-border/70 opacity-70 saturate-50 contrast-90 grayscale mix-blend-multiply"
+                  className="w-full rounded border border-precise border-border/70"
                 />
               </div>
               <div>
@@ -333,38 +337,42 @@ export function LandingPage() {
                 <div className="inline-block px-3 py-1 bg-primary/10 border border-primary/20 rounded-sm mb-4">
                   <span className="text-xs font-mono text-primary">기능 05</span>
                 </div>
-                <h3 className="text-2xl font-semibold mb-4 tracking-tight">주문 관리 및 생산 연계</h3>
+                <h3 className="text-2xl font-semibold mb-4 tracking-tight">AI 챗봇 어시스턴트</h3>
                 <p className="text-sm md:text-base text-muted-foreground mb-6 leading-relaxed">
-                  주문 정보, 생산 계획, 재고 현황을 통합 관리합니다.
-                  주문에서 배송까지 전체 라이프사이클을 추적하고
-                  생산 진행 상황과 자동으로 연계하여 효율적인 운영이 가능합니다.
+                  공정 데이터와 생산 현황에 대해 질문하고 즉시 답변을 받을 수 있습니다.
+                  AI 챗봇이 실시간 데이터를 기반으로 현장 상황을 분석하고
+                  의사결정에 필요한 정보를 빠르게 제공합니다.
                 </p>
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">주문-생산 자동 연계</span>
+                    <span className="text-sm">자연어 기반 공정 데이터 질의</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">재고 현황 실시간 추적</span>
+                    <span className="text-sm">실시간 생산 현황 요약 및 분석</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">전체 라이프사이클 관리</span>
+                    <span className="text-sm">이상 탐지 결과 즉시 확인</span>
                   </li>
                 </ul>
               </div>
               <div className="order-1 md:order-2">
-                <img
-                  src="https://private-us-east-1.manuscdn.com/sessionFile/lw178XPYvqbIb9oG8STq58/sandbox/fVegLkort57foiCOIjSnJd-img-6_1770266116000_na1fn_ZmVhdHVyZS1vcmRlci1tYW5hZ2VtZW50.png?x-oss-process=image/resize,w_1920,h_1920/format,webp/quality,q_80&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvbHcxNzhYUFl2cWJJYjlvRzhTVHE1OC9zYW5kYm94L2ZWZWdMa29ydDU3Zm9pQ09JalNuSmQtaW1nLTZfMTc3MDI2NjExNjAwMF9uYTFmbl9abVZoZEhWeVpTMXlhWE5yTFhCeVpXUnBZM1JwYjI0LnBuZz94LW9zcy1wcm9jZXNzPWltYWdlL3Jlc2l6ZSx3XzE5MjAsaF8xOTIwL2Zvcm1hdCx3ZWJwL3F1YWxpdHkscV84MCIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTc5ODc2MTYwMH19fV19&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=beu4TPhWzzIVMjFO4CDiq-4iAa7J8QKZYp-e-csTpc4CR3EKzUdUKMe2k1~lkEHAfL5Fvv3ZhUS3zt7Cbo9-CkdLHJIWzBwd9oBAedr6N1DYpvrgUppqUkbfbxHU1iyjzURMeG4SA0uUXGbBxrP0280aUK2Av6LB9Zhz7j~1uZa-nOH2nTVZeMuPiO0MvWNQJkKftoiBElLAC4tgjXTm9WiqQxngIWqyOpS08GYUtOuN~y~zKB2Z1SNJc0BeKuyjsqSqk3ywCXlPjrFEDJvCr83ssodAYM2Nlk3Ps6gigXHfg3TyiRG~NmO1MVVoF~VfTX9C-PmEQfqw23udGpgOpA__"
-                  alt="주문 관리 및 생산 연계"
-                  className="w-full rounded border border-precise border-border/70 opacity-70 saturate-50 contrast-90 grayscale mix-blend-multiply"
+                <video
+                  className="w-full rounded border border-precise border-border/70"
+                  src="/video/기능05.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="auto"
                 />
               </div>
             </div>

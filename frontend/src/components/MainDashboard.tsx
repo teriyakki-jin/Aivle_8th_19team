@@ -981,9 +981,9 @@ export function MainDashboard() {
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={orderStatusChart}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis dataKey="name" tick={{ fill: "#111827" }} />
                 <YAxis allowDecimals={false} />
-                <Tooltip />
+                <Tooltip labelStyle={{ color: "#111827" }} />
                 <Legend />
                 <Bar dataKey="value" fill="#6366f1" name="주문 수" />
               </BarChart>
@@ -1001,9 +1001,9 @@ export function MainDashboard() {
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={productionStatusChart}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis dataKey="name" tick={{ fill: "#111827" }} />
                 <YAxis allowDecimals={false} />
-                <Tooltip />
+                <Tooltip labelStyle={{ color: "#111827" }} />
                 <Legend />
                 <Bar dataKey="value" fill="#10b981" name="생산 수" />
               </BarChart>

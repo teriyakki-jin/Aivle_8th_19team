@@ -1,49 +1,88 @@
 package com.example.automobile_risk.controller;
 
-import com.example.automobile_risk.service.MLProxyService;
-import com.fasterxml.jackson.databind.JsonNode;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Map;
 
 /**
- * Chatbot 프록시 컨트롤러
- * Frontend → Spring Boot → FastAPI(ml-service) 프록시
+ * Chatbot Proxy Controller
+ * Frontend → Spring Boot → ML-Service (FastAPI)
+ *
+ * 이 컨트롤러가 실패해도 다른 API에 영향을 주지 않음
  */
 @RestController
 @RequestMapping("/api/v1/chatbot")
-@RequiredArgsConstructor
 @Slf4j
 public class ChatbotController {
 
-    private final MLProxyService mlProxyService;
+    @Value("${ml-service.base-url:http://localhost:8000}")
+    private String mlServiceBaseUrl;
 
-    /**
-     * Chatbot 쿼리
-     * POST /api/v1/chatbot/query
-     */
+    private final RestTemplate restTemplate;
+
+    public ChatbotController() {
+        this.restTemplate = new RestTemplate();
+    }
+
     @PostMapping("/query")
-    public ResponseEntity<JsonNode> query(@RequestBody Map<String, String> request) {
+    public ResponseEntity<?> chatbotQuery(@RequestBody Map<String, Object> request) {
         try {
-            String sessionId = request.get("session_id");
-            String message = request.get("message");
+            // /api/v1/smartfactory/* 는 ALB에서 ml-service로 라우팅됨
+            String url = mlServiceBaseUrl + "/api/v1/smartfactory/chatbot";
 
-            if (sessionId == null || sessionId.isBlank()) {
-                return ResponseEntity.badRequest().build();
-            }
-            if (message == null || message.isBlank()) {
-                return ResponseEntity.badRequest().build();
-            }
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
-            log.info("Chatbot query - sessionId: {}, message: {}", sessionId, message.substring(0, Math.min(50, message.length())));
-            JsonNode result = mlProxyService.chatbotQuery(sessionId, message);
-            return ResponseEntity.ok(result);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+
+            log.info("Forwarding chatbot request to ML service: {}", url);
+
+            ResponseEntity<String> response = restTemplate.exchange(
+                url,
+                HttpMethod.POST,
+                entity,
+                String.class
+            );
+
+            return ResponseEntity
+                .status(response.getStatusCode())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(response.getBody());
+
+        } catch (ResourceAccessException e) {
+            // ML 서비스 연결 실패 (네트워크 오류)
+            log.warn("Chatbot ML service unreachable: {}", e.getMessage());
+            return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of(
+                    "content", "죄송합니다. 챗봇 서비스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해주세요.",
+                    "error", "ML service unreachable"
+                ));
+
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            // ML 서비스에서 에러 응답
+            log.warn("Chatbot ML service error: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return ResponseEntity
+                .status(e.getStatusCode())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(e.getResponseBodyAsString());
+
         } catch (Exception e) {
-            log.error("Error in chatbot query: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
+            // 기타 예외
+            log.error("Chatbot proxy unexpected error: {}", e.getMessage(), e);
+            return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                    "content", "죄송합니다. 챗봇 서비스에 문제가 발생했습니다.",
+                    "error", e.getMessage()
+                ));
         }
     }
 }

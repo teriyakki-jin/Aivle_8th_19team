@@ -2,7 +2,6 @@ import os
 import shutil
 import uuid
 import traceback
-from threading import Lock
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
@@ -11,14 +10,20 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from langchain.chains import ConversationChain
-from langchain.memory import ConversationBufferMemory
-from langchain_openai import ChatOpenAI
 
 import press
 import windshield
 import engine
 from paint import service as paint_service
+
+# chatbot import (실패해도 서버 시작 가능)
+try:
+    from chat_bot import chat as chatbot_chat
+    CHATBOT_AVAILABLE = True
+except Exception as e:
+    print(f"Warning: chat_bot module failed to load: {e}")
+    CHATBOT_AVAILABLE = False
+    chatbot_chat = None
 import body_assembly
 from body_assembly import service as body_service
 from welding_image.pipeline import full_pipeline
@@ -43,9 +48,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CHATBOT_SESSIONS = {}
-CHATBOT_LOCK = Lock()
-
 
 class ChatbotRequest(BaseModel):
     session_id: str
@@ -55,20 +57,6 @@ class ChatbotRequest(BaseModel):
 class ChatbotResponse(BaseModel):
     content: str
     dataSummary: Optional[str] = None
-
-
-def get_chatbot_chain(session_id: str) -> ConversationChain:
-    with CHATBOT_LOCK:
-        chain = CHATBOT_SESSIONS.get(session_id)
-        if chain:
-            return chain
-
-        model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        llm = ChatOpenAI(model=model_name, temperature=0.2)
-        memory = ConversationBufferMemory(return_messages=True)
-        chain = ConversationChain(llm=llm, memory=memory)
-        CHATBOT_SESSIONS[session_id] = chain
-        return chain
 
 
 
@@ -140,20 +128,38 @@ def health():
     }
 
 # =========================
-# Chatbot (LangChain Memory)
+# Chatbot (LangChain Agent + Tools)
 # =========================
-@app.post("/api/v1/chatbot/query", response_model=ChatbotResponse)
+@app.post("/api/v1/smartfactory/chatbot", response_model=ChatbotResponse)
 def chatbot_query(request: ChatbotRequest):
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
+    """
+    공정 관리 AI 챗봇 - 실시간 API 연동
+    이 엔드포인트가 실패해도 다른 ML 서비스에 영향 없음
+    """
+    try:
+        if not CHATBOT_AVAILABLE:
+            return ChatbotResponse(
+                content="죄송합니다. 챗봇 서비스가 현재 사용 불가능합니다. 관리자에게 문의해주세요."
+            )
 
-    if not request.session_id or not request.message.strip():
-        raise HTTPException(status_code=400, detail="session_id and message are required")
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        if not api_key:
+            return ChatbotResponse(
+                content="죄송합니다. 챗봇 서비스 설정이 완료되지 않았습니다. 관리자에게 문의해주세요."
+            )
 
-    chain = get_chatbot_chain(request.session_id)
-    answer = chain.predict(input=request.message)
-    return ChatbotResponse(content=answer)
+        if not request.session_id or not request.message.strip():
+            return ChatbotResponse(content="메시지를 입력해주세요.")
+
+        answer = chatbot_chat(request.session_id, request.message)
+        return ChatbotResponse(content=answer)
+
+    except Exception as e:
+        print(f"Chatbot error: {e}")
+        traceback.print_exc()
+        return ChatbotResponse(
+            content="죄송합니다. 요청을 처리하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        )
 
 # =========================
 # Windshield (기존 유지)

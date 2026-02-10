@@ -624,11 +624,13 @@ async def health_check():
 import pandas as pd
 import io
 
-# 샘플 데이터 경로 (S3에서 다운로드되거나 로컬 fallback)
-WINDSHIELD_DATA_DIR = os.path.join(BASE_DIR, "sample_data")
-# 로컬 개발 시 frontend/public/data fallback
-if not os.path.isdir(WINDSHIELD_DATA_DIR):
-    WINDSHIELD_DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend", "public", "data")
+def _get_sample_data_dir():
+    """샘플 데이터 경로를 호출 시점에 결정 (S3 다운로드 이후에도 올바르게 동작)"""
+    primary = os.path.join(BASE_DIR, "sample_data")
+    if os.path.isdir(primary):
+        return primary
+    # 로컬 개발 시 frontend/public/data fallback
+    return os.path.join(os.path.dirname(BASE_DIR), "frontend", "public", "data")
 
 windshield_auto_state = {
     "left_rows": None,
@@ -639,8 +641,9 @@ windshield_auto_state = {
 
 def _load_windshield_csv():
     """윈드실드 샘플 CSV를 로드하여 행 단위로 저장"""
-    left_path = os.path.join(WINDSHIELD_DATA_DIR, "2nd_process_left_data.csv")
-    right_path = os.path.join(WINDSHIELD_DATA_DIR, "2nd_process_right_data.csv")
+    data_dir = _get_sample_data_dir()
+    left_path = os.path.join(data_dir, "2nd_process_left_data.csv")
+    right_path = os.path.join(data_dir, "2nd_process_right_data.csv")
 
     if os.path.exists(left_path):
         df = pd.read_csv(left_path, header=None)
@@ -725,7 +728,6 @@ def predict_windshield_auto(offset: int = 0):
 # =========================
 import arff
 
-ENGINE_DATA_DIR = WINDSHIELD_DATA_DIR  # 같은 폴더에 있음
 
 engine_auto_state = {
     "rows": None,
@@ -734,7 +736,8 @@ engine_auto_state = {
 
 def _load_engine_arff():
     """엔진 샘플 ARFF를 로드하여 행 단위로 저장"""
-    arff_path = os.path.join(ENGINE_DATA_DIR, "FordA_TEST.arff")
+    data_dir = _get_sample_data_dir()
+    arff_path = os.path.join(data_dir, "FordA_TEST.arff")
 
     if os.path.exists(arff_path):
         with open(arff_path, "r", encoding="utf-8") as f:

@@ -348,7 +348,7 @@ export function LandingPage() {
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">
                       <CheckCircle2 className="w-3 h-3 text-background" />
                     </div>
-                    <span className="text-sm">자연어 기반 공정 데이터 질의</span>
+                    <span className="text-sm">공정 데이터 질의</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <div className="w-5 h-5 rounded-full bg-forest-green flex items-center justify-center mt-0.5 flex-shrink-0">

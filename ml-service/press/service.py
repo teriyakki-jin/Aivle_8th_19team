@@ -555,3 +555,74 @@ async def predict_press_image_sim():
                 "count": len(image_seq_state["files"]),
             },
         }
+
+
+# =========================
+# 주문별 이미지 분석 (경로 지정)
+# =========================
+def _predict_press_image_from_path(img_path: str):
+    """
+    특정 경로의 이미지를 CNN 모델로 분석하여 결과를 반환한다.
+    datasets/{order_id}/press/ 내 이미지 처리용.
+    """
+    classes = ["Scratches", "Pitted Surface", "Rolled-in Scale", "Inclusion", "Crazing", "Patches"]
+
+    with model_lock:
+        if cnn_model is None:
+            image_b64 = None
+            if PIL_AVAILABLE:
+                try:
+                    img = Image.open(img_path).convert("RGB")
+                    buf = BytesIO()
+                    img.save(buf, format="JPEG", quality=85)
+                    image_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+                except Exception:
+                    pass
+            probs = np.random.dirichlet(np.ones(len(classes)), size=1)[0]
+            idx = int(np.argmax(probs))
+            return {
+                "predicted_class": classes[idx],
+                "confidence": float(probs[idx]),
+                "all_scores": dict(zip(classes, [float(p) for p in probs])),
+                "note": "CNN not loaded -> mock",
+                "image_base64": image_b64,
+            }
+
+        shp = cnn_model.input_shape
+        if isinstance(shp, list):
+            shp = shp[0]
+        H, W, C = int(shp[1]), int(shp[2]), int(shp[3])
+
+        x = None
+        image_b64 = None
+
+        if PIL_AVAILABLE:
+            try:
+                x, image_b64 = _load_and_preprocess_for_cnn(img_path, H, W, C)
+            except Exception as e:
+                print(f"[PRESS] image load failed: {e}")
+
+        if x is None:
+            x, _ = _make_cnn_input_from_model()
+
+        probs = cnn_model.predict(x, verbose=0)[0]
+        probs = np.array(probs, dtype=np.float32).reshape(-1)
+
+        if probs.min() < 0 or probs.max() > 1.0 or abs(float(probs.sum()) - 1.0) > 1e-3:
+            e = np.exp(probs - np.max(probs))
+            probs = e / (e.sum() + 1e-8)
+
+        idx = int(np.argmax(probs))
+        scores = {}
+        for i in range(len(probs)):
+            k = classes[i] if i < len(classes) else f"class_{i}"
+            scores[k] = float(probs[i])
+
+        top_class = classes[idx] if idx < len(classes) else f"class_{idx}"
+
+        return {
+            "predicted_class": top_class,
+            "confidence": float(probs[idx]) if idx < len(probs) else 0.0,
+            "all_scores": scores,
+            "image_base64": image_b64,
+        }

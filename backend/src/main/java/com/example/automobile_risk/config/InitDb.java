@@ -320,10 +320,10 @@ public class InitDb {
                     MlInputDataset paintImg = MlInputDataset.builder()
                             .processName("도장")
                             .serviceType("paint")
-                            .name("paint_unit01_p" + i)
+                            .name("paint_images_p" + i)
                             .format(DatasetFormat.IMAGE)
-                            .storageKey(base + i + "\\\\paint\\\\paint_unit01.jpg")
-                            .description("paint image sample for production " + i)
+                            .storageKey(base + i + "\\\\paint")
+                            .description("paint image folder for production " + i)
                             .build();
                     MlInputDataset bodyImg = MlInputDataset.builder()
                             .processName("조립")

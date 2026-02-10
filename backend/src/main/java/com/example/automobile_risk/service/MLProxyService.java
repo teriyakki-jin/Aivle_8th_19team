@@ -193,47 +193,88 @@ public class MLProxyService {
                 result.setProcessName(context.processName);
             }
 
-            // 공통 필드 추출
-            if (jsonResponse.has("status")) {
-                result.setStatus(jsonResponse.get("status").asText());
-            }
-            if (jsonResponse.has("judgement")) {
-                result.setStatus(jsonResponse.get("judgement").asText());
-            }
-            if (jsonResponse.has("prediction")) {
-                result.setPrediction(jsonResponse.get("prediction").asInt());
-            }
-            if (jsonResponse.has("confidence")) {
-                result.setConfidence(jsonResponse.get("confidence").asDouble());
-            }
-            if (jsonResponse.has("reconstruction_error")) {
-                result.setReconstructionError(jsonResponse.get("reconstruction_error").asDouble());
-            }
-            if (jsonResponse.has("threshold")) {
-                result.setThreshold(jsonResponse.get("threshold").asDouble());
-            }
-            if (jsonResponse.has("is_anomaly")) {
-                result.setIsAnomaly(jsonResponse.get("is_anomaly").asInt());
-            }
-            if (jsonResponse.has("original_image_url")) {
-                result.setOriginalImageUrl(jsonResponse.get("original_image_url").asText());
-            }
-            if (jsonResponse.has("result_image_url")) {
-                result.setResultImageUrl(jsonResponse.get("result_image_url").asText());
-            }
-            if (jsonResponse.has("message")) {
-                result.setMessage(jsonResponse.get("message").asText());
-            }
+            // === paint 서비스 전용 파싱 (응답 구조가 다름) ===
+            if ("paint".equals(serviceType) && jsonResponse.has("data")) {
+                JsonNode data = jsonResponse.get("data");
+                // 결함 유무로 PASS/FAIL 판정
+                boolean hasDefects = data.has("detected_defects")
+                        && data.get("detected_defects").isArray()
+                        && data.get("detected_defects").size() > 0;
+                result.setStatus(hasDefects ? "FAIL" : "PASS");
+                result.setIsAnomaly(hasDefects ? 1 : 0);
 
-            // status가 비어있으면 is_anomaly 기반으로 기본값 부여
-            if (result.getStatus() == null || result.getStatus().isBlank()) {
-                Integer isAnomaly = result.getIsAnomaly();
-                if (isAnomaly != null) {
-                    result.setStatus(isAnomaly == 1 ? "ABNORMAL" : "NORMAL");
-                } else if (result.getPrediction() != null) {
-                    result.setStatus(result.getPrediction() == 1 ? "NORMAL" : "ABNORMAL");
+                if (data.has("defect_score")) {
+                    result.setConfidence(data.get("defect_score").asDouble());
+                } else if (hasDefects) {
+                    // detected_defects[0].confidence (percent)
+                    JsonNode firstDefect = data.get("detected_defects").get(0);
+                    if (firstDefect.has("confidence")) {
+                        result.setConfidence(firstDefect.get("confidence").asDouble() / 100.0);
+                    }
                 } else {
-                    result.setStatus("UNKNOWN");
+                    result.setConfidence(1.0);
+                }
+                if (data.has("img_path")) {
+                    result.setOriginalImageUrl(data.get("img_path").asText());
+                }
+                if (data.has("img_result")) {
+                    result.setResultImageUrl(data.get("img_result").asText());
+                }
+                if (data.has("inference_time_ms")) {
+                    result.setInferenceTimeMs((long) data.get("inference_time_ms").asInt());
+                }
+                if (data.has("defect_type") && data.get("defect_type").asInt(-1) >= 0) {
+                    result.setPrediction(data.get("defect_type").asInt());
+                }
+                if (data.has("label_name_text")) {
+                    result.setTarget(data.get("label_name_text").asText());
+                }
+                if (jsonResponse.has("message")) {
+                    result.setMessage(jsonResponse.get("message").asText());
+                }
+            } else {
+                // === 기존 공통 파싱 ===
+                if (jsonResponse.has("status")) {
+                    result.setStatus(jsonResponse.get("status").asText());
+                }
+                if (jsonResponse.has("judgement")) {
+                    result.setStatus(jsonResponse.get("judgement").asText());
+                }
+                if (jsonResponse.has("prediction")) {
+                    result.setPrediction(jsonResponse.get("prediction").asInt());
+                }
+                if (jsonResponse.has("confidence")) {
+                    result.setConfidence(jsonResponse.get("confidence").asDouble());
+                }
+                if (jsonResponse.has("reconstruction_error")) {
+                    result.setReconstructionError(jsonResponse.get("reconstruction_error").asDouble());
+                }
+                if (jsonResponse.has("threshold")) {
+                    result.setThreshold(jsonResponse.get("threshold").asDouble());
+                }
+                if (jsonResponse.has("is_anomaly")) {
+                    result.setIsAnomaly(jsonResponse.get("is_anomaly").asInt());
+                }
+                if (jsonResponse.has("original_image_url")) {
+                    result.setOriginalImageUrl(jsonResponse.get("original_image_url").asText());
+                }
+                if (jsonResponse.has("result_image_url")) {
+                    result.setResultImageUrl(jsonResponse.get("result_image_url").asText());
+                }
+                if (jsonResponse.has("message")) {
+                    result.setMessage(jsonResponse.get("message").asText());
+                }
+
+                // status가 비어있으면 is_anomaly 기반으로 기본값 부여
+                if (result.getStatus() == null || result.getStatus().isBlank()) {
+                    Integer isAnomaly = result.getIsAnomaly();
+                    if (isAnomaly != null) {
+                        result.setStatus(isAnomaly == 1 ? "ABNORMAL" : "NORMAL");
+                    } else if (result.getPrediction() != null) {
+                        result.setStatus(result.getPrediction() == 1 ? "NORMAL" : "ABNORMAL");
+                    } else {
+                        result.setStatus("UNKNOWN");
+                    }
                 }
             }
 

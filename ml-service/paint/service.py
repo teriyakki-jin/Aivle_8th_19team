@@ -102,14 +102,22 @@ def predict_paint_defect(
     image_path = os.path.join(save_image_dir, img_name)
 
     # 1) 원본 이미지 저장
+    if hasattr(file_obj, 'seek'):
+        file_obj.seek(0)
     with open(image_path, "wb") as buffer:
         shutil.copyfileobj(file_obj, buffer)
 
+    # 저장된 파일 크기 확인
+    saved_size = os.path.getsize(image_path)
+    if saved_size == 0:
+        raise RuntimeError(f"Saved image is empty (0 bytes): {image_path}")
+    print(f"[PAINT] saved image: {image_path} ({saved_size} bytes)")
+
     try:
-        # 2) YOLO 추론
+        # 2) YOLO 추론 (conf=0.10 으로 낮춰 경계 결함도 탐지)
         results = model.predict(
             source=image_path,
-            conf=0.25,
+            conf=0.10,
             save=True,
             project=save_result_dir,
             name=img_id
@@ -376,3 +384,90 @@ def predict_paint_defect_auto(*, base_dir: str, save_image_dir: str, save_label_
     paint_auto_state["last_ts"] = time.time()
     paint_auto_state["last_result"] = result
     return result
+
+
+# =========================
+# BATCH (주문별 폴더 내 모든 이미지 분석)
+# =========================
+def predict_paint_defect_batch(
+    *,
+    folder_path: str,
+    base_dir: str,
+    save_image_dir: str,
+    save_label_dir: str,
+    save_result_dir: str,
+    backend_url: str = "http://localhost:3001/api/paint-analysis",
+):
+    """
+    folder_path 안에 있는 모든 이미지를 분석하여 배치 결과를 반환한다.
+    - 주문(production)별 paint 데이터셋 폴더를 통째로 처리할 때 사용
+    """
+    global model
+    if model is None:
+        raise RuntimeError("paint model not loaded")
+
+    if not os.path.isdir(folder_path):
+        return {
+            "status": "error",
+            "message": f"folder not found: {folder_path}",
+            "results": [],
+        }
+
+    image_files = sorted([
+        f for f in os.listdir(folder_path)
+        if os.path.splitext(f)[1].lower() in AUTO_ALLOWED_EXTS
+    ])
+
+    if not image_files:
+        return {
+            "status": "success",
+            "message": "no images in folder",
+            "folder": folder_path,
+            "total": 0,
+            "pass_count": 0,
+            "fail_count": 0,
+            "results": [],
+        }
+
+    results = []
+    pass_count = 0
+    fail_count = 0
+
+    for fname in image_files:
+        img_path = os.path.join(folder_path, fname)
+        try:
+            with open(img_path, "rb") as f:
+                result = predict_paint_defect(
+                    file_obj=f,
+                    original_filename=fname,
+                    base_dir=base_dir,
+                    save_image_dir=save_image_dir,
+                    save_label_dir=save_label_dir,
+                    save_result_dir=save_result_dir,
+                    backend_url=backend_url,
+                )
+            result["source_file"] = fname
+            results.append(result)
+
+            if result.get("data", {}).get("defect_type", -1) == -1:
+                pass_count += 1
+            else:
+                fail_count += 1
+        except Exception as e:
+            results.append({
+                "status": "error",
+                "source_file": fname,
+                "message": str(e),
+            })
+
+    overall_status = "PASS" if fail_count == 0 else "FAIL"
+
+    return {
+        "status": "success",
+        "overall": overall_status,
+        "folder": folder_path,
+        "total": len(image_files),
+        "pass_count": pass_count,
+        "fail_count": fail_count,
+        "results": results,
+    }

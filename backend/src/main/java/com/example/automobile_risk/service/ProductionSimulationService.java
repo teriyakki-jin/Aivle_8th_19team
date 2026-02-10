@@ -319,9 +319,19 @@ public class ProductionSimulationService {
                 }
                 case "도장" -> {
                     if (paintDataset != null && paintDataset.getFormat() == DatasetFormat.IMAGE) {
-                        java.io.File file = pickDatasetFile(paintDataset);
-                        if (file != null) {
-                            mlProxyService.analyzePaintFile(file, context);
+                        java.util.List<java.io.File> files = pickAllDatasetFiles(paintDataset);
+                        log.info("[PAINT] storageKey={}, resolved {} files", paintDataset.getStorageKey(), files.size());
+                        for (java.io.File f : files) {
+                            log.info("[PAINT] analyzing file: {}", f.getAbsolutePath());
+                        }
+                        if (files != null && !files.isEmpty()) {
+                            for (java.io.File f : files) {
+                                try {
+                                    mlProxyService.analyzePaintFile(f, context);
+                                } catch (Exception paintEx) {
+                                    log.warn("Paint analysis failed for {}: {}", f.getName(), paintEx.getMessage());
+                                }
+                            }
                         } else {
                             mlProxyService.analyzePaintAuto(offset, context);
                         }
@@ -405,6 +415,40 @@ public class ProductionSimulationService {
         } catch (Exception e) {
             log.warn("Failed to load JSON dataset: {} ({})", dataset.getStorageKey(), e.getMessage());
             return null;
+        }
+    }
+
+    private java.util.List<java.io.File> pickAllDatasetFiles(MlInputDataset dataset) {
+        try {
+            String key = dataset.getStorageKey();
+            if (isUrl(key)) {
+                java.io.File single = downloadToTempFile(key);
+                return single != null ? java.util.List.of(single) : java.util.List.of();
+            }
+            java.nio.file.Path path = resolveLocalPath(key);
+            if (path == null || !java.nio.file.Files.exists(path)) {
+                log.warn("Dataset path not found: {}", key);
+                return java.util.List.of();
+            }
+            if (java.nio.file.Files.isDirectory(path)) {
+                try (java.util.stream.Stream<java.nio.file.Path> stream = java.nio.file.Files.list(path)) {
+                    return stream
+                            .filter(p -> !java.nio.file.Files.isDirectory(p))
+                            .filter(p -> {
+                                String name = p.getFileName().toString().toLowerCase();
+                                return name.endsWith(".jpg") || name.endsWith(".jpeg")
+                                        || name.endsWith(".png") || name.endsWith(".bmp")
+                                        || name.endsWith(".webp");
+                            })
+                            .sorted()
+                            .map(java.nio.file.Path::toFile)
+                            .collect(java.util.stream.Collectors.toList());
+                }
+            }
+            return java.util.List.of(path.toFile());
+        } catch (Exception e) {
+            log.warn("Failed to pick all dataset files: {} ({})", dataset.getStorageKey(), e.getMessage());
+            return java.util.List.of();
         }
     }
 
@@ -492,14 +536,20 @@ public class ProductionSimulationService {
         java.nio.file.Path p = java.nio.file.Paths.get(storageKey);
         if (p.isAbsolute()) return p;
         if (datasetsBasePath != null && !datasetsBasePath.isBlank()) {
-            return java.nio.file.Paths.get(datasetsBasePath, storageKey);
+            java.nio.file.Path resolved = java.nio.file.Paths.get(datasetsBasePath, storageKey);
+            log.info("[RESOLVE] basePath={}, storageKey={} -> {}", datasetsBasePath, storageKey, resolved);
+            return resolved;
         }
         java.nio.file.Path cwd = java.nio.file.Paths.get(System.getProperty("user.dir"));
         String cwdName = cwd.getFileName() != null ? cwd.getFileName().toString().toLowerCase() : "";
         if ("backend".equals(cwdName) && cwd.getParent() != null) {
-            return cwd.getParent().resolve(storageKey);
+            java.nio.file.Path resolved = cwd.getParent().resolve(storageKey);
+            log.info("[RESOLVE] cwd={}, storageKey={} -> {}", cwd, storageKey, resolved);
+            return resolved;
         }
-        return cwd.resolve(storageKey);
+        java.nio.file.Path resolved = cwd.resolve(storageKey);
+        log.info("[RESOLVE] cwd={}, storageKey={} -> {}", cwd, storageKey, resolved);
+        return resolved;
     }
 
     private java.io.File downloadToTempFile(String url) {

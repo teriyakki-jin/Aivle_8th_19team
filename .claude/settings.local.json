@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(copy \"c:\\\\work\\\\Aivle_8th_19team\\\\frontend\\\\public\\\\data\\\\2nd_process_left_data.csv\" \"c:\\\\work\\\\Aivle_8th_19team\\\\ml-service\\\\sample_data\"\" && copy \"c:workAivle_8th_19teamfrontendpublicdata2nd_process_right_data.csv\" \"c:workAivle_8th_19teamml-servicesample_data\"\")",
+      "Bash(copy \"c:\\\\work\\\\Aivle_8th_19team\\\\frontend\\\\public\\\\data\\\\FordA_TEST.arff\" \"c:\\\\work\\\\Aivle_8th_19team\\\\ml-service\\\\sample_data\"\")",
+      "Bash(powershell -Command:*)"
+    ]
+  }
+}

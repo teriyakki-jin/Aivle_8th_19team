@@ -73,52 +73,70 @@ def _download_s3_directory(s3, bucket: str, s3_prefix: str, local_dir: str) -> i
 
 
 def download_models(base_dir: str) -> None:
-    """Download model files and sample data from S3 if MODEL_BUCKET is set."""
+    """Download model files and sample data from S3 if buckets are configured."""
     bucket = os.environ.get("MODEL_BUCKET")
-    if not bucket:
-        logger.info("MODEL_BUCKET not set — using local model files")
+    frontend_bucket = os.environ.get("FRONTEND_BUCKET")
+
+    if not bucket and not frontend_bucket:
+        logger.info("MODEL_BUCKET/FRONTEND_BUCKET not set — using local files")
         return
 
     env = os.environ.get("MODEL_ENV", "prod")
-    logger.info("Downloading models from s3://%s/%s/ ...", bucket, env)
 
     try:
         import boto3
         s3 = boto3.client("s3")
     except ImportError:
-        logger.warning("boto3 not installed — skipping S3 model download")
+        logger.warning("boto3 not installed — skipping S3 download")
         return
 
-    # 1. Download individual model files
-    for rel_path in MODEL_FILES:
-        local_path = os.path.join(base_dir, rel_path)
+    # 1. Download individual model files (if MODEL_BUCKET set)
+    if bucket:
+        logger.info("Downloading models from s3://%s/%s/ ...", bucket, env)
+        for rel_path in MODEL_FILES:
+            local_path = os.path.join(base_dir, rel_path)
 
-        if os.path.exists(local_path):
-            logger.info("  [skip] %s (already exists)", rel_path)
-            continue
+            if os.path.exists(local_path):
+                logger.info("  [skip] %s (already exists)", rel_path)
+                continue
 
-        s3_key = f"{env}/{rel_path}"
-        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+            s3_key = f"{env}/{rel_path}"
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
+            try:
+                logger.info("  [download] s3://%s/%s -> %s", bucket, s3_key, local_path)
+                s3.download_file(bucket, s3_key, local_path)
+            except Exception as e:
+                logger.error("  [error] Failed to download %s: %s", s3_key, e)
+                raise
+
+        # 2. Download sample data directories from model bucket
+        for rel_dir in SAMPLE_DIRS:
+            s3_prefix = f"{env}/{rel_dir}/"
+            local_dir = os.path.join(base_dir, rel_dir)
+            os.makedirs(local_dir, exist_ok=True)
+
+            logger.info("  [sync] s3://%s/%s -> %s", bucket, s3_prefix, local_dir)
+            try:
+                count = _download_s3_directory(s3, bucket, s3_prefix, local_dir)
+                if count > 0:
+                    logger.info("  [done] %s: %d files downloaded", rel_dir, count)
+                else:
+                    logger.info("  [done] %s: up-to-date (or empty on S3)", rel_dir)
+            except Exception as e:
+                logger.warning("  [warn] Failed to sync %s: %s", rel_dir, e)
+
+    # 3. Download sample data from frontend bucket (windshield CSV, engine ARFF)
+    if frontend_bucket:
+        local_sample_dir = os.path.join(base_dir, "sample_data")
+        os.makedirs(local_sample_dir, exist_ok=True)
+
+        logger.info("  [sync] s3://%s/data/ -> %s", frontend_bucket, local_sample_dir)
         try:
-            logger.info("  [download] s3://%s/%s -> %s", bucket, s3_key, local_path)
-            s3.download_file(bucket, s3_key, local_path)
-        except Exception as e:
-            logger.error("  [error] Failed to download %s: %s", s3_key, e)
-            raise
-
-    # 2. Download sample data directories
-    for rel_dir in SAMPLE_DIRS:
-        s3_prefix = f"{env}/{rel_dir}/"
-        local_dir = os.path.join(base_dir, rel_dir)
-        os.makedirs(local_dir, exist_ok=True)
-
-        logger.info("  [sync] s3://%s/%s -> %s", bucket, s3_prefix, local_dir)
-        try:
-            count = _download_s3_directory(s3, bucket, s3_prefix, local_dir)
+            count = _download_s3_directory(s3, frontend_bucket, "data/", local_sample_dir)
             if count > 0:
-                logger.info("  [done] %s: %d files downloaded", rel_dir, count)
+                logger.info("  [done] frontend sample_data: %d files downloaded", count)
             else:
-                logger.info("  [done] %s: up-to-date (or empty on S3)", rel_dir)
+                logger.info("  [done] frontend sample_data: up-to-date (or empty on S3)")
         except Exception as e:
-            logger.warning("  [warn] Failed to sync %s: %s", rel_dir, e)
+            logger.warning("  [warn] Failed to sync frontend sample_data: %s", e)

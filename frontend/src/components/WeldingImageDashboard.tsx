@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, RefreshCcw, Factory, Image as ImageIcon, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Factory, Image as ImageIcon, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { OrderSelector } from "./OrderSelector";
 import { ML_IMAGE_BASE } from "../config/env";
 import { mlResultsApi, MLAnalysisResultDto } from "../api/mlResults";
@@ -309,13 +309,6 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
     };
   }, [orderId]);
 
-  const resetAll = () => {
-    setResult(null);
-    setHistory([]);
-    setError("");
-    setLastUpdated("--:--:--");
-  };
-
   const latestJudgement: "양품" | "불량" | "대기" = latest
     ? latest.judgement
     : result
@@ -349,15 +342,6 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
           </div>
         </div>
 
-        <div className="flex gap-3 items-center">
-          <button
-            onClick={resetAll}
-            className="px-6 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl inline-flex items-center gap-2 outline-none focus:ring-4 focus:ring-blue-200"
-          >
-            <RefreshCcw className="w-5 h-5" />
-            초기화
-          </button>
-        </div>
       </div>
 
       {/* KPI (Battery 스타일) */}

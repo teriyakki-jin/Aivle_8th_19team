@@ -8,11 +8,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
+import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
@@ -35,10 +37,17 @@ public class DummyDataGeneratorService {
 
     /**
      * 더미 데이터 생성
+     * 핵심 목표:
+     * - Production 1건당 Snapshot N건 (공정 종료 시점마다 1건)
+     * - snapshot_stage 시점에는 "현재까지 완료된 공정" anomaly만 들어가고,
+     *   미래 공정 anomaly는 null로 저장 (정보 누수 방지)
+     * - dueDate를 "타이트"하게 생성
+     * - late production은 공정 중간부터 납기 초과 발생
+     * - cumulative / remaining delay가 stage별로 변화
      *
-     * @param rows     생성할 학습 row 수 (order 1건 + production 1건 + snapshot 1건이 1세트)
+     * @param rows     생성할 production 수
      * @param lateRate 지연 비율 (예: 0.05 = 5%)
-     * @param seed     랜덤 시드 (같은 시드면 같은 데이터 생성 -> 재현 가능)
+     * @param seed     랜덤 시드
      */
     public void generate(int rows, double lateRate, long seed) {
 
@@ -76,8 +85,15 @@ public class DummyDataGeneratorService {
         int lateTarget = (int) Math.round(rows * lateRate); // 목표 지연 건수 (10,000 * 0.05 = 500개)
         int lateCount = 0;                                  // 지금까지 만든 지연 건수
 
+        // 공정 타입을 processOrder 순으로 정렬해서 실행 순서를 만든다.
+        // processOrder=1,2,3,4,5 순으로 공정이 수행되게 함
+        List<ProcessType> ordered = processTypes.stream()
+                .sorted(Comparator.comparingInt(ProcessType::getProcessOrder))
+                .toList();
+
         // -----------------------------
-        // 4) rows 만큼 반복하면서
+        // 4) Production 단위 반복 
+        //    rows 만큼 반복하면서
         //    "업무 테이블 + 학습 스냅샷" 생성
         // -----------------------------
         for (int i = 1; i <= rows; i++) {
@@ -92,11 +108,18 @@ public class DummyDataGeneratorService {
             // 주문 수량(1~20)
             int orderQty = 1 + r.nextInt(20);
 
-            // 주문일: 최근 60일 내 임의의 날짜
-            LocalDateTime orderDate = LocalDateTime.now().minusDays(r.nextInt(60));
+            // 주문일: 최근 30일 내 임의의 날짜
+            LocalDateTime orderDate = LocalDateTime.now().minusDays(r.nextInt(30));
 
-            // 납기일: 주문일 + 5~34일
-            LocalDateTime dueDate = orderDate.plusDays(5 + r.nextInt(30));
+            // 생산 시작일: 주문일 + 0~1일 후
+            LocalDateTime prodStart = orderDate.plusDays(r.nextInt(2));
+
+            // ✅ 핵심: dueDate를 "타이트"하게 생성
+            long expectedTotalMinutes = 900 + r.nextInt(600); // 15~25시간
+            long slackMinutes =
+                    (long) (expectedTotalMinutes * (1.2 + r.nextDouble() * 0.6)); // 1.2~1.8배
+
+            LocalDateTime dueDate = prodStart.plusMinutes(slackMinutes);
 
             // Order 엔티티 생성 (도메인 규칙/상태 초기화는 createOrder 내부에서 처리)
             Order order = Order.createOrder(orderDate, dueDate, orderQty, model);
@@ -107,9 +130,6 @@ public class DummyDataGeneratorService {
             // ==========================================
             // [STEP 2] Production 생성
             // ==========================================
-
-            // 생산 시작일: 주문일 + 0~2일 후
-            LocalDateTime prodStart = orderDate.plusDays(r.nextInt(3));
 
             // 주문 수량 중 일부 or 전부를 이 production에 배분 (예: 1~orderQty)
             int allocated = 1 + r.nextInt(orderQty);
@@ -140,26 +160,20 @@ public class DummyDataGeneratorService {
             //          + 공정별 anomaly/stop으로 생산 지연 원인을 "현실스럽게" 만들기
             // ==========================================
 
-            // 전체 공정 소요 시간(분) 누적 (학습 feature로 사용)
-            long totalMinutes = 0;
-
-            // stop 이벤트 횟수 누적 (학습 feature로 사용)
-            int stopCountTotal = 0;
-
             // ------------------------------------------
-            // 4-1) 공정별 anomaly score 생성 (0~1)
+            // [STEP 4] 공정별 anomaly score 생성 (0~1)
             //      평균이 낮은 값에 몰리게 만들고,
             //      가끔 큰 값이 나오도록(정규분포 기반 -> r.nextGaussian()) 만들었다.
             //      (대부분 낮고(정상), 가끔 높은 값(이상) 발생하도록)
             // ------------------------------------------
             double pressScore = bounded(r.nextGaussian() * 0.15 + 0.15);
             double weldScore = bounded(r.nextGaussian() * 0.18 + 0.12);
-            double assemblyScore = bounded(r.nextGaussian() * 0.12 + 0.10);
             double paintScore = bounded(r.nextGaussian() * 0.20 + 0.14);
+            double assemblyScore = bounded(r.nextGaussian() * 0.12 + 0.10);
             double inspectionScore = bounded(r.nextGaussian() * 0.10 + 0.08);
 
             // ------------------------------------------
-            // 4-2) 이번 production을 "지연으로 만들지" 결정
+            // [STEP 5] 이번 production을 "지연으로 만들지" 결정
             //
             // lateTarget(목표 지연 건수)를 정확히 맞추기 위해
             // 남은 row 대비 남은 지연 슬롯에 따라 확률 p를 계산해서 선택한다.
@@ -174,11 +188,15 @@ public class DummyDataGeneratorService {
                 makeLate = r.nextDouble() < p;
             }
 
-            // 공정 타입을 processOrder 순으로 정렬해서 실행 순서를 만든다.
-            // processOrder=1,2,3,4,5 순으로 공정이 수행되게 함
-            List<ProcessType> ordered = processTypes.stream()
-                    .sorted(Comparator.comparingInt(ProcessType::getProcessOrder))
-                    .toList();
+            int lateStartStageIdx = makeLate ? (2 + r.nextInt(2)) : Integer.MAX_VALUE;
+            long totalLateMinutes = makeLate ? (300 + r.nextInt(1200)) : 0;
+            long perStageLate = makeLate
+                    ? totalLateMinutes / Math.max(1, ordered.size() - lateStartStageIdx)
+                    : 0;
+
+            // ==========================================
+            // [STEP 7] 공정 수행 루프 + 스냅샷 생성
+            // ==========================================
 
             // 공정 수행 시점 커서
             // cursor는 "현재까지 공정이 끝난 시각"을 의미
@@ -189,6 +207,17 @@ public class DummyDataGeneratorService {
             // 공정 순번 (executionOrder)
             int executionOrder = 1;
 
+            // stop 이벤트 횟수 누적 (학습 feature로 사용)
+            int stopCountTotal = 0;
+
+            // snapshot 임시 보관 (finalDelay 확정 후 업데이트용)
+            List<DelayTrainingSnapshot> snapshots = new ArrayList<>();
+
+            // =====================================================
+            // [STEP 7] 공정 수행 루프
+            // =====================================================
+
+            int stageIdx = 0;
             for (ProcessType pt : ordered) {
 
                 // 해당 공정 타입의 설비 목록
@@ -202,6 +231,7 @@ public class DummyDataGeneratorService {
                     //  여기서 예외를 던지는 설계가 더 명확할 수 있음)
                     // 필요하면 로그 남겨서 데이터 품질 체크 가능
                     // log.warn("No equipment for processTypeId={}, name={}", pt.getId(), pt.getProcessName());
+                    stageIdx++;
                     continue;
                 }
 
@@ -231,10 +261,10 @@ public class DummyDataGeneratorService {
                 );
 
                 // ---- anomaly 기반 추가 시간 -> extra
-                // 현실 공정은 절대 균일하지 않다 (0.2 정도의 기본 변동성을 가짐)
-                // base * score * (0.2~1.2 정도) => score가 높을수록 시간이 늘어남
+                // 현실 공정은 절대 균일하지 않다 (0.3 정도의 기본 변동성을 가짐)
+                // base * score * (0.3~1.3 정도) => score가 높을수록 시간이 늘어남
                 // anomaly score가 높을수록 extra가 늘어나고 duration이 길어진다
-                long extra = (long) (base * score * (0.2 + r.nextDouble()));
+                long extra = (long) (base * score * (0.3 + r.nextDouble()));
 
                 long duration = base + extra;
 
@@ -249,8 +279,13 @@ public class DummyDataGeneratorService {
 
                 if (stop) {
                     stopCountTotal++;
-                    // stop 시 추가 지연 시간: 1~5시간(60~300분)
-                    duration += 60 + r.nextInt(240);
+                    // stop 시 추가 지연 시간: 1~5시간(60~240분)
+                    duration += 60 + r.nextInt(180);
+                }
+
+                // ✅ late 분산
+                if (makeLate && stageIdx >= lateStartStageIdx) {
+                    duration += perStageLate + r.nextInt(30);
                 }
 
                 // 공정 시작 시점: 이전 공정 종료(cursor) 이후 약간의 간격(0~9분)을 두고 시작
@@ -273,67 +308,83 @@ public class DummyDataGeneratorService {
                 pe.complete(peEnd); // 공정 수행 상태: COMPLETED
 
                 // 누적 소요시간 업데이트
-                totalMinutes += java.time.Duration.between(peStart, peEnd).toMinutes();
+                // totalMinutes += java.time.Duration.between(peStart, peEnd).toMinutes();
 
                 // 다음 공정은 이 공정 종료 이후부터 이어진다
                 cursor = peEnd;
                 executionOrder++;   // 실제 수행된 공정 순서
+                stageIdx++;
+
+                // =================================================
+                // ✅ stage-aware anomaly (미래 공정 anomaly는 null)
+                // =================================================
+                // IMPORTANT:
+                // - DelayTrainingSnapshot 컬럼 타입이 Double(래퍼)여야 null 저장 가능
+                Double press = null, weld = null, paint = null, assembly = null, inspection = null;
+
+                switch (pt.getProcessName()) {
+                    case "프레스" -> press = pressScore;
+                    case "차체조립(용접)" -> { press = pressScore; weld = weldScore; }
+                    case "도장" -> { press = pressScore; weld = weldScore; paint = paintScore; }
+                    case "의장" -> { press = pressScore; weld = weldScore; paint = paintScore; assembly = assemblyScore; }
+                    case "검수" -> {
+                        press = pressScore; weld = weldScore;
+                        paint = paintScore; assembly = assemblyScore; inspection = inspectionScore;
+                    }
+                }
+
+                // =================================================
+                // 🔥 공정 종료 시점 Snapshot 생성
+                // - cumulativeDelayMinutes는 엔티티 내부에서 snapshotTime/dueDate로 계산됨
+                // - finalDelay/remainingDelay/delayFlag는 생성 시점엔 0 → 나중에 applyFinalDelay로 확정
+                // =================================================
+                DelayTrainingSnapshot snap = DelayTrainingSnapshot.of(
+                        order.getId(),
+                        production.getId(),
+
+                        stageCodeOf(pt),
+                        peEnd,
+
+                        orderDate,
+                        dueDate,
+                        prodStart,
+
+                        orderQty,
+
+                        press, weld, paint, assembly, inspection,
+
+                        stopCountTotal
+                );
+
+
+                em.persist(snap);
+                snapshots.add(snap);
             }   // for (ProcessType pt : ordered)
 
             // ==========================================
-            // [STEP 5] Production 완료 시점(prodEnd) 확정
+            // [STEP 8] Production 완료 시점(prodEnd) 확정 + 최종 지연 확정
             // ==========================================
 
             // 기본은 마지막 공정 종료 시점
             LocalDateTime prodEnd = cursor;
-
-            if (makeLate) {
-                // 지연 케이스: dueDate를 넘기도록 prodEnd를 강제로 세팅
-                // 0.5~3일(12~72시간) 정도 늦게
-                // (주의) 이렇게 하면 totalMinutes와 prodEnd 간에 불일치가 생길 수 있는데
-                // 의도적으로 "납기 지연을 생성"하기 위한 보정이므로 괜찮음.
-                long lateMin = 12 * 60 + r.nextInt(72 * 60);    // 12시간 ~ 72시간
-                prodEnd = dueDate.plusMinutes(lateMin);
-
-                // 지연 건수 누적
-                lateCount++;
-            } else {
-                // 정상 케이스: dueDate보다 충분히 앞서게 만들기
-                // 6시간~3일 정도 여유를 두어 dueDate 근처에 몰리는 것을 방지
-                long marginMin = 6 * 60 + r.nextInt(72 * 60);       // 6시간 ~ 72시간
-                LocalDateTime maxEnd = dueDate.minusMinutes(marginMin);
-
-                // 만약 공정 소요 누적 결과로 prodEnd가 maxEnd보다 늦으면, maxEnd로 강제로 당겨버림
-                if (prodEnd.isAfter(maxEnd)) prodEnd = maxEnd;
-
-                // 안전장치: prodEnd가 prodStart보다 앞서면 말이 안 되므로 최소 1시간 뒤로 보정
-                if (prodEnd.isBefore(prodStart)) prodEnd = prodStart.plusHours(1);
-            }
-
-            // Production 완료 처리
             production.complete(prodEnd);
 
-            // ==========================================
-            // [STEP 6] 학습용 Snapshot 저장
-            // ==========================================
+            long finalDelayMinutes =
+                    Math.max(0, Duration.between(dueDate, prodEnd).toMinutes());
 
-            // Snapshot은 학습용 단일 row
-            // - order/production/processExecution에서 필요한 값을 "한 줄로 펼쳐서" 저장
-            // 여기서 DelayTrainingSnapshot.of 내부에서
-            // delayFlag, delayHours 같은 라벨을 계산해서 넣는 구조면 가장 좋음.
-            DelayTrainingSnapshot snap = DelayTrainingSnapshot.of(
-                    order.getId(), production.getId(),
-                    orderDate, dueDate,
-                    prodStart, prodEnd,
-                    orderQty,
-                    pressScore, weldScore, assemblyScore, paintScore, inspectionScore,
-                    stopCountTotal,
-                    totalMinutes
-            );
-            em.persist(snap);
+            if (finalDelayMinutes > 0) lateCount++;
 
             // ==========================================
-            // [STEP 7] 배치 flush/clear
+            // [STEP 9] 모든 snapshot에 finalDelay 적용
+            // - remainingDelayMinutes = max(finalDelay - cumulativeDelay, 0)
+            // - delayFlag = finalDelay > 0 ? 1 : 0
+            // ==========================================
+            for (DelayTrainingSnapshot s : snapshots) {
+                s.applyFinalDelay(finalDelayMinutes);
+            }
+
+            // ==========================================
+            // [STEP 8] 배치 flush/clear
             // ==========================================
             // - JPA 1차 캐시에 엔티티가 계속 쌓이면 메모리/성능 문제 발생
             // - 500건마다 DB에 flush하고 영속성 컨텍스트를 비워준다
@@ -371,6 +422,23 @@ public class DummyDataGeneratorService {
             default -> 0.1;
         };
     }
+
+    /**
+     * ProcessType 이름 → 표준 snapshot_stage 코드 매핑
+     *
+     * 반드시 "모델 / 파이프라인 / Python"과 동일한 값 사용
+     */
+    private static String stageCodeOf(ProcessType pt) {
+        return switch (pt.getProcessName()) {
+            case "프레스" -> "PRESS_DONE";
+            case "차체조립(용접)" -> "WELD_DONE";
+            case "도장" -> "PAINT_DONE";
+            case "의장" -> "ASSEMBLY_DONE";
+            case "검수" -> "INSPECTION_DONE";
+            default -> "UNKNOWN_DONE";
+        };
+    }
+
 }
 
 

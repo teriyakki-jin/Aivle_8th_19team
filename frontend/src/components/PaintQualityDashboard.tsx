@@ -324,18 +324,6 @@ const PaintQualityDashboardInner: React.FC<{ orderId: number | null }> = ({ orde
           </div>
         </div>
 
-        <div className="flex gap-3 items-center">
-          <button
-            onClick={() => {
-              setHistory([]);
-              setCurrent(null);
-              setError(null);
-            }}
-            className="px-6 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl outline-none focus:ring-4 focus:ring-blue-200"
-          >
-            이력 초기화
-          </button>
-        </div>
       </div>
 
       {/* KPI (Battery 스타일) */}

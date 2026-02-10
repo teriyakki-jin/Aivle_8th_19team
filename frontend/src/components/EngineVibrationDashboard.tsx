@@ -23,6 +23,7 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  Cell,
 } from "recharts";
 
 type Pred01 = 0 | 1;
@@ -264,7 +265,7 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
             </div>
             <div>
               <h2 className="text-3xl font-bold text-gray-900">엔진 진동 분석</h2>
-              <p className="text-gray-600 mt-1">엔진 진동 이상 탐지 및 이력 관리</p>
+              <p className="text-gray-600 mt-1">엔진 시계열 진동 데이터를 모델로 분석하여 정상/이상 진동 패턴을 탐지합니다</p>
             </div>
           </div>
         </div>
@@ -343,6 +344,8 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                       borderRadius: "12px",
                       boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                     }}
+                    labelStyle={{ color: "#111827" }}
+                    itemStyle={{ color: "#111827" }}
                   />
                   <Legend />
                   <Line type="stepAfter" dataKey="상태" stroke="#4f46e5" strokeWidth={3} dot={{ r: 3 }} isAnimationActive={false} />
@@ -419,8 +422,14 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
                           borderRadius: "12px",
                           boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                         }}
+                        labelStyle={{ color: "#111827" }}
+                        itemStyle={{ color: "#111827" }}
                       />
-                      <Bar dataKey="건수" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="건수" radius={[6, 6, 0, 0]}>
+                        {distBar.map((entry, index) => (
+                          <Cell key={index} fill={entry.구분 === "정상" ? "#22c55e" : "#ef4444"} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -479,10 +488,6 @@ function EngineVibrationDashboardContent({ orderId }: { orderId: number | null }
               )}
             </tbody>
           </table>
-        </div>
-
-        <div className="mt-3 text-xs text-gray-500">
-          * 주문에 저장된 ML 결과를 표시합니다.
         </div>
       </Card>
     </div>

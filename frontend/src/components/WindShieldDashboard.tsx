@@ -21,6 +21,7 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  Cell,
 } from "recharts";
 
 type Side = "Left" | "Right";
@@ -257,8 +258,8 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
   const passFailBar = useMemo(() => {
     const pass = stats.totalCount - stats.failCount;
     return [
-      { 구분: "PASS", 건수: pass },
-      { 구분: "FAIL", 건수: stats.failCount },
+      { 구분: "합격", 건수: pass },
+      { 구분: "불합격", 건수: stats.failCount },
     ];
   }, [stats]);
 
@@ -282,7 +283,7 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
             </div>
             <div>
               <h2 className="text-3xl font-bold text-gray-900">윈드실드 사이드 몰딩 공정</h2>
-              <p className="text-gray-600 mt-1">윈드실드 품질 판정 및 이력 관리</p>
+              <p className="text-gray-600 mt-1">좌/우 윈드실드 몰딩의 열화상 데이터를 모델로 분석하여 두께를 예측하고 기준 범위(0.8~1.5mm) 이내인지 판정합니다</p>
             </div>
           </div>
         </div>
@@ -310,21 +311,21 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
           icon={<AlertTriangle className="w-5 h-5 text-red-600" />}
           label="불합격률"
           value={`${failRate.toFixed(1)}%`}
-          sub={`${stats.failCount}건 FAIL`}
+          sub={`${stats.failCount}건 불합격`}
           tone="bad"
         />
         <KpiCard
           icon={<CheckCircle2 className="w-5 h-5 text-green-600" />}
           label="합격률"
           value={`${stats.passRate}%`}
-          sub={`${stats.totalCount - stats.failCount}건 PASS`}
+          sub={`${stats.totalCount - stats.failCount}건 합격`}
           tone="good"
         />
         <KpiCard
           icon={<Timer className="w-5 h-5 text-purple-600" />}
           label="불합격 감지 수"
           value={stats.failCount.toLocaleString()}
-          sub="누적 FAIL 건수"
+          sub="누적 불합격 건수"
           tone="purple"
         />
       </div>
@@ -339,10 +340,10 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Left: Trend Chart */}
         <Card
-          title="PASS/FAIL 추이"
+          title="합격/불합격 추이"
           badge={
             <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-              PASS=1 / FAIL=0
+              합격=1 / 불합격=0
             </span>
           }
         >
@@ -354,13 +355,15 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
                   <XAxis dataKey="시간" stroke="#94a3b8" style={{ fontSize: "12px" }} interval="preserveStartEnd" />
                   <YAxis domain={[0, 1]} ticks={[0, 1]} stroke="#94a3b8" style={{ fontSize: "12px" }} />
                   <Tooltip
-                    formatter={(value: any) => (Number(value) === 1 ? "PASS" : "FAIL")}
+                    formatter={(value: any) => (Number(value) === 1 ? "합격" : "불합격")}
                     contentStyle={{
                       backgroundColor: "white",
                       border: "1px solid #f1f5f9",
                       borderRadius: "12px",
                       boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                     }}
+                    labelStyle={{ color: "#111827" }}
+                    itemStyle={{ color: "#111827" }}
                   />
                   <Legend />
                   <Line type="stepAfter" dataKey="상태" stroke="#4f46e5" strokeWidth={3} dot={{ r: 3 }} isAnimationActive={false} />
@@ -423,7 +426,7 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
 
               {/* 분포 차트 */}
               <div className="rounded-2xl border border-gray-200 bg-white p-5">
-                <div className="text-sm font-bold text-gray-900 mb-4">PASS / FAIL 분포</div>
+                <div className="text-sm font-bold text-gray-900 mb-4">합격 / 불합격 분포</div>
                 <div style={{ height: "150px" }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={passFailBar}>
@@ -437,8 +440,14 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
                           borderRadius: "12px",
                           boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                         }}
+                        labelStyle={{ color: "#111827" }}
+                        itemStyle={{ color: "#111827" }}
                       />
-                      <Bar dataKey="건수" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="건수" radius={[6, 6, 0, 0]}>
+                        {passFailBar.map((entry, index) => (
+                          <Cell key={index} fill={entry.구분 === "합격" ? "#22c55e" : "#ef4444"} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -499,10 +508,6 @@ function WindShieldDashboardContent({ orderId }: { orderId: number | null }) {
               )}
             </tbody>
           </table>
-        </div>
-
-        <div className="mt-3 text-xs text-gray-500">
-          * 주문에 저장된 ML 결과를 표시합니다.
         </div>
       </Card>
     </div>

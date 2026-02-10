@@ -209,7 +209,7 @@ export const BoardDetailPage = () => {
                                     id="edit-title"
                                     value={editTitle}
                                     onChange={(e) => setEditTitle(e.target.value)}
-                                    className="mt-2 text-lg px-4 py-3"
+                                    className="mt-2 text-lg px-4 py-3 text-gray-900"
                                 />
                             </div>
                             <div>

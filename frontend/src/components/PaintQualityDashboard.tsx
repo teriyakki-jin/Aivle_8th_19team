@@ -580,10 +580,6 @@ const PaintQualityDashboardInner: React.FC<{ orderId: number | null }> = ({ orde
             </tbody>
           </table>
         </div>
-
-        <div className="mt-3 text-xs text-gray-500">
-          * 주문에 저장된 ML 결과를 표시합니다.
-        </div>
       </Card>
     </div>
   );

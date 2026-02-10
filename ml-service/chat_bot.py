@@ -199,7 +199,7 @@ def get_vehicle_models(_: str = "") -> str:
     if "error" in data:
         return f"차량 모델 조회 실패: {data['error']}"
 
-    content = data.get("content", data) if isinstance(data, dict) else data
+    content = data.get("data", data) if isinstance(data, dict) else data
     if not content:
         return "등록된 차량 모델이 없습니다."
 

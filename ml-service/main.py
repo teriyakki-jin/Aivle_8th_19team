@@ -38,6 +38,9 @@ from duedate_prediction.schema import (
     PredictResponse as DueDatePredictResponse,
 )
 
+# 환경변수
+BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:3001")
+
 app = FastAPI(title="ML Service API", version="1.0.0")
 
 app.add_middleware(
@@ -305,7 +308,7 @@ async def predict_paint_endpoint(file: UploadFile = File(...)):
             save_image_dir=PAINT_CFG["SAVE_IMAGE_DIR"],
             save_label_dir=PAINT_CFG["SAVE_LABEL_DIR"],
             save_result_dir=PAINT_CFG["SAVE_RESULT_DIR"],
-            backend_url="http://localhost:3001/api/paint-analysis",  # 필요하면 env로 빼기
+            backend_url=f"{BACKEND_BASE_URL}/api/paint-analysis",
         )
         return JSONResponse(status_code=200, content=result)
     except HTTPException:
@@ -324,7 +327,7 @@ def predict_paint_auto():
             save_image_dir=PAINT_CFG["SAVE_IMAGE_DIR"],
             save_label_dir=PAINT_CFG["SAVE_LABEL_DIR"],
             save_result_dir=PAINT_CFG["SAVE_RESULT_DIR"],
-            backend_url="http://localhost:3001/api/paint-analysis",
+            backend_url=f"{BACKEND_BASE_URL}/api/paint-analysis",
         )
         return JSONResponse(status_code=200, content=result)
 
@@ -332,7 +335,7 @@ def predict_paint_auto():
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 # =========================
 # PRESS APIs (SIM INPUT)
 # =========================

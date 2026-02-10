@@ -8,4 +8,4 @@ WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
 EXPOSE 3001
 ENV SPRING_PROFILES_ACTIVE=prod
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xmx512m", "-Xms256m", "-jar", "app.jar"]

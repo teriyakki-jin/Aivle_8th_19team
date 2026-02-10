@@ -5,6 +5,8 @@ type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 async function request<T>(method: HttpMethod, path: string, body?: any): Promise<T> {
   const token = localStorage.getItem("token");
 
+  console.log(`[API] ${method} ${apiUrl(path)}, token: ${token ? 'present' : 'missing'}`);
+
   const res = await fetch(apiUrl(path), {
     method,
     headers: {
@@ -16,6 +18,19 @@ async function request<T>(method: HttpMethod, path: string, body?: any): Promise
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    console.error(`[API] ${method} ${path} failed (${res.status}):`, text);
+    
+    // 인증 오류인 경우 토큰 제거 및 로그아웃 처리
+    if (res.status === 401 || res.status === 403) {
+      console.warn('[API] Authentication failed, clearing token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('username');
+      // 페이지 새로고침하여 로그인 페이지로 리디렉트
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    
     throw new Error(`${method} ${path} failed (${res.status}): ${text}`);
   }
 

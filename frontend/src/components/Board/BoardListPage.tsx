@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { Plus, MessageSquare, Eye, Calendar, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { apiUrl } from '../../config/env';
-import { DefectSummarySection } from './DefectSummarySection';
 
 interface Post {
     id: number;
@@ -124,7 +123,7 @@ export const BoardListPage = () => {
                                         </div>
                                     ) : (
                                         <div>
-                                            <p className="text-gray-600 line-clamp-3 mb-4">
+                                            <p className="text-gray-900 line-clamp-3 mb-4">
                                                 {stripHtml(post.content)}
                                             </p>
                                             <div className="flex justify-between items-center">
@@ -151,8 +150,6 @@ export const BoardListPage = () => {
                 </div>
             )}
 
-            {/* 공정별 결함 요약 섹션 */}
-            <DefectSummarySection />
         </div>
     );
 };

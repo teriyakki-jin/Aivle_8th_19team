@@ -2,7 +2,6 @@ import os
 import shutil
 import uuid
 import traceback
-from threading import Lock
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
@@ -11,14 +10,20 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from langchain.chains import ConversationChain
-from langchain.memory import ConversationBufferMemory
-from langchain_openai import ChatOpenAI
 
 import press
 import windshield
 import engine
 from paint import service as paint_service
+
+# chatbot import (실패해도 서버 시작 가능)
+try:
+    from chat_bot import chat as chatbot_chat
+    CHATBOT_AVAILABLE = True
+except Exception as e:
+    print(f"Warning: chat_bot module failed to load: {e}")
+    CHATBOT_AVAILABLE = False
+    chatbot_chat = None
 import body_assembly
 from body_assembly import service as body_service
 from welding_image.pipeline import full_pipeline
@@ -33,6 +38,9 @@ from duedate_prediction.schema import (
     PredictResponse as DueDatePredictResponse,
 )
 
+# 환경변수
+BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:3001")
+
 app = FastAPI(title="ML Service API", version="1.0.0")
 
 app.add_middleware(
@@ -43,9 +51,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-CHATBOT_SESSIONS = {}
-CHATBOT_LOCK = Lock()
-
 
 class ChatbotRequest(BaseModel):
     session_id: str
@@ -55,20 +60,6 @@ class ChatbotRequest(BaseModel):
 class ChatbotResponse(BaseModel):
     content: str
     dataSummary: Optional[str] = None
-
-
-def get_chatbot_chain(session_id: str) -> ConversationChain:
-    with CHATBOT_LOCK:
-        chain = CHATBOT_SESSIONS.get(session_id)
-        if chain:
-            return chain
-
-        model_name = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        llm = ChatOpenAI(model=model_name, temperature=0.2)
-        memory = ConversationBufferMemory(return_messages=True)
-        chain = ConversationChain(llm=llm, memory=memory)
-        CHATBOT_SESSIONS[session_id] = chain
-        return chain
 
 
 
@@ -140,20 +131,38 @@ def health():
     }
 
 # =========================
-# Chatbot (LangChain Memory)
+# Chatbot (LangChain Agent + Tools)
 # =========================
-@app.post("/api/v1/chatbot/query", response_model=ChatbotResponse)
+@app.post("/api/v1/smartfactory/chatbot", response_model=ChatbotResponse)
 def chatbot_query(request: ChatbotRequest):
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY is not set")
+    """
+    공정 관리 AI 챗봇 - 실시간 API 연동
+    이 엔드포인트가 실패해도 다른 ML 서비스에 영향 없음
+    """
+    try:
+        if not CHATBOT_AVAILABLE:
+            return ChatbotResponse(
+                content="죄송합니다. 챗봇 서비스가 현재 사용 불가능합니다. 관리자에게 문의해주세요."
+            )
 
-    if not request.session_id or not request.message.strip():
-        raise HTTPException(status_code=400, detail="session_id and message are required")
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        if not api_key:
+            return ChatbotResponse(
+                content="죄송합니다. 챗봇 서비스 설정이 완료되지 않았습니다. 관리자에게 문의해주세요."
+            )
 
-    chain = get_chatbot_chain(request.session_id)
-    answer = chain.predict(input=request.message)
-    return ChatbotResponse(content=answer)
+        if not request.session_id or not request.message.strip():
+            return ChatbotResponse(content="메시지를 입력해주세요.")
+
+        answer = chatbot_chat(request.session_id, request.message)
+        return ChatbotResponse(content=answer)
+
+    except Exception as e:
+        print(f"Chatbot error: {e}")
+        traceback.print_exc()
+        return ChatbotResponse(
+            content="죄송합니다. 요청을 처리하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."
+        )
 
 # =========================
 # Windshield (기존 유지)
@@ -299,7 +308,7 @@ async def predict_paint_endpoint(file: UploadFile = File(...)):
             save_image_dir=PAINT_CFG["SAVE_IMAGE_DIR"],
             save_label_dir=PAINT_CFG["SAVE_LABEL_DIR"],
             save_result_dir=PAINT_CFG["SAVE_RESULT_DIR"],
-            backend_url="http://localhost:3001/api/paint-analysis",  # 필요하면 env로 빼기
+            backend_url=f"{BACKEND_BASE_URL}/api/paint-analysis",
         )
         return JSONResponse(status_code=200, content=result)
     except HTTPException:
@@ -318,7 +327,7 @@ def predict_paint_auto():
             save_image_dir=PAINT_CFG["SAVE_IMAGE_DIR"],
             save_label_dir=PAINT_CFG["SAVE_LABEL_DIR"],
             save_result_dir=PAINT_CFG["SAVE_RESULT_DIR"],
-            backend_url="http://localhost:3001/api/paint-analysis",
+            backend_url=f"{BACKEND_BASE_URL}/api/paint-analysis",
         )
         return JSONResponse(status_code=200, content=result)
 
@@ -326,7 +335,7 @@ def predict_paint_auto():
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 # =========================
 # PRESS APIs (SIM INPUT)
 # =========================
@@ -611,11 +620,13 @@ async def health_check():
 import pandas as pd
 import io
 
-# 샘플 데이터 경로 (S3에서 다운로드되거나 로컬 fallback)
-WINDSHIELD_DATA_DIR = os.path.join(BASE_DIR, "sample_data")
-# 로컬 개발 시 frontend/public/data fallback
-if not os.path.isdir(WINDSHIELD_DATA_DIR):
-    WINDSHIELD_DATA_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend", "public", "data")
+def _get_sample_data_dir():
+    """샘플 데이터 경로를 호출 시점에 결정 (S3 다운로드 이후에도 올바르게 동작)"""
+    primary = os.path.join(BASE_DIR, "sample_data")
+    if os.path.isdir(primary):
+        return primary
+    # 로컬 개발 시 frontend/public/data fallback
+    return os.path.join(os.path.dirname(BASE_DIR), "frontend", "public", "data")
 
 windshield_auto_state = {
     "left_rows": None,
@@ -626,8 +637,9 @@ windshield_auto_state = {
 
 def _load_windshield_csv():
     """윈드실드 샘플 CSV를 로드하여 행 단위로 저장"""
-    left_path = os.path.join(WINDSHIELD_DATA_DIR, "2nd_process_left_data.csv")
-    right_path = os.path.join(WINDSHIELD_DATA_DIR, "2nd_process_right_data.csv")
+    data_dir = _get_sample_data_dir()
+    left_path = os.path.join(data_dir, "2nd_process_left_data.csv")
+    right_path = os.path.join(data_dir, "2nd_process_right_data.csv")
 
     if os.path.exists(left_path):
         df = pd.read_csv(left_path, header=None)
@@ -712,7 +724,6 @@ def predict_windshield_auto(offset: int = 0):
 # =========================
 import arff
 
-ENGINE_DATA_DIR = WINDSHIELD_DATA_DIR  # 같은 폴더에 있음
 
 engine_auto_state = {
     "rows": None,
@@ -721,7 +732,8 @@ engine_auto_state = {
 
 def _load_engine_arff():
     """엔진 샘플 ARFF를 로드하여 행 단위로 저장"""
-    arff_path = os.path.join(ENGINE_DATA_DIR, "FordA_TEST.arff")
+    data_dir = _get_sample_data_dir()
+    arff_path = os.path.join(data_dir, "FordA_TEST.arff")
 
     if os.path.exists(arff_path):
         with open(arff_path, "r", encoding="utf-8") as f:

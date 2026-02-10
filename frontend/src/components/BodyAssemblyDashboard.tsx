@@ -455,6 +455,8 @@ function BodyAssemblyDashboardInner({ orderId }: { orderId: number | null }) {
                         borderRadius: "12px",
                         boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                       }}
+                      labelStyle={{ color: "#111827" }}
+                      itemStyle={{ color: "#111827" }}
                     />
                     <Legend />
                     <Line type="monotone" dataKey="failParts" stroke="#dc2626" strokeWidth={3} dot={{ fill: "#dc2626", r: 4 }} isAnimationActive={false} name="불량 부품" />
@@ -490,6 +492,8 @@ function BodyAssemblyDashboardInner({ orderId }: { orderId: number | null }) {
                       borderRadius: "12px",
                       boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
                     }}
+                    labelStyle={{ color: "#111827" }}
+                    itemStyle={{ color: "#111827" }}
                   />
                   <Bar dataKey="detections" fill="#6366f1" radius={[10, 10, 0, 0]} barSize={28} name="감지 수" />
                 </BarChart>
@@ -548,10 +552,6 @@ function BodyAssemblyDashboardInner({ orderId }: { orderId: number | null }) {
               )}
             </tbody>
           </table>
-        </div>
-
-        <div className="mt-3 text-xs text-gray-500">
-          * 주문에 저장된 ML 결과를 표시합니다.
         </div>
       </Card>
     </div>

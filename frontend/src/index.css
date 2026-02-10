@@ -257,6 +257,17 @@
     }
   }
 
+  /* ReactQuill & Prose: force dark text on white backgrounds */
+  .ql-editor {
+    color: #111827 !important;
+  }
+  .ql-editor.ql-blank::before {
+    color: #9ca3af !important;
+  }
+  .prose {
+    color: #111827;
+  }
+
   /* Precision Border: 1px */
   .border-precise {
     border-width: 1px;

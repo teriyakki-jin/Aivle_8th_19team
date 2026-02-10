@@ -13,6 +13,11 @@ export type ProductionDto = {
   dueDate?: string;
 };
 
+export type ProductionCompletePayload = {
+  endDate: string;
+  serialNumbers: string[];
+};
+
 export interface PageResponse<T> {
   content: T[];
   totalElements: number;
@@ -30,7 +35,8 @@ export const productionApi = {
   start: (id: string | number) => api.patch(`/api/v1/production/${id}/start`),
   stop: (id: string | number) => api.patch(`/api/v1/production/${id}/stop`),
   restart: (id: string | number) => api.patch(`/api/v1/production/${id}/restart`),
-  complete: (id: string | number) => api.patch(`/api/v1/production/${id}/complete`),
+  complete: (id: string | number, payload: ProductionCompletePayload) =>
+    api.patch(`/api/v1/production/${id}/complete`, payload),
   cancel: (id: string | number) => api.patch(`/api/v1/production/${id}/cancel`),
   patch: (id: string | number, payload: any) => api.patch(`/api/v1/production/${id}`, payload),
 };

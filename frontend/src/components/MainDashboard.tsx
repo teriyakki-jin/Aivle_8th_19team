@@ -6,7 +6,9 @@ import {
 import { orderApi, OrderDto } from '../api/order';
 import { productionApi, ProductionDto } from '../api/production';
 import { apiUrl } from '../config/env';
+import { debugAwsEnvironment, validateToken, handleAuthError } from '../utils/auth';
 import { useProduction } from '../context/ProductionContext';
+import { DefectSummarySection } from './Board/DefectSummarySection';
 
 // ===== Types =====
 
@@ -265,8 +267,20 @@ export function MainDashboard() {
   const dueDatePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dueDateEsRef = useRef<EventSource | null>(null);
 
+  // AWS 환경에서 디버깅 정보 출력
+  useEffect(() => {
+    if (import.meta.env.PROD) {
+      debugAwsEnvironment();
+    }
+  }, []);
+
   // --- SAFE fetch helper (res.ok 체크 + token/credentials) ---
   const safeFetchJson = useCallback(async (url: string) => {
+    // 토큰 유효성 검증
+    if (!validateToken()) {
+      throw new Error('Authentication failed - token invalid or expired');
+    }
+
     const token = localStorage.getItem('token');
 
     const res = await fetch(apiUrl(url), {
@@ -276,6 +290,14 @@ export function MainDashboard() {
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
+      
+      // 인증 오류 처리
+      if (res.status === 401 || res.status === 403) {
+        console.warn('[API] Authentication failed:', res.status, text);
+        handleAuthError();
+        throw new Error(`Authentication failed (${res.status}): Please login again`);
+      }
+      
       throw new Error(`HTTP ${res.status} ${res.statusText} ${text}`);
     }
 
@@ -308,6 +330,10 @@ export function MainDashboard() {
       setPrediction(pred);
     } catch (err) {
       console.error('Prediction fetch failed:', err);
+      console.error('Error details:', {
+        message: err instanceof Error ? err.message : String(err),
+        url: '/api/v1/delay-prediction/overview'
+      });
     }
   }, [safeFetchJson]);
 
@@ -862,6 +888,11 @@ export function MainDashboard() {
         )}
       </div>
 
+      {/* 공정별 결함 요약 섹션 */}
+      <div className="mb-8">
+        <DefectSummarySection />
+      </div>
+
       {/* Order / Production KPI Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-200">
@@ -950,9 +981,9 @@ export function MainDashboard() {
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={orderStatusChart}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis dataKey="name" tick={{ fill: "#111827" }} />
                 <YAxis allowDecimals={false} />
-                <Tooltip />
+                <Tooltip labelStyle={{ color: "#111827" }} />
                 <Legend />
                 <Bar dataKey="value" fill="#6366f1" name="주문 수" />
               </BarChart>
@@ -970,9 +1001,9 @@ export function MainDashboard() {
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={productionStatusChart}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
+                <XAxis dataKey="name" tick={{ fill: "#111827" }} />
                 <YAxis allowDecimals={false} />
-                <Tooltip />
+                <Tooltip labelStyle={{ color: "#111827" }} />
                 <Legend />
                 <Bar dataKey="value" fill="#10b981" name="생산 수" />
               </BarChart>

@@ -18,10 +18,12 @@ function formatDate(dateStr: string | null | undefined) {
   if (!dateStr) return "-";
   try {
     const d = new Date(dateStr);
-    return d.toLocaleDateString("ko-KR", {
+    return d.toLocaleString("ko-KR", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   } catch {
     return dateStr;
@@ -250,7 +252,7 @@ export function OrderPage() {
       const now = new Date();
       setOrderDate(toLocalDateTimeValue(now));
       const due = new Date(now.getTime());
-      due.setDate(due.getDate() + 7);
+      due.setDate(due.getDate() + 1);
       setDueDate(toLocalDateTimeValue(due));
     }
   }, [orderDate]);

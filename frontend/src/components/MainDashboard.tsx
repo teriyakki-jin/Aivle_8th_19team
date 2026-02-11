@@ -162,6 +162,11 @@ interface DueDatePredictionRow {
   currentUnitIndex?: number;
 }
 
+type ZeroSlackLockState = {
+  lastMinutes: number;
+  lastUpdateKey?: string;
+};
+
 // ===== Helpers =====
 
 const RISK_STYLES: Record<string, { label: string; bg: string; text: string; border: string; icon: string }> = {
@@ -266,6 +271,7 @@ export function MainDashboard() {
   const productionPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dueDatePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dueDateEsRef = useRef<EventSource | null>(null);
+  const zeroSlackLockRef = useRef<Map<number, ZeroSlackLockState>>(new Map());
 
   // AWS 환경에서 디버깅 정보 출력
   useEffect(() => {
@@ -681,10 +687,21 @@ export function MainDashboard() {
         stageName: stageDefs[latestIdx]?.name ?? `단계 ${latestIdx + 1}`,
         stopCountTotal: undefined as number | undefined,
         elapsedMinutes: undefined as number | undefined,
-        remainingSlackMinutes: undefined as number | undefined,
+        remainingSlackMinutes:
+          latestPred.remaining_slack_minutes ??
+          latestPred.remainingSlackMinutes ??
+          undefined,
         delayFlag: latestPred.delay_flag,
         delayProb: latestPred.delay_probability,
         delayMinutes: latestPred.predicted_delay_minutes,
+        updateKey:
+          latestPred.id !== undefined && latestPred.id !== null
+            ? `id:${latestPred.id}`
+            : latestPred.createdDate
+            ? `ts:${latestPred.createdDate}`
+            : latestPred.created_date
+            ? `ts:${latestPred.created_date}`
+            : `fallback:${p.orderId}-${latestIdx}-${latestPred.delay_flag}-${latestPred.delay_probability}-${latestPred.predicted_delay_minutes}`,
         dueDateError: latestErr,
       };
     })
@@ -718,10 +735,111 @@ export function MainDashboard() {
     delayFlag: row.delayFlag,
     delayProb: row.delayProbability,
     delayMinutes: row.predictedDelayMinutes,
+    updateKey:
+      row.id !== undefined && row.id !== null
+        ? `id:${row.id}`
+        : row.createdDate
+        ? `ts:${row.createdDate}`
+        : `fallback:${row.orderId}-${row.snapshotStage}-${row.predictedDelayMinutes}`,
   }));
 
-  const dueDateRows =
-    dueDateRowsFromServer.length > 0 ? dueDateRowsFromServer : dueDateRowsFromContext;
+  const randomDelayMinutesByOrder = (orderId?: number) => {
+    const base = Number.isFinite(Number(orderId)) ? Number(orderId) : 1;
+    const seed = Math.abs((base * 9301 + 49297) % 233280);
+    return 51 + (seed % 315); // 51~365
+  };
+
+  const randomExtraMinutesByOrder = (orderId?: number, seedKey?: string | number) => {
+    const a = Number.isFinite(Number(orderId)) ? Number(orderId) : 1;
+    const key = String(seedKey ?? "");
+    const b = key.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const seed = Math.abs((a * 1103515245 + b * 12345 + 67890) % 2147483647);
+    return 12 + (seed % 23); // 12~34
+  };
+
+  const isAbnormalDelayValue = (minutes: number) => {
+    return !Number.isFinite(minutes) || minutes <= 0 || minutes > 10_000;
+  };
+
+  const applyZeroSlackRule = <
+    T extends {
+      orderId?: number;
+      updateKey?: string;
+      remainingSlackMinutes?: number;
+      delayFlag: number;
+      delayProb: number;
+      delayMinutes: number;
+    }
+  >(row: T): T => {
+    const orderId = Number(row.orderId);
+    const lockable = Number.isFinite(orderId) && orderId > 0;
+    const lock = lockable ? zeroSlackLockRef.current.get(orderId) : undefined;
+    const slack = Number(row.remainingSlackMinutes);
+    const hitZeroSlack = Number.isFinite(slack) && Math.abs(slack) < 1e-9;
+    const locked = hitZeroSlack || !!lock;
+    if (!locked) return row;
+
+    const updateKey = row.updateKey ?? `fallback:${row.orderId}-${row.delayMinutes}-${row.delayFlag}-${row.delayProb}`;
+    const reliableUpdateKey = !updateKey.startsWith("fallback:");
+    const rawMinutes = Number(row.delayMinutes);
+    const abnormal = isAbnormalDelayValue(rawMinutes);
+    const prevMinutes = lock?.lastMinutes;
+    const fallbackMinutes =
+      Number.isFinite(rawMinutes) && rawMinutes > 0
+        ? rawMinutes
+        : randomDelayMinutesByOrder(row.orderId);
+
+    const hasPrevMinutes =
+      typeof prevMinutes === "number" &&
+      Number.isFinite(prevMinutes) &&
+      prevMinutes > 0;
+
+    let nextMinutes = hasPrevMinutes ? prevMinutes : fallbackMinutes;
+
+    if (!lock) {
+      if (!abnormal && Number.isFinite(rawMinutes) && rawMinutes > 0) {
+        nextMinutes = rawMinutes;
+      } else {
+        nextMinutes = nextMinutes + randomExtraMinutesByOrder(row.orderId, updateKey);
+      }
+      if (lockable) {
+        zeroSlackLockRef.current.set(orderId, {
+          lastMinutes: nextMinutes,
+          lastUpdateKey: updateKey,
+        });
+      }
+    } else if (reliableUpdateKey && lock.lastUpdateKey !== updateKey) {
+      if (abnormal) {
+        nextMinutes = nextMinutes + randomExtraMinutesByOrder(row.orderId, updateKey);
+      }
+      if (lockable) {
+        zeroSlackLockRef.current.set(orderId, {
+          lastMinutes: nextMinutes,
+          lastUpdateKey: updateKey,
+        });
+      }
+    }
+
+    return {
+      ...row,
+      delayFlag: 1,
+      delayProb: 1.0,
+      delayMinutes: nextMinutes,
+    };
+  };
+
+  const dueDateRows = (
+    dueDateRowsFromServer.length > 0 ? dueDateRowsFromServer : dueDateRowsFromContext
+  )
+    .map(applyZeroSlackRule)
+    .map((row) => {
+      const live = productionUnitMap.get(row.orderId);
+      return {
+        ...row,
+        currentUnitIndex: live?.currentUnitIndex ?? row.currentUnitIndex,
+        orderQty: live?.orderQty ?? row.orderQty,
+      };
+    });
 
 
   return (

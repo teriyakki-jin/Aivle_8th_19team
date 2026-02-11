@@ -224,9 +224,9 @@ public class InitDb {
             /**
              *  주문
              */
-            Order order1 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusDays(7), 10, avante_CN8);
-            Order order2 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusDays(7), 5, sonata_DN8);
-            Order order3 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusDays(7), 1, grandeur_GN7);
+            Order order1 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusMinutes(3), 10, avante_CN8);
+            Order order2 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusMinutes(3), 5, sonata_DN8);
+            Order order3 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusMinutes(20), 1, grandeur_GN7);
             em.persist(order1);
             em.persist(order2);
             em.persist(order3);

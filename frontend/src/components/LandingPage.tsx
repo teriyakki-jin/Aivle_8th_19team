@@ -117,16 +117,16 @@ export function LandingPage({ role, isLoggedIn, onLogout }: LandingPageProps) {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 md:gap-8 pt-8 border-t border-border">
               <div>
-                <div className="text-2xl md:text-3xl font-mono font-semibold text-primary mb-1">99.2%</div>
-                <div className="text-sm text-muted-foreground">이상 탐지 정확도</div>
+                <div className="text-2xl md:text-3xl font-mono font-semibold text-primary mb-1">91.98%</div>
+                <div className="text-sm text-muted-foreground">이상 탐지 정확도(평균)</div>
               </div>
               <div>
-                <div className="text-2xl md:text-3xl font-mono font-semibold text-primary mb-1">87%</div>
-                <div className="text-sm text-muted-foreground">납기 예측 정확도</div>
+                <div className="text-2xl md:text-3xl font-mono font-semibold text-primary mb-1">92%</div>
+                <div className="text-sm text-muted-foreground">지연 위험 식별 성능</div>
               </div>
               <div>
-                <div className="text-2xl md:text-3xl font-mono font-semibold text-primary mb-1">24/7</div>
-                <div className="text-sm text-muted-foreground">실시간 모니터링</div>
+                <div className="text-2xl md:text-3xl font-mono font-semibold text-primary mb-1">2.8시간</div>
+                <div className="text-sm text-muted-foreground">평균 추가 지연 예측 오차</div>
               </div>
             </div>
           </div>

@@ -79,3 +79,11 @@ infra/terraform/terraform.tfvars
 # Docker
 *.tar
 docker-compose.override.yml
+
+# Local workspace-only legacy/temporary dirs (repo root only)
+/.claude/
+/src/
+/server/
+/scratches_*.jpg
+/ml-service/battery/
+/battery_analysis.ipynb

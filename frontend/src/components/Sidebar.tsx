@@ -103,7 +103,7 @@ export function Sidebar({ username, role, onLogout }: SidebarProps) {
           {mode === "process" ? "자동차 공정 관리" : "주문 생산 관리"}
         </h1>
         <p className="text-sm text-slate-400 mt-1">
-          {mode === "process" ? "이상 및 납기 리스크 예측" : "주문/계획/현황 모니터링"}
+          {mode === "process" ? "이상 탐지 및 납기 리스크 예측" : "주문/계획/현황 모니터링"}
         </p>
       </div>
 

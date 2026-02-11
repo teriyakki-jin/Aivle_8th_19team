@@ -153,7 +153,7 @@ public class ProductionService {
                 .orderId(production.getOrderProductionList().isEmpty() ? null
                         : production.getOrderProductionList().get(0).getOrder().getId())
                 .productionStatus(production.getProductionStatus())
-                .startDate(production.getStartDate())
+                .startDate(com.example.automobile_risk.service.dto.ProductionStreamEvent.toOffsetDateTime(production.getStartDate()))
                 .build());
 
         // 생산 시작 시 데이터셋 랜덤 할당 (미할당 시)

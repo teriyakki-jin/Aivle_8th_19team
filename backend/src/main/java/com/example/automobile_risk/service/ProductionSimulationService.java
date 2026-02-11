@@ -118,7 +118,7 @@ public class ProductionSimulationService {
                                 .executionOrder(pe.getExecutionOrder())
                                 .unitIndex(pe.getUnitIndex())
                                 .processExecutionStatus(pe.getStatus())
-                                .startDate(pe.getStartDate())
+                                .startDate(ProductionStreamEvent.toOffsetDateTime(pe.getStartDate()))
                                 .build());
                         return pe.getId();
                     });
@@ -146,8 +146,8 @@ public class ProductionSimulationService {
                                 .executionOrder(pe.getExecutionOrder())
                                 .unitIndex(pe.getUnitIndex())
                                 .processExecutionStatus(pe.getStatus())
-                                .startDate(pe.getStartDate())
-                                .endDate(pe.getEndDate())
+                                .startDate(ProductionStreamEvent.toOffsetDateTime(pe.getStartDate()))
+                                .endDate(ProductionStreamEvent.toOffsetDateTime(pe.getEndDate()))
                                 .build());
                         return null;
                     });
@@ -192,7 +192,7 @@ public class ProductionSimulationService {
                         .productionId(productionId)
                         .orderId(getOrderId(production))
                         .productionStatus(production.getProductionStatus())
-                        .endDate(production.getEndDate())
+                        .endDate(ProductionStreamEvent.toOffsetDateTime(production.getEndDate()))
                         .build());
             }
             return null;

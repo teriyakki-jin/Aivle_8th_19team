@@ -9,6 +9,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 
 @Data
 @Builder
@@ -17,8 +19,8 @@ import java.time.LocalDateTime;
 public class ProcessExecutionDetailResponse {
 
     private Long processExecutionId;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private OffsetDateTime startDate;
+    private OffsetDateTime endDate;
     private Long executionOrder;
     private ProcessExecutionStatus status;
     private Long productionId;
@@ -32,8 +34,8 @@ public class ProcessExecutionDetailResponse {
     public static ProcessExecutionDetailResponse from(ProcessExecution processExecution) {
         return ProcessExecutionDetailResponse.builder()
                 .processExecutionId(processExecution.getId())
-                .startDate(processExecution.getStartDate())
-                .endDate(processExecution.getEndDate())
+                .startDate(toOffsetDateTime(processExecution.getStartDate()))
+                .endDate(toOffsetDateTime(processExecution.getEndDate()))
                 .executionOrder((long) processExecution.getExecutionOrder())
                 .status(processExecution.getStatus())
                 .productionId(processExecution.getProduction().getId())
@@ -43,5 +45,9 @@ public class ProcessExecutionDetailResponse {
                 .equipmentId(processExecution.getEquipment().getId())
                 .equipmentName(processExecution.getEquipment().getEquipmentName())
                 .build();
+    }
+
+    private static OffsetDateTime toOffsetDateTime(LocalDateTime value) {
+        return value == null ? null : value.atZone(ZoneId.systemDefault()).toOffsetDateTime();
     }
 }

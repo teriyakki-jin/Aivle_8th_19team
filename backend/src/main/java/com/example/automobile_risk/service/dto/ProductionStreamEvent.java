@@ -8,6 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 
 @Data
 @Builder
@@ -24,9 +26,13 @@ public class ProductionStreamEvent {
     private Integer executionOrder;
     private Integer unitIndex;
     private ProcessExecutionStatus processExecutionStatus;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private OffsetDateTime startDate;
+    private OffsetDateTime endDate;
 
     // production fields
     private ProductionStatus productionStatus;
+
+    public static OffsetDateTime toOffsetDateTime(LocalDateTime value) {
+        return value == null ? null : value.atZone(ZoneId.systemDefault()).toOffsetDateTime();
+    }
 }

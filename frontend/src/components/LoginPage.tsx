@@ -82,7 +82,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             <Factory className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">자동차 공정 관리</h1>
-          <p className="text-slate-300">이상 및 납기 리스크 예측 플랫폼</p>
+          <p className="text-slate-300">이상 탐지 및 납기 리스크 예측 플랫폼</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">

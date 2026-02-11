@@ -8,6 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,15 +20,15 @@ import java.util.List;
 public class ProductionDetailResponse {
 
     private Long productionId;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private OffsetDateTime startDate;
+    private OffsetDateTime endDate;
     private ProductionStatus productionStatus;
     private Integer plannedQty;
     private Long vehicleModelId;
     private String vehicleModelName;
     private Long orderId;
     private Integer orderQty;
-    private LocalDateTime dueDate;
+    private OffsetDateTime dueDate;
     @Builder.Default
     private List<OrderProductionDetailResponse> orderProductionList = new ArrayList<>();
 
@@ -38,20 +40,24 @@ public class ProductionDetailResponse {
                 : null;
         return ProductionDetailResponse.builder()
                 .productionId(production.getId())
-                .startDate(production.getStartDate())
-                .endDate(production.getEndDate())
+                .startDate(toOffsetDateTime(production.getStartDate()))
+                .endDate(toOffsetDateTime(production.getEndDate()))
                 .productionStatus(production.getProductionStatus())
                 .plannedQty(production.getPlannedQty())
                 .vehicleModelId(production.getVehicleModel() != null ? production.getVehicleModel().getId() : null)
                 .vehicleModelName(production.getVehicleModel() != null ? production.getVehicleModel().getModelName() : null)
                 .orderId(order != null ? order.getId() : null)
                 .orderQty(order != null ? order.getOrderQty() : null)
-                .dueDate(order != null ? order.getDueDate() : null)
+                .dueDate(order != null ? toOffsetDateTime(order.getDueDate()) : null)
                 .orderProductionList(
                         production.getOrderProductionList().stream()
                                 .map(OrderProductionDetailResponse::from)
                                 .toList()
                 )
                 .build();
+    }
+
+    private static OffsetDateTime toOffsetDateTime(LocalDateTime value) {
+        return value == null ? null : value.atZone(ZoneId.systemDefault()).toOffsetDateTime();
     }
 }

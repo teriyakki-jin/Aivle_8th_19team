@@ -117,11 +117,7 @@ export default function App() {
         <Route
           path="/"
           element={
-            isLoggedIn ? (
-              <Navigate to={defaultPath} replace />
-            ) : (
-              <LandingPage />
-            )
+            <LandingPage role={role} isLoggedIn={isLoggedIn} onLogout={handleLogout} />
           }
         />
 

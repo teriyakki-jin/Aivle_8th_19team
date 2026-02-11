@@ -2,9 +2,27 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Factory, AlertTriangle, TrendingUp, Activity, CheckCircle2, ArrowRight, Zap, BarChart3, Package } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-export function LandingPage() {
+interface LandingPageProps {
+  role?: string | null;
+  isLoggedIn?: boolean;
+  onLogout?: () => void;
+}
+
+export function LandingPage({ role, isLoggedIn, onLogout }: LandingPageProps) {
+  const navigate = useNavigate();
+  const showProduction = role === "ADMIN" || role === "PRODUCTION_MANAGER";
+  const showProcess = role === "ADMIN" || role === "PROCESS_MANAGER";
+  const goProduction = () => {
+    localStorage.setItem("app_mode", "order");
+    navigate("/order/orders");
+  };
+  const goProcess = () => {
+    localStorage.setItem("app_mode", "process");
+    navigate("/dashboard");
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header Navigation */}
@@ -36,12 +54,38 @@ export function LandingPage() {
               </a>
             </nav>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/login">로그인</Link>
-              </Button>
-              <Button variant="default" size="sm" asChild>
-                <Link to="/signup">회원가입</Link>
-              </Button>
+              {isLoggedIn && showProduction && (
+                <Button variant="outline" size="sm" onClick={goProduction}>
+                  생산관리
+                </Button>
+              )}
+              {isLoggedIn && showProcess && (
+                <Button variant="outline" size="sm" onClick={goProcess}>
+                  공정관리
+                </Button>
+              )}
+              {!isLoggedIn && (
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/login">로그인</Link>
+                </Button>
+              )}
+              {!isLoggedIn && (
+                <Button variant="default" size="sm" asChild>
+                  <Link to="/signup">회원가입</Link>
+                </Button>
+              )}
+              {isLoggedIn && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    onLogout?.();
+                    navigate("/login", { replace: true });
+                  }}
+                >
+                  로그아웃
+                </Button>
+              )}
             </div>
           </div>
         </div>

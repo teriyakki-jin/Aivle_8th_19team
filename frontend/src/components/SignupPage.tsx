@@ -103,7 +103,13 @@ export const SignupPage = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+        <div className="relative min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4">
+            <Link
+                to="/"
+                className="absolute top-4 right-4 px-3 py-2 rounded-lg border border-slate-600 text-slate-200 hover:bg-slate-800 transition-colors text-sm"
+            >
+                홈으로
+            </Link>
             <div className="w-full max-w-md">
                 {/* Logo & Title */}
                 <div className="text-center mb-8">

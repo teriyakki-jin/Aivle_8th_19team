@@ -162,6 +162,8 @@ export function Sidebar({ username, role, onLogout }: SidebarProps) {
         </button>
 
         <div className="flex items-center gap-3 px-4 text-xs text-slate-700">
+          <Link to="/" className="hover:text-slate-500 transition-colors">홈으로 가기</Link>
+          <span>·</span>
           <Link to="/terms" className="hover:text-slate-500 transition-colors">이용약관</Link>
           <span>·</span>
           <Link to="/privacy" className="hover:text-slate-500 transition-colors">개인정보처리방침</Link>

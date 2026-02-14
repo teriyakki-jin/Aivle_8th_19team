@@ -59,4 +59,9 @@ public class DueDatePredictionService {
                 .map(DueDatePredictionResponse::from)
                 .collect(Collectors.toList());
     }
+
+    public Optional<DueDatePrediction> getLatestByOrderId(Long orderId) {
+        if (orderId == null) return Optional.empty();
+        return dueDatePredictionRepository.findTopByOrderIdOrderByIdDesc(orderId);
+    }
 }

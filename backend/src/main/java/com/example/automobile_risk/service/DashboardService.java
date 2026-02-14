@@ -5,12 +5,14 @@ import com.example.automobile_risk.dto.DashboardResponse;
 import com.example.automobile_risk.entity.Anomaly;
 import com.example.automobile_risk.entity.DashboardHistory;
 import com.example.automobile_risk.entity.DashboardPredictionSnapshot;
+import com.example.automobile_risk.entity.MLAnalysisResult;
 import com.example.automobile_risk.entity.ProcessEntity;
 import com.example.automobile_risk.entity.ProcessEvent;
 import com.example.automobile_risk.entity.enumclass.RiskLevel;
 import com.example.automobile_risk.repository.AnomalyRepository;
 import com.example.automobile_risk.repository.DashboardHistoryRepository;
 import com.example.automobile_risk.repository.DashboardPredictionSnapshotRepository;
+import com.example.automobile_risk.repository.MLAnalysisResultRepository;
 import com.example.automobile_risk.repository.ProcessEventRepository;
 import com.example.automobile_risk.repository.ProcessRepository;
 import com.example.automobile_risk.entity.Order;
@@ -19,9 +21,11 @@ import com.example.automobile_risk.repository.OrderRepository;
 import com.example.automobile_risk.repository.ProductionRepository;
 import com.example.automobile_risk.entity.Production;
 import com.example.automobile_risk.entity.enumclass.ProductionStatus;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +45,7 @@ public class DashboardService {
     private static final double UNRESOLVED_EVENT_PENALTY = 1.5;
     private static final double SEVERITY_HIGH_PENALTY = 1.0;
     private static final double DELAY_EFFICIENCY_FACTOR = 0.5;
+    private static final double MIN_RATIO = 0.6;
 
     // ML process name → ProcessEntity Korean name
     private static final Map<String, String> ML_PROCESS_TO_ENTITY = Map.of(
@@ -48,9 +53,31 @@ public class DashboardService {
             "press_image", "프레스",
             "paint", "도장",
             "welding", "차체",
+            "welding_image", "차체",
             "windshield", "설비",
             "engine", "엔진",
-            "body_inspect", "차체"
+            "body_inspect", "차체",
+            "body_assembly", "차체"
+    );
+
+    private static final Map<String, Double> DELAY_FACTOR = Map.of(
+            "press_vibration", 1.5,
+            "press_image", 1.2,
+            "paint", 2.0,
+            "welding", 2.5,
+            "windshield", 1.0,
+            "engine", 2.2,
+            "body_inspect", 1.8
+    );
+
+    private static final List<String> DASHBOARD_SERVICES = List.of(
+            "press_vibration",
+            "press_image",
+            "paint",
+            "welding",
+            "windshield",
+            "engine",
+            "body_inspect"
     );
 
     // ML result cache (avoid 7 HTTP calls on every dashboard request)
@@ -63,8 +90,7 @@ public class DashboardService {
     private final DashboardHistoryRepository historyRepository;
     private final ProcessEventRepository processEventRepository;
     private final DelayPredictionService delayPredictionService;
-    private final MlOrchestrationService mlOrchestrationService;
-    private final DefectDelayRuleEngine defectDelayRuleEngine;
+    private final MLAnalysisResultRepository mlAnalysisResultRepository;
     private final DashboardPredictionSnapshotRepository dashboardSnapshotRepository;
     private final OrderRepository orderRepository;
     private final ProductionRepository productionRepository;
@@ -73,8 +99,8 @@ public class DashboardService {
     // ── ML Cache ──
 
     private record MlCacheEntry(
-            MlOrchestrationService.OrchestrationResult orchResult,
             DefectDelayRuleEngine.ProcessedPrediction processed,
+            List<DashboardPredictionDto.SourceStatus> sources,
             boolean fresh
     ) {}
 
@@ -84,28 +110,142 @@ public class DashboardService {
 
         // Return cached (non-fresh) if within TTL
         if (cached != null && (now - mlCacheTimestamp) < ML_CACHE_TTL_MS) {
-            return new MlCacheEntry(cached.orchResult(), cached.processed(), false);
+            return new MlCacheEntry(cached.processed(), cached.sources(), false);
         }
 
-        // Fetch fresh
+        // Build from stored ML results
         try {
-            MlOrchestrationService.OrchestrationResult orch =
-                    mlOrchestrationService.callAllEndpoints();
-            DefectDelayRuleEngine.ProcessedPrediction proc =
-                    defectDelayRuleEngine.evaluate(orch.getResults());
-
-            MlCacheEntry fresh = new MlCacheEntry(orch, proc, true);
+            MlCacheEntry fresh = buildFromStoredMlResults();
             this.mlCache = fresh;
             this.mlCacheTimestamp = now;
             return fresh;
         } catch (Exception e) {
-            log.warn("ML orchestration failed, using stale cache or empty", e);
+            log.warn("Stored ML aggregation failed, using stale cache or empty", e);
             // Return stale cache if available, else null
             if (cached != null) {
-                return new MlCacheEntry(cached.orchResult(), cached.processed(), false);
+                return new MlCacheEntry(cached.processed(), cached.sources(), false);
             }
             return null;
         }
+    }
+
+    private MlCacheEntry buildFromStoredMlResults() {
+        List<MLAnalysisResult> recent = mlAnalysisResultRepository.findRecent(
+                null, null, null, PageRequest.of(0, 1000));
+        Map<String, MLAnalysisResult> latestByService = new HashMap<>();
+        for (MLAnalysisResult row : recent) {
+            String service = normalizeServiceForDashboard(row.getServiceType());
+            if (service == null || !DASHBOARD_SERVICES.contains(service)) continue;
+            latestByService.putIfAbsent(service, row);
+        }
+
+        List<DashboardPredictionDto.ProcessContribution> contributions = new ArrayList<>();
+        List<DashboardPredictionDto.SourceStatus> sources = new ArrayList<>();
+        double totalDelayMax = 0.0;
+
+        for (String service : DASHBOARD_SERVICES) {
+            MLAnalysisResult latest = latestByService.get(service);
+            boolean hasStored = latest != null;
+
+            sources.add(DashboardPredictionDto.SourceStatus.builder()
+                    .endpoint(service)
+                    .ok(hasStored)
+                    .reason(hasStored ? "from_db" : "no_stored_result")
+                    .build());
+
+            if (!hasStored || !isAbnormal(latest)) continue;
+
+            int defectCount = extractDefectCount(latest);
+            if (defectCount <= 0) continue;
+
+            double factor = DELAY_FACTOR.getOrDefault(service, 1.0);
+            double delayMax = defectCount * factor;
+            double delayMin = delayMax * MIN_RATIO;
+
+            contributions.add(DashboardPredictionDto.ProcessContribution.builder()
+                    .process(service)
+                    .delayMinH(Math.round(delayMin * 10.0) / 10.0)
+                    .delayMaxH(Math.round(delayMax * 10.0) / 10.0)
+                    .build());
+            totalDelayMax += delayMax;
+        }
+
+        double totalDelayMin = totalDelayMax * MIN_RATIO;
+        DefectDelayRuleEngine.ProcessedPrediction processed = new DefectDelayRuleEngine.ProcessedPrediction(
+                Math.round(totalDelayMin * 10.0) / 10.0,
+                Math.round(totalDelayMax * 10.0) / 10.0,
+                classifyRisk(totalDelayMax),
+                contributions
+        );
+        return new MlCacheEntry(processed, sources, true);
+    }
+
+    private boolean isAbnormal(MLAnalysisResult row) {
+        if (row == null) return false;
+        if (row.getIsAnomaly() != null && row.getIsAnomaly() == 1) return true;
+        String status = row.getStatus();
+        if (status == null) return false;
+        String s = status.toUpperCase(Locale.ROOT);
+        return "ABNORMAL".equals(s) || "FAIL".equals(s) || "NG".equals(s);
+    }
+
+    private String normalizeServiceForDashboard(String serviceType) {
+        if (serviceType == null) return null;
+        return switch (serviceType) {
+            case "welding_image" -> "welding";
+            case "body_assembly" -> "body_inspect";
+            default -> serviceType;
+        };
+    }
+
+    private int extractDefectCount(MLAnalysisResult row) {
+        if (row == null) return 0;
+        String info = row.getAdditionalInfo();
+        if (info == null || info.isBlank()) return 1;
+        try {
+            JsonNode data = objectMapper.readTree(info);
+            int count = extractDefectCountFromJson(data);
+            return count > 0 ? count : 1;
+        } catch (Exception e) {
+            return 1;
+        }
+    }
+
+    private int extractDefectCountFromJson(JsonNode data) {
+        if (data == null || data.isNull()) return 0;
+        if (data.has("defect_count")) return data.get("defect_count").asInt(0);
+        if (data.has("anomaly_count")) return data.get("anomaly_count").asInt(0);
+        if (data.has("data") && data.get("data").has("defect_count")) {
+            return data.get("data").get("defect_count").asInt(0);
+        }
+        if (data.has("data") && data.get("data").has("detected_defects")
+                && data.get("data").get("detected_defects").isArray()) {
+            return data.get("data").get("detected_defects").size();
+        }
+        if (data.has("results") && data.get("results").isArray()) {
+            int count = 0;
+            for (JsonNode item : data.get("results")) {
+                if (item.has("is_defect") && item.get("is_defect").asBoolean()) count++;
+                if (item.has("label") && !"ok".equalsIgnoreCase(item.get("label").asText())) count++;
+            }
+            return count;
+        }
+        if (data.has("data") && data.get("data").has("results") && data.get("data").get("results").isArray()) {
+            int count = 0;
+            for (JsonNode item : data.get("data").get("results")) {
+                if (item.has("is_defect") && item.get("is_defect").asBoolean()) count++;
+                if (item.has("label") && !"ok".equalsIgnoreCase(item.get("label").asText())) count++;
+            }
+            return count;
+        }
+        return 0;
+    }
+
+    private RiskLevel classifyRisk(double totalDelayHours) {
+        if (totalDelayHours < 8) return RiskLevel.LOW;
+        if (totalDelayHours < 24) return RiskLevel.MEDIUM;
+        if (totalDelayHours < 48) return RiskLevel.HIGH;
+        return RiskLevel.CRITICAL;
     }
 
     // ── Main Dashboard ──
@@ -138,7 +278,7 @@ public class DashboardService {
         // ── ML prediction (cached, SOLE source of delivery delay) ──
         MlCacheEntry ml = getOrRefreshMlResult();
         DefectDelayRuleEngine.ProcessedPrediction processed = (ml != null) ? ml.processed() : null;
-        MlOrchestrationService.OrchestrationResult orchResult = (ml != null) ? ml.orchResult() : null;
+        List<DashboardPredictionDto.SourceStatus> sources = (ml != null) ? ml.sources() : List.of();
 
         double totalDelayHours = 0.0;
         String overallRiskLevel = RiskLevel.LOW.name();
@@ -317,8 +457,8 @@ public class DashboardService {
         DashboardPredictionDto.DeltaSincePrev deltaSincePrev = null;
         List<DashboardPredictionDto.PredictionTrendPoint> predictionTrend = null;
 
-        if (processed != null && orchResult != null) {
-            String statusStr = orchResult.isPartial() ? "PARTIAL" : "OK";
+        if (processed != null) {
+            String statusStr = "OK";
             String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
             currentPrediction = DashboardPredictionDto.CurrentPrediction.builder()
@@ -326,7 +466,7 @@ public class DashboardService {
                     .predDelayMaxH(processed.getDelayMaxH())
                     .riskLevel(processed.getRiskLevel().name())
                     .contributions(processed.getContributions())
-                    .sources(orchResult.getSources())
+                    .sources(sources)
                     .status(statusStr)
                     .lastUpdated(now)
                     .build();
@@ -335,7 +475,7 @@ public class DashboardService {
             if (ml != null && ml.fresh()) {
                 try {
                     String contribJson = objectMapper.writeValueAsString(processed.getContributions());
-                    String sourcesJson = objectMapper.writeValueAsString(orchResult.getSources());
+                    String sourcesJson = objectMapper.writeValueAsString(sources);
 
                     DashboardPredictionSnapshot snapshot = DashboardPredictionSnapshot.create(
                             processed.getDelayMinH(),

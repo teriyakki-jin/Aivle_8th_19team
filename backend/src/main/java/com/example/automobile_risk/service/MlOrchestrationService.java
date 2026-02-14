@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -75,29 +76,31 @@ public class MlOrchestrationService {
     }
 
     public OrchestrationResult callAllEndpoints() {
-        List<EndpointResult> results = new ArrayList<>();
+        List<CompletableFuture<EndpointResult>> futures = ENDPOINT_MAP.entrySet().stream()
+                .map(entry -> CompletableFuture.supplyAsync(() -> callSingleEndpoint(entry.getKey(), entry.getValue())))
+                .toList();
 
-        for (Map.Entry<String, String> entry : ENDPOINT_MAP.entrySet()) {
-            String process = entry.getKey();
-            String endpoint = entry.getValue();
-            try {
-                String url = mlBaseUrl + endpoint;
-                ResponseEntity<String> response = callEndpoint(process, url);
-
-                if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                    JsonNode data = objectMapper.readTree(response.getBody());
-                    results.add(new EndpointResult(process, true, data, null));
-                } else {
-                    results.add(new EndpointResult(process, false, null,
-                            "HTTP " + response.getStatusCode()));
-                }
-            } catch (Exception e) {
-                log.warn("ML endpoint {} failed: {}", process, e.getMessage());
-                results.add(new EndpointResult(process, false, null, e.getMessage()));
-            }
-        }
+        List<EndpointResult> results = futures.stream()
+                .map(CompletableFuture::join)
+                .toList();
 
         return new OrchestrationResult(results);
+    }
+
+    private EndpointResult callSingleEndpoint(String process, String endpoint) {
+        try {
+            String url = mlBaseUrl + endpoint;
+            ResponseEntity<String> response = callEndpoint(process, url);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode data = objectMapper.readTree(response.getBody());
+                return new EndpointResult(process, true, data, null);
+            }
+            return new EndpointResult(process, false, null, "HTTP " + response.getStatusCode());
+        } catch (Exception e) {
+            log.warn("ML endpoint {} failed: {}", process, e.getMessage());
+            return new EndpointResult(process, false, null, e.getMessage());
+        }
     }
 
     private ResponseEntity<String> callEndpoint(String process, String url) {

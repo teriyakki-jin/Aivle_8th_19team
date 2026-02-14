@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -623,30 +624,62 @@ public class MLProxyService {
     }
 
     private DueDatePrediction buildDueDatePrediction(JsonNode body, JsonNode result) {
+        Long orderId = asLong(body.get("order_id"));
         Double predictedDelayMinutes = asDouble(result.get("predicted_remaining_delay_minutes"));
         if (predictedDelayMinutes == null) {
             // backward compatibility for older payloads
             predictedDelayMinutes = asDouble(result.get("predicted_delay_minutes"));
         }
+        Double remainingSlackMinutes = asDouble(body.get("remaining_slack_minutes"));
+        Integer delayFlag = asInt(result.get("delay_flag"));
+        Double delayProbability = asDouble(result.get("delay_probability"));
+
+        // If slack is exhausted, keep delayed state stable across refreshes.
+        if (remainingSlackMinutes != null && remainingSlackMinutes <= 1.0) {
+            delayFlag = 1;
+            delayProbability = 1.0;
+            if (predictedDelayMinutes == null || predictedDelayMinutes <= 0.0) {
+                predictedDelayMinutes = estimateDelayMinutesFallback(body);
+            }
+            double latestStored = dueDatePredictionService.getLatestByOrderId(orderId)
+                    .map(DueDatePrediction::getPredictedDelayMinutes)
+                    .filter(v -> v != null && v > 0.0)
+                    .orElse(0.0);
+            predictedDelayMinutes = Math.max(
+                    Optional.ofNullable(predictedDelayMinutes).orElse(0.0),
+                    latestStored
+            );
+        }
 
         return DueDatePrediction.builder()
-                .orderId(asLong(body.get("order_id")))
+                .orderId(orderId)
                 .orderQty(asInt(body.get("order_qty")))
                 .snapshotStage(asText(body.get("snapshot_stage")))
                 .stopCountTotal(asDouble(body.get("stop_count_total")))
                 .elapsedMinutes(asDouble(body.get("elapsed_minutes")))
-                .remainingSlackMinutes(asDouble(body.get("remaining_slack_minutes")))
+                .remainingSlackMinutes(remainingSlackMinutes)
                 .pressAnomalyScore(asDouble(body.get("press_anomaly_score")))
                 .weldAnomalyScore(asDouble(body.get("weld_anomaly_score")))
                 .paintAnomalyScore(asDouble(body.get("paint_anomaly_score")))
                 .assemblyAnomalyScore(asDouble(body.get("assembly_anomaly_score")))
                 .inspectionAnomalyScore(asDouble(body.get("inspection_anomaly_score")))
-                .delayFlag(asInt(result.get("delay_flag")))
-                .delayProbability(asDouble(result.get("delay_probability")))
+                .delayFlag(delayFlag)
+                .delayProbability(delayProbability)
                 .predictedDelayMinutes(predictedDelayMinutes)
                 .requestJson(body != null ? body.toString() : null)
                 .responseJson(result != null ? result.toString() : null)
                 .build();
+    }
+
+    private Double estimateDelayMinutesFallback(JsonNode body) {
+        double stopCount = Optional.ofNullable(asDouble(body.get("stop_count_total"))).orElse(0.0);
+        double anomalySum = Optional.ofNullable(asDouble(body.get("press_anomaly_score"))).orElse(0.0)
+                + Optional.ofNullable(asDouble(body.get("weld_anomaly_score"))).orElse(0.0)
+                + Optional.ofNullable(asDouble(body.get("paint_anomaly_score"))).orElse(0.0)
+                + Optional.ofNullable(asDouble(body.get("assembly_anomaly_score"))).orElse(0.0)
+                + Optional.ofNullable(asDouble(body.get("inspection_anomaly_score"))).orElse(0.0);
+        double estimated = 5.0 + (stopCount * 3.0) + (anomalySum * 30.0);
+        return Math.max(1.0, Math.round(estimated * 10.0) / 10.0);
     }
 
     private Integer asInt(JsonNode node) {

@@ -64,6 +64,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/chatbot/**").permitAll() // Chatbot is public
                         .requestMatchers("/swagger-ui/**").permitAll() // Swagger
                         .requestMatchers("/v3/api-docs/**").permitAll() // Swagger
+                        .requestMatchers("/v3/api-docs.yaml").permitAll() // Swagger
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
 

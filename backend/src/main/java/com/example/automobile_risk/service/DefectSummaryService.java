@@ -48,29 +48,9 @@ public class DefectSummaryService {
     );
 
     public List<DefectSummaryResponse> getCompletedProductionSummaries() {
-        List<DefectSummarySnapshot> snapshots = defectSummarySnapshotRepository.findAllByOrderByCapturedAtDesc();
-        Map<Long, DefectSummarySnapshot> latestSnapshotByProduction = new HashMap<>();
-        Map<Long, DefectSummarySnapshot> latestSnapshotByOrder = new HashMap<>();
-        for (DefectSummarySnapshot snapshot : snapshots) {
-            if (snapshot.getProduction() != null) {
-                Long productionId = snapshot.getProduction().getId();
-                if (!latestSnapshotByProduction.containsKey(productionId)) {
-                    latestSnapshotByProduction.put(productionId, snapshot);
-                }
-            } else if (snapshot.getOrder() != null) {
-                Long orderId = snapshot.getOrder().getId();
-                if (!latestSnapshotByOrder.containsKey(orderId)) {
-                    latestSnapshotByOrder.put(orderId, snapshot);
-                }
-            }
-        }
-
-        List<DefectSummarySnapshot> latestSnapshots = new ArrayList<>();
-        latestSnapshots.addAll(latestSnapshotByProduction.values());
-        latestSnapshots.addAll(latestSnapshotByOrder.values());
-
-        return latestSnapshots.stream()
-                .map(this::toResponse)
+        List<Production> completed = productionRepository.findCompletedWithDetails(ProductionStatus.COMPLETED);
+        return completed.stream()
+                .map(this::buildSummaryForProduction)
                 .sorted((a, b) -> {
                     if (a.getCompletedAt() == null && b.getCompletedAt() == null) return 0;
                     if (a.getCompletedAt() == null) return 1;
@@ -81,12 +61,6 @@ public class DefectSummaryService {
     }
 
     public DefectSummaryResponse getDefectSummaryByProductionId(Long productionId) {
-        List<DefectSummarySnapshot> snapshots =
-                defectSummarySnapshotRepository.findByProductionIdOrderByCapturedAtDesc(productionId);
-        if (!snapshots.isEmpty()) {
-            return toResponse(snapshots.get(0));
-        }
-
         Production production = productionRepository.findById(productionId)
                 .orElseThrow(() -> new EntityNotFoundException("Production not found: " + productionId));
 

@@ -110,15 +110,6 @@ interface DashboardData {
   productionSummary?: ProductionSummary;
 }
 
-interface PredictionOverview {
-  totalOrders: number;
-  maxDelayHours: number;
-  avgDelayHours: number;
-  riskDistribution: Record<string, number>;
-  orders: any[];
-  processBreakdown?: ProcessDelayBreakdownItem[];
-}
-
 interface OrderListItem extends OrderDto {
   orderId?: number;
   id?: number;
@@ -131,20 +122,6 @@ interface ProductionListItem extends ProductionDto {
   productionId?: number;
   id?: number;
   productionStatus?: string;
-}
-
-interface OrderPrediction {
-  order_id: number;
-  delay_probability: number;
-  expected_delay_hours: number;
-  risk_level: string;
-  total_score: number;
-  process_scores: Record<string, number>;
-  event_count: number;
-  order_status: string;
-  order_qty: number;
-  vehicle_model: string;
-  actual_delay_hours?: number;
 }
 
 interface DueDatePredictionRow {
@@ -161,11 +138,6 @@ interface DueDatePredictionRow {
   createdDate: string;
   currentUnitIndex?: number;
 }
-
-type ZeroSlackLockState = {
-  lastMinutes: number;
-  lastUpdateKey?: string;
-};
 
 // ===== Helpers =====
 
@@ -254,7 +226,6 @@ function SkeletonChart() {
 export function MainDashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [prevData, setPrevData] = useState<DashboardData | null>(null);
-  const [prediction, setPrediction] = useState<PredictionOverview | null>(null);
   const [loading, setLoading] = useState(false);  // 초기값을 false로 변경해서 KPI가 바로 보이도록
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<OrderListItem[]>([]);
@@ -266,13 +237,10 @@ export function MainDashboard() {
 
   const esRef = useRef<EventSource | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const predPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const orderPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const productionPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dueDatePollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dueDateEsRef = useRef<EventSource | null>(null);
-  const zeroSlackLockRef = useRef<Map<number, ZeroSlackLockState>>(new Map());
-
   // AWS 환경에서 디버깅 정보 출력
   useEffect(() => {
     if (import.meta.env.PROD) {
@@ -328,21 +296,6 @@ export function MainDashboard() {
     }
   }, [safeFetchJson]);
 
-  const fetchPrediction = useCallback(async () => {
-    try {
-      const json = await safeFetchJson('/api/v1/delay-prediction/overview');
-      const pred = unwrapResponse<PredictionOverview>(json);
-      console.log('[Prediction] Fetched:', pred);
-      setPrediction(pred);
-    } catch (err) {
-      console.error('Prediction fetch failed:', err);
-      console.error('Error details:', {
-        message: err instanceof Error ? err.message : String(err),
-        url: '/api/v1/delay-prediction/overview'
-      });
-    }
-  }, [safeFetchJson]);
-
   const fetchOrders = useCallback(async () => {
     try {
       const response = await orderApi.listAll();
@@ -376,20 +329,11 @@ export function MainDashboard() {
   }, [safeFetchJson]);
 
   const activeData = data;
-  const activePrediction = prediction;
   const activeLoading = loading;
 
-  // SSE + Polling (항상 폴링 유지, SSE는 있으면 더 빠른 덮어쓰기)
+  // SSE 우선. SSE 실패/미지원 시에만 폴링 fallback 사용.
   useEffect(() => {
-    // 1) 항상 폴링을 켜서 "SSE 이벤트가 안 와도" 갱신되게 함
-    fetchDashboard();
-    pollRef.current = setInterval(fetchDashboard, 5_000);
-
-    // 2) 예측 오버뷰도 폴링
-    fetchPrediction();
-    predPollRef.current = setInterval(fetchPrediction, 5_000);
-
-    // 3) 주문/생산 목록도 폴링 (order/production 페이지와 동기화)
+    // 주문/생산 목록 폴링 (order/production 페이지와 동기화)
     fetchOrders();
     orderPollRef.current = setInterval(fetchOrders, 5_000);
 
@@ -398,7 +342,6 @@ export function MainDashboard() {
 
     fetchDueDateLatest();
 
-    // 4) SSE는 추가로 연결(실시간 푸시)
     if (useSSE && typeof EventSource !== 'undefined') {
       const token = localStorage.getItem('token');
 
@@ -438,6 +381,9 @@ export function MainDashboard() {
         console.warn('SSE init failed — keep polling fallback', e);
         setUseSSE(false);
       }
+    } else {
+      fetchDashboard();
+      pollRef.current = setInterval(fetchDashboard, 15_000);
     }
 
     // DueDate SSE (replaces polling)
@@ -500,10 +446,6 @@ export function MainDashboard() {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
-      if (predPollRef.current) {
-        clearInterval(predPollRef.current);
-        predPollRef.current = null;
-      }
       if (orderPollRef.current) {
         clearInterval(orderPollRef.current);
         orderPollRef.current = null;
@@ -521,7 +463,7 @@ export function MainDashboard() {
         dueDateEsRef.current = null;
       }
     };
-  }, [useSSE, fetchDashboard, fetchPrediction, fetchOrders, fetchProductions, fetchDueDateLatest]);
+  }, [useSSE, fetchDashboard, fetchOrders, fetchProductions, fetchDueDateLatest]);
 
   // ── Loading skeleton ──
   if (activeLoading) {
@@ -625,18 +567,6 @@ export function MainDashboard() {
       .filter((v): v is [number, OrderListItem] => !!v)
   );
 
-  const mergedPredictionOrders = (activePrediction?.orders ?? []).map((order: any) => {
-    const id = order.order_id ?? order.orderId ?? order.id;
-    const mapped = orderIndex.get(id);
-    return {
-      ...order,
-      order_id: id ?? order.order_id,
-      order_status: mapped?.orderStatus ?? order.order_status,
-      order_qty: mapped?.orderQty ?? order.order_qty,
-      vehicle_model: mapped?.vehicleModelName ?? order.vehicle_model,
-    };
-  });
-
   const orderStatusChart = resolvedOrderSummary ? [
     { name: '생성', value: resolvedOrderSummary.created },
     { name: '진행', value: orderInProgress ?? 0 },
@@ -708,6 +638,13 @@ export function MainDashboard() {
     .filter((v): v is NonNullable<typeof v> => !!v)
     .sort((a, b) => (a.orderId ?? 0) - (b.orderId ?? 0));
 
+  const contextUnitMap = new Map<number, { currentUnitIndex?: number; orderQty?: number }>(
+    dueDateRowsFromContext.map((r) => [
+      r.orderId,
+      { currentUnitIndex: r.currentUnitIndex, orderQty: r.orderQty },
+    ])
+  );
+
   const dueDateErrors = Array.from(productionMap?.values?.() ?? [])
     .map((p) => {
       const errs = (p.stageResults ?? [])
@@ -743,24 +680,6 @@ export function MainDashboard() {
         : `fallback:${row.orderId}-${row.snapshotStage}-${row.predictedDelayMinutes}`,
   }));
 
-  const randomDelayMinutesByOrder = (orderId?: number) => {
-    const base = Number.isFinite(Number(orderId)) ? Number(orderId) : 1;
-    const seed = Math.abs((base * 9301 + 49297) % 233280);
-    return 51 + (seed % 315); // 51~365
-  };
-
-  const randomExtraMinutesByOrder = (orderId?: number, seedKey?: string | number) => {
-    const a = Number.isFinite(Number(orderId)) ? Number(orderId) : 1;
-    const key = String(seedKey ?? "");
-    const b = key.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-    const seed = Math.abs((a * 1103515245 + b * 12345 + 67890) % 2147483647);
-    return 12 + (seed % 23); // 12~34
-  };
-
-  const isAbnormalDelayValue = (minutes: number) => {
-    return !Number.isFinite(minutes) || minutes <= 0 || minutes > 10_000;
-  };
-
   const applyZeroSlackRule = <
     T extends {
       orderId?: number;
@@ -771,54 +690,11 @@ export function MainDashboard() {
       delayMinutes: number;
     }
   >(row: T): T => {
-    const orderId = Number(row.orderId);
-    const lockable = Number.isFinite(orderId) && orderId > 0;
-    const lock = lockable ? zeroSlackLockRef.current.get(orderId) : undefined;
     const slack = Number(row.remainingSlackMinutes);
-    const hitZeroSlack = Number.isFinite(slack) && Math.abs(slack) < 1e-9;
-    const locked = hitZeroSlack || !!lock;
-    if (!locked) return row;
-
-    const updateKey = row.updateKey ?? `fallback:${row.orderId}-${row.delayMinutes}-${row.delayFlag}-${row.delayProb}`;
-    const reliableUpdateKey = !updateKey.startsWith("fallback:");
     const rawMinutes = Number(row.delayMinutes);
-    const abnormal = isAbnormalDelayValue(rawMinutes);
-    const prevMinutes = lock?.lastMinutes;
-    const fallbackMinutes =
-      Number.isFinite(rawMinutes) && rawMinutes > 0
-        ? rawMinutes
-        : randomDelayMinutesByOrder(row.orderId);
-
-    const hasPrevMinutes =
-      typeof prevMinutes === "number" &&
-      Number.isFinite(prevMinutes) &&
-      prevMinutes > 0;
-
-    let nextMinutes = hasPrevMinutes ? prevMinutes : fallbackMinutes;
-
-    if (!lock) {
-      if (!abnormal && Number.isFinite(rawMinutes) && rawMinutes > 0) {
-        nextMinutes = rawMinutes;
-      } else {
-        nextMinutes = nextMinutes + randomExtraMinutesByOrder(row.orderId, updateKey);
-      }
-      if (lockable) {
-        zeroSlackLockRef.current.set(orderId, {
-          lastMinutes: nextMinutes,
-          lastUpdateKey: updateKey,
-        });
-      }
-    } else if (reliableUpdateKey && lock.lastUpdateKey !== updateKey) {
-      if (abnormal) {
-        nextMinutes = nextMinutes + randomExtraMinutesByOrder(row.orderId, updateKey);
-      }
-      if (lockable) {
-        zeroSlackLockRef.current.set(orderId, {
-          lastMinutes: nextMinutes,
-          lastUpdateKey: updateKey,
-        });
-      }
-    }
+    const exhaustedSlack = Number.isFinite(slack) && slack <= 1;
+    if (!exhaustedSlack) return row;
+    const nextMinutes = Number.isFinite(rawMinutes) && rawMinutes > 0 ? rawMinutes : 1;
 
     return {
       ...row,
@@ -828,12 +704,10 @@ export function MainDashboard() {
     };
   };
 
-  const dueDateRows = (
-    dueDateRowsFromServer.length > 0 ? dueDateRowsFromServer : dueDateRowsFromContext
-  )
+  const dueDateRows = dueDateRowsFromServer
     .map(applyZeroSlackRule)
     .map((row) => {
-      const live = productionUnitMap.get(row.orderId);
+      const live = productionUnitMap.get(row.orderId) ?? contextUnitMap.get(row.orderId);
       return {
         ...row,
         currentUnitIndex: live?.currentUnitIndex ?? row.currentUnitIndex,
@@ -863,7 +737,6 @@ export function MainDashboard() {
             onClick={() => {
               setLoading(true);
               fetchDashboard();
-              fetchPrediction();
             }}
             className="text-xs px-3 py-1.5 rounded border border-gray-200 hover:bg-gray-50 text-gray-900"
           >

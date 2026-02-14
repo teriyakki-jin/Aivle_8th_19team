@@ -28,6 +28,10 @@ paint_auto_state = {
 }
 
 
+def _is_backend_save_enabled() -> bool:
+    return os.getenv("PAINT_ENABLE_BACKEND_SAVE", "false").strip().lower() in ("1", "true", "yes", "on")
+
+
 def load_paint_model(base_dir: str):
     """
     base_dir = ml-service 루트 디렉토리 (main.py의 BASE_DIR)
@@ -66,6 +70,8 @@ def load_paint_model(base_dir: str):
 
 
 def _save_to_backend(backend_url: str, analysis_data: dict):
+    if not _is_backend_save_enabled():
+        return
     try:
         r = requests.post(f"{backend_url}/save", json=analysis_data, timeout=5)
         if r.status_code == 200:

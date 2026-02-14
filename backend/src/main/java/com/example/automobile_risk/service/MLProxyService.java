@@ -623,6 +623,12 @@ public class MLProxyService {
     }
 
     private DueDatePrediction buildDueDatePrediction(JsonNode body, JsonNode result) {
+        Double predictedDelayMinutes = asDouble(result.get("predicted_remaining_delay_minutes"));
+        if (predictedDelayMinutes == null) {
+            // backward compatibility for older payloads
+            predictedDelayMinutes = asDouble(result.get("predicted_delay_minutes"));
+        }
+
         return DueDatePrediction.builder()
                 .orderId(asLong(body.get("order_id")))
                 .orderQty(asInt(body.get("order_qty")))
@@ -637,7 +643,7 @@ public class MLProxyService {
                 .inspectionAnomalyScore(asDouble(body.get("inspection_anomaly_score")))
                 .delayFlag(asInt(result.get("delay_flag")))
                 .delayProbability(asDouble(result.get("delay_probability")))
-                .predictedDelayMinutes(asDouble(result.get("predicted_delay_minutes")))
+                .predictedDelayMinutes(predictedDelayMinutes)
                 .requestJson(body != null ? body.toString() : null)
                 .responseJson(result != null ? result.toString() : null)
                 .build();

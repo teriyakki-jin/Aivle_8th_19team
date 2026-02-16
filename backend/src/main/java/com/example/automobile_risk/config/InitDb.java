@@ -196,11 +196,11 @@ public class InitDb {
             /**
              *  현 재고
              */
-            Inventory inventory_headLamp = Inventory.of(headLamp, 934);
-            Inventory inventory_tailLamp = Inventory.of(tailLamp, 681);
-            Inventory inventory_door = Inventory.of(door, 1357);
-            Inventory inventory_bumper = Inventory.of(bumper, 922);
-            Inventory inventory_radiatorGrill = Inventory.of(radiatorGrill, 356);
+            Inventory inventory_headLamp = Inventory.of(headLamp, 634, 500);
+            Inventory inventory_tailLamp = Inventory.of(tailLamp, 783, 500);
+            Inventory inventory_door = Inventory.of(door, 1027, 1000);
+            Inventory inventory_bumper = Inventory.of(bumper, 895, 500);
+            Inventory inventory_radiatorGrill = Inventory.of(radiatorGrill, 351, 250);
             em.persist(inventory_headLamp);
             em.persist(inventory_tailLamp);
             em.persist(inventory_door);

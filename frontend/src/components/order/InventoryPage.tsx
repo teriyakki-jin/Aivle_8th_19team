@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from "react";
-import { Box, RefreshCcw, History, CheckCircle2 } from "lucide-react";
+import { Box, RefreshCcw, History, AlertTriangle } from "lucide-react";
 import { inventoryApi, InventoryDto, InventoryHistoryDto } from "../../api/inventory";
 
 function formatDateTime(value?: string) {
@@ -418,34 +418,52 @@ export function InventoryPage() {
                   </td>
                 </tr>
               ) : (
-                items.map((item) => (
-                  <tr
-                    key={item.inventoryId}
-                    className="hover:bg-slate-50 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-mono text-slate-900">
-                      #{item.partId}
-                    </td>
-                    <td className="px-4 py-3 text-slate-700 font-medium">
-                      {item.partName}
-                    </td>
-                    <td className="px-4 py-3 text-slate-900 font-semibold">
-                      {item.currentQty}
-                    </td>
-                    <td className="px-4 py-3 text-slate-900 font-semibold">
-                      {item.safetyQty}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => loadHistory(item.partId)}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-sm text-emerald-700 hover:bg-emerald-50 rounded transition-colors"
+                items.map((item) => {
+                  const isLowStock = item.currentQty <= item.safetyQty;
+                  return (
+                    <tr
+                      key={item.inventoryId}
+                      className={`transition-colors ${
+                        isLowStock ? "bg-red-50 hover:bg-red-100" : "hover:bg-slate-50"
+                      }`}
+                    >
+                      <td className="px-4 py-3 font-mono text-slate-900">
+                        #{item.partId}
+                      </td>
+                      <td className="px-4 py-3 text-slate-700 font-medium">
+                        {item.partName}
+                      </td>
+                      <td
+                        className={`px-4 py-3 font-semibold ${
+                          isLowStock ? "text-red-600" : "text-slate-900"
+                        }`}
                       >
-                        <History className="w-3 h-3" />
-                        이력 보기
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                        <span className="inline-flex items-center gap-1.5">
+                          {item.currentQty}
+                          {isLowStock && (
+                            <AlertTriangle
+                              className="w-4 h-4 text-red-500"
+                              aria-label="안전 재고 이하 경고"
+                              title="안전 재고 이하"
+                            />
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-900 font-semibold">
+                        {item.safetyQty}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => loadHistory(item.partId)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-sm text-emerald-700 hover:bg-emerald-50 rounded transition-colors"
+                        >
+                          <History className="w-3 h-3" />
+                          이력 보기
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -88,7 +88,7 @@ public class SecurityConfig {
                                 "/api/v1/dashboard/**",
                                 "/api/v1/delay-prediction/**",
                                 "/api/v1/duedate-predictions/**"
-                        ).hasAnyRole("ADMIN", "PROCESS_MANAGER")
+                        ).hasAnyRole("ADMIN", "PROCESS_MANAGER", "PRODUCTION_MANAGER")
 
                         // Board write actions require login
                         .requestMatchers(

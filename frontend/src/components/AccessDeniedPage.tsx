@@ -5,11 +5,10 @@ type AccessDeniedPageProps = {
   onLogout: () => void;
 };
 
-export function AccessDeniedPage({ role, onLogout }: AccessDeniedPageProps) {
+export function AccessDeniedPage({ onLogout }: AccessDeniedPageProps) {
   const navigate = useNavigate();
-  const isProductionManager = role === "PRODUCTION_MANAGER";
-  const homePath = isProductionManager ? "/order/orders" : "/dashboard";
-  const homeLabel = isProductionManager ? "주문관리로" : "대시보드로";
+  const homePath = "/dashboard";
+  const homeLabel = "대시보드로";
   const handleRelogin = () => {
     onLogout();
     navigate("/login", { replace: true });

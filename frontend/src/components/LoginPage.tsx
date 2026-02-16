@@ -19,7 +19,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     localStorage.setItem('username', uname);
     localStorage.setItem('role', role);
     onLogin(uname, role);
-    const nextPath = role === 'PRODUCTION_MANAGER' ? '/order/orders' : '/dashboard';
+    const nextPath = '/dashboard';
     navigate(nextPath, { replace: true });
   };
 

@@ -107,8 +107,7 @@ export default function App() {
 
   if (loading) return <div>로딩 중...</div>;
 
-  const defaultPath =
-    role === "PRODUCTION_MANAGER" ? "/order/orders" : "/dashboard";
+  const defaultPath = "/dashboard";
 
   return (
     <BrowserRouter>
@@ -148,7 +147,7 @@ export default function App() {
                 <Routes>
                   {/* 공정확인 */}
                   <Route path="/dashboard" element={
-                    <RoleRoute role={role} allowedRoles={["PROCESS_MANAGER"]}>
+                    <RoleRoute role={role} allowedRoles={["PROCESS_MANAGER", "PRODUCTION_MANAGER"]}>
                       <MainDashboard />
                     </RoleRoute>
                   } />

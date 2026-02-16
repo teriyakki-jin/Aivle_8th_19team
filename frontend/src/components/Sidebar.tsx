@@ -66,6 +66,7 @@ export function Sidebar({ username, role, onLogout }: SidebarProps) {
 
   const orderMenuItems = useMemo(
     () => [
+      { path: "/dashboard", label: "메인 대시보드", icon: LayoutDashboard },
       { path: "/order/orders", label: "주문", icon: ShoppingCart },
       { path: "/order/production", label: "생산", icon: Factory },
       { path: "/order/inventory", label: "재고", icon: Box },

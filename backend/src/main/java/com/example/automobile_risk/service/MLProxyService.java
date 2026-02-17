@@ -273,6 +273,14 @@ public class MLProxyService {
                         result.setStatus(isAnomaly == 1 ? "ABNORMAL" : "NORMAL");
                     } else if (result.getPrediction() != null) {
                         result.setStatus(result.getPrediction() == 1 ? "NORMAL" : "ABNORMAL");
+                    } else if (jsonResponse.has("predicted_class")) {
+                        String predictedClass = jsonResponse.get("predicted_class").asText("");
+                        if (!predictedClass.isBlank()) {
+                            result.setTarget(predictedClass);
+                            result.setStatus(isNormalClassLabel(predictedClass) ? "NORMAL" : "DEFECT");
+                        } else {
+                            result.setStatus("UNKNOWN");
+                        }
                     } else {
                         result.setStatus("UNKNOWN");
                     }
@@ -305,7 +313,21 @@ public class MLProxyService {
 
         return "ABNORMAL".equalsIgnoreCase(status)
                 || "NG".equalsIgnoreCase(status)
-                || "FAIL".equalsIgnoreCase(status);
+                || "FAIL".equalsIgnoreCase(status)
+                || "DEFECT".equalsIgnoreCase(status);
+    }
+
+    private boolean isNormalClassLabel(String label) {
+        if (label == null) return false;
+        String normalized = label.trim().toLowerCase();
+        return "normal".equals(normalized)
+                || "ok".equals(normalized)
+                || "good".equals(normalized)
+                || "good_weld".equals(normalized)
+                || "no_defect".equals(normalized)
+                || "none".equals(normalized)
+                || "정상".equals(label.trim())
+                || "양품".equals(label.trim());
     }
 
     /**

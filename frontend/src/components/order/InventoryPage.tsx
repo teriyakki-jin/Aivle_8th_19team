@@ -195,88 +195,92 @@ export function InventoryPage() {
           </div>
 
           <form onSubmit={submitAdjust} className="p-4 space-y-3">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 items-start">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  부품 ID
-                </label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  value={adjustPartId}
-                  onChange={(e) =>
-                    setAdjustPartId(
-                      e.target.value === "" ? "" : Number(e.target.value)
-                    )
-                  }
-                >
-                  {items.length === 0 && (
-                    <option value="">부품 목록 없음</option>
-                  )}
-                  {items.map((item) => (
-                    <option key={item.partId} value={item.partId}>
-                      #{item.partId} {item.partName}
-                    </option>
-                  ))}
-                </select>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    부품 ID
+                  </label>
+                  <select
+                    className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    value={adjustPartId}
+                    onChange={(e) =>
+                      setAdjustPartId(
+                        e.target.value === "" ? "" : Number(e.target.value)
+                      )
+                    }
+                  >
+                    {items.length === 0 && (
+                      <option value="">부품 목록 없음</option>
+                    )}
+                    {items.map((item) => (
+                      <option key={item.partId} value={item.partId}>
+                        #{item.partId} {item.partName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    수량
+                  </label>
+                  <input
+                    className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    value={adjustQty}
+                    onChange={(e) => setAdjustQty(e.target.value)}
+                    placeholder="예: 10"
+                    inputMode="numeric"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    입고/출고는 부호가 자동 처리됩니다.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    변경 유형
+                  </label>
+                  <select
+                    className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    value={adjustType}
+                    onChange={(e) =>
+                      setAdjustType(e.target.value as typeof adjustType)
+                    }
+                  >
+                    <option value="IN">입고</option>
+                    <option value="OUT">출고</option>
+                    <option value="IN_PLANNED">입고(예정)</option>
+                    <option value="OUT_PLANNED">출고(예정)</option>
+                    <option value="ADJUST">조정</option>
+                    <option value="SCRAP">폐기</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  수량
-                </label>
-                <input
-                  className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  value={adjustQty}
-                  onChange={(e) => setAdjustQty(e.target.value)}
-                  placeholder="예: 10"
-                  inputMode="numeric"
-                />
-                <p className="mt-1 text-xs text-slate-500">
-                  입고/출고는 부호가 자동 처리됩니다.
-                </p>
-              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-4 items-end">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    비고
+                  </label>
+                  <input
+                    className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    value={adjustRemark}
+                    onChange={(e) => setAdjustRemark(e.target.value)}
+                    placeholder="예: 부품 발주완료 (2월 입고 예정)"
+                    maxLength={200}
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  변경 유형
-                </label>
-                <select
-                  className="w-full border rounded-lg px-3 py-2 text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  value={adjustType}
-                  onChange={(e) =>
-                    setAdjustType(e.target.value as typeof adjustType)
-                  }
-                >
-                  <option value="IN">입고</option>
-                  <option value="OUT">출고</option>
-                  <option value="IN_PLANNED">입고(예정)</option>
-                  <option value="OUT_PLANNED">출고(예정)</option>
-                  <option value="ADJUST">조정</option>
-                  <option value="SCRAP">폐기</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  비고
-                </label>
-                <input
-                  className="w-full border rounded-lg px-3 py-2 text-slate-900 placeholder:text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  value={adjustRemark}
-                  onChange={(e) => setAdjustRemark(e.target.value)}
-                  placeholder="예: 2월 입고 예정"
-                  maxLength={200}
-                />
-              </div>
-
-              <div className="flex lg:items-end lg:justify-end mt-6">
-                <button
-                  type="submit"
-                  disabled={adjustLoading}
-                  className="px-4 h-10 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center justify-center"
-                >
-                  {adjustLoading ? "처리 중..." : "재고 반영"}
-                </button>
+                <div className="flex lg:justify-end">
+                  <button
+                    type="submit"
+                    disabled={adjustLoading}
+                    className="w-full lg:w-auto px-4 h-10 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center justify-center"
+                  >
+                    {adjustLoading ? "처리 중..." : "재고 반영"}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -331,7 +335,7 @@ export function InventoryPage() {
                   안전 재고
                 </label>
                 <input
-                  className="w-full border rounded-lg px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full border rounded-lg px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   value={safetyQty}
                   onChange={(e) => setSafetyQty(e.target.value)}
                   placeholder="예: 100"

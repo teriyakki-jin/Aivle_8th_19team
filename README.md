@@ -1,7 +1,7 @@
 
   # 자동차 공정 리스크 예측 플랫폼
-
-현장 이미지·센서 데이터를 기반으로 차체, 도장, 엔진, 프레스, 용접 등 주요 공정의 이상 징후와 납기 리스크를 예측·시각화하는 풀스택 웹서비스입니다. 복수의 ML 모델과 공정 KPI를 단일 대시보드에서 모니터링하고, 챗봇·게시판을 통해 협업을 지원합니다.
+![Cover](docs/ai_cover.jpg)
+현장 이미지·센서 데이터를 기반으로 차체, 도장, 엔진, 프레스, 용접 등 주요 공정의 이상 징후와 납기 리스크를 예측·시각화하는 풀스택 데모입니다. 복수의 ML 모델과 공정 KPI를 단일 대시보드에서 모니터링하고, 챗봇·게시판을 통해 협업을 지원합니다.
 
   ## 프로젝트 소개
   - 제조 공정의 다중 데이터를 통합해 리스크를 조기에 감지하고 의사결정을 돕는 것을 목표로 합니다.
@@ -25,6 +25,7 @@
 - 챗봇: 납기 리스크/공정 상태 질의에 대한 템플릿 응답 제공.
 
 ## 아키텍처
+![Architecture](docs/architecture.png)
 - Frontend: Vite + React + TypeScript (대시보드, 업로드 UI) – [frontend](frontend)
 - API Server: Node/Express, SQLite, JWT 인증, 게시판/대시보드/챗봇 API – [server](server)
 - ML Service: FastAPI (windshield, engine, welding, paint, press, body inference) – [ml-service](ml-service)

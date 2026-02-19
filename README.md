@@ -80,4 +80,5 @@ export SPRING_PROFILES_ACTIVE=local
 ./gradlew bootRun        # Windows는 gradlew.bat bootRun
 ```
 데이터소스 설정과 포트는 [backend/src/main/resources/application.properties](backend/src/main/resources/application.properties)에서 관리합니다 (기본: PostgreSQL, server.port=3001, context-path=/).
-  
+
+# 임시 수정

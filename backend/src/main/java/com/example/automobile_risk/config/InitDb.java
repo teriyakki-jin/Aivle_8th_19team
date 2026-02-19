@@ -224,8 +224,8 @@ public class InitDb {
             /**
              *  주문
              */
-            Order order1 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusMinutes(3), 10, avante_CN8);
-            Order order2 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusMinutes(3), 5, sonata_DN8);
+            Order order1 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusMinutes(3), 10, sonata_DN8);
+            Order order2 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusMinutes(3), 5, avante_CN8);
             Order order3 = Order.createOrder(LocalDateTime.now(), LocalDateTime.now().plusMinutes(20), 1, grandeur_GN7);
             em.persist(order1);
             em.persist(order2);
@@ -234,8 +234,8 @@ public class InitDb {
             /**
              *  생산 (주문과 1:1 연결)
              */
-            Production production1 = Production.of(order1.getOrderDate(), order1.getOrderQty(), avante_CN8);
-            Production production2 = Production.of(order2.getOrderDate(), order2.getOrderQty(), sonata_DN8);
+            Production production1 = Production.of(order1.getOrderDate(), order1.getOrderQty(), sonata_DN8);
+            Production production2 = Production.of(order2.getOrderDate(), order2.getOrderQty(), avante_CN8);
             Production production3 = Production.of(order3.getOrderDate(), order3.getOrderQty(), grandeur_GN7);
             em.persist(production1);
             em.persist(production2);

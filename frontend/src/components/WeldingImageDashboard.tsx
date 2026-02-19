@@ -28,8 +28,10 @@ type HistoryRow = {
   id: string;
   time: string;
   judgement: "양품" | "불량";
+  status: "NORMAL" | "DEFECT";
   defectType: string;
   confidencePct: number;
+  defects: Defect[];
   originalUrl?: string;
   resultUrl?: string;
   source?: string;
@@ -206,20 +208,27 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
   const navigate = useNavigate();
   const [result, setResult] = useState<WeldingAutoResponse | null>(null);
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState("--:--:--");
 
   const latest = history[0];
+  const selectedHistory = useMemo(
+    () => history.find((h) => h.id === selectedHistoryId) ?? null,
+    [history, selectedHistoryId]
+  );
+  const current = selectedHistory ?? latest ?? null;
+  const displayTime = current?.time ?? lastUpdated;
 
-  const hasDefects = (result?.defects?.length ?? 0) > 0;
+  const hasDefects = (current?.defects?.length ?? 0) > 0;
   const resultStatus: "NORMAL" | "DEFECT" | undefined =
-    result?.status ?? (hasDefects ? "DEFECT" : "NORMAL");
+    current?.status ?? result?.status ?? (hasDefects ? "DEFECT" : "NORMAL");
 
   const latestDefect = useMemo(() => {
-    if (!hasDefects || !result?.defects) return null;
-    return topDefect(result.defects);
-  }, [hasDefects, result]);
+    if (!hasDefects || !current?.defects) return null;
+    return topDefect(current.defects);
+  }, [hasDefects, current]);
 
   const total = history.length;
   const bad = useMemo(() => history.filter((h) => h.judgement === "불량").length, [history]);
@@ -227,10 +236,12 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
   const rate = total === 0 ? 100 : (good / total) * 100;
 
   const mainImage = useMemo(() => {
+    if (current?.resultUrl) return current.resultUrl;
+    if (current?.originalUrl) return current.originalUrl;
     if (result?.result_image_url) return publicUrl(result.result_image_url);
     if (result?.original_image_url) return publicUrl(result.original_image_url);
     return "";
-  }, [result]);
+  }, [current, result]);
 
   useEffect(() => {
     if (!orderId) return;
@@ -258,6 +269,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
         if (!list || list.length === 0) {
           setResult(null);
           setHistory([]);
+          setSelectedHistoryId(null);
           setLastUpdated("--:--:--");
           return;
         }
@@ -271,14 +283,17 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
             id: String(item.id),
             time: item.createdDate ? new Date(item.createdDate).toLocaleTimeString() : nowHHMMSS(),
             judgement: info.status === "DEFECT" || hasDefects ? "불량" : "양품",
+            status: info.status === "DEFECT" || hasDefects ? "DEFECT" : "NORMAL",
             defectType: top?.class ?? "-",
             confidencePct: top ? confidenceToPct(top.confidence) : 0,
+            defects: defects,
             originalUrl: publicUrl(info.original_image_url),
             resultUrl: publicUrl(info.result_image_url),
             source: info.source,
           };
         });
         setHistory(rows);
+        setSelectedHistoryId(rows[0]?.id ?? null);
 
         const latestItem = list[0];
         const latestInfo = parseAdditional(latestItem) || {};
@@ -310,7 +325,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
   }, [orderId]);
 
   const latestJudgement: "양품" | "불량" | "대기" = latest
-    ? latest.judgement
+    ? (current?.judgement ?? latest.judgement)
     : result
     ? resultStatus === "DEFECT"
       ? "불량"
@@ -336,7 +351,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
             <div>
               <h2 className="text-3xl font-bold text-gray-900">용접 이미지 검사</h2>
               <p className="text-xs text-gray-500 mt-1">
-                최근 갱신: <span className="font-mono">{lastUpdated}</span>
+                최근 갱신: <span className="font-mono">{displayTime}</span>
               </p>
             </div>
           </div>
@@ -395,7 +410,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
         >
           <div className="bg-white rounded-2xl border border-gray-200 p-3">
             <div className="text-[11px] text-gray-500 mb-2 flex items-center justify-between">
-              <span className="font-mono">{lastUpdated}</span>
+              <span className="font-mono">{displayTime}</span>
             </div>
 
             <div className="rounded-xl border border-gray-200 overflow-hidden bg-black">
@@ -427,7 +442,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
           title="분석 결과"
           badge={
             <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-gray-900 text-white">
-              {result ? (resultStatus === "DEFECT" ? "불량" : "양품") : "대기"}
+              {current || result ? (resultStatus === "DEFECT" ? "불량" : "양품") : "대기"}
             </span>
           }
         >
@@ -435,14 +450,14 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
             <div className="rounded-2xl border border-gray-200 bg-white p-4">
               <div className="text-xs text-gray-500">판정</div>
               <div className="mt-1 text-xl font-extrabold text-gray-900">
-                {result ? (resultStatus === "DEFECT" ? "불량" : "양품") : "-"}
+                {current ? (resultStatus === "DEFECT" ? "불량" : "양품") : result ? (resultStatus === "DEFECT" ? "불량" : "양품") : "-"}
               </div>
             </div>
 
             <div className="rounded-2xl border border-gray-200 bg-white p-4">
               <div className="text-xs text-gray-500">대표 불량</div>
               <div className="mt-1 text-xl font-extrabold text-gray-900 truncate">
-                {latestDefect?.class ? toKo(latestDefect.class) : "-"}
+                {latestDefect?.class ? toKo(latestDefect.class) : current?.defectType ? toKo(current.defectType) : "-"}
               </div>
             </div>
 
@@ -454,7 +469,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
             </div>
           </div>
 
-          {hasDefects && (
+          {hasDefects && current && (
             <div className="mt-5 rounded-2xl border border-gray-200 bg-white p-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="text-sm font-bold text-gray-900">검출 목록</div>
@@ -464,7 +479,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
               </div>
 
               <div className="space-y-2 text-sm">
-                {result.defects
+                {current.defects
                   .slice()
                   .sort((a, b) => b.confidence - a.confidence)
                   .slice(0, 6)
@@ -480,7 +495,7 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
             </div>
           )}
 
-          {!result && (
+          {!current && !result && (
             <div className="mt-5 text-sm text-gray-500">
               데이터 수신 대기 중...
             </div>
@@ -513,7 +528,15 @@ function WeldingImageDashboardContent({ orderId }: { orderId: number | null }) {
               </thead>
               <tbody>
                 {history.map((h) => (
-                  <tr key={h.id} className="border-b border-gray-100">
+                  <tr
+                    key={h.id}
+                    className={cn(
+                      "border-b border-gray-100 cursor-pointer hover:bg-gray-50",
+                      selectedHistoryId === h.id && "bg-blue-50"
+                    )}
+                    onClick={() => setSelectedHistoryId(h.id)}
+                    title="클릭하면 해당 분석 결과를 상단에 표시합니다"
+                  >
                     <td className="py-3 pr-3 font-mono text-gray-900">{h.id}</td>
                     <td className="py-3 pr-3 text-gray-700">{h.time}</td>
                     <td className="py-3 pr-3">

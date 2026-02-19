@@ -27,6 +27,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -129,7 +131,7 @@ public class ProductionSimulationService {
                         return getOrderId(production);
                     });
 
-                    triggerMlForProcess(orderId, productionId, processType.getProcessName(), peId);
+                    triggerMlForProcess(orderId, productionId, processType.getProcessName(), peId, unitIndex);
 
                     sleepMillis(5000L);
 
@@ -234,7 +236,7 @@ public class ProductionSimulationService {
         };
     }
 
-    private void triggerMlForProcess(Long orderId, Long productionId, String processName, Long processExecutionId) {
+    private void triggerMlForProcess(Long orderId, Long productionId, String processName, Long processExecutionId, int unitIndex) {
         if (orderId == null || processName == null || processExecutionId == null) return;
 
         int offset = (int) (Math.abs(processExecutionId) % 10);
@@ -285,7 +287,7 @@ public class ProductionSimulationService {
             switch (processName) {
                 case "프레스" -> {
                     if (vibrationDataset != null && vibrationDataset.getFormat() == DatasetFormat.JSON) {
-                        JsonNode body = loadJsonDataset(vibrationDataset);
+                        JsonNode body = loadJsonDataset(vibrationDataset, Math.max(0, unitIndex - 1));
                         if (body != null) {
                             mlProxyService.analyzePressVibrationJson(body, context);
                         } else {
@@ -295,7 +297,7 @@ public class ProductionSimulationService {
                         mlProxyService.analyzePressVibration(offset, context);
                     }
                     if (pressImageDataset != null && pressImageDataset.getFormat() == DatasetFormat.IMAGE) {
-                        java.io.File file = pickDatasetFile(pressImageDataset);
+                        java.io.File file = pickDatasetFile(pressImageDataset, Math.max(0, unitIndex - 1));
                         if (file != null) {
                             mlProxyService.analyzePressImageFile(file, offset, context);
                         } else {
@@ -307,7 +309,7 @@ public class ProductionSimulationService {
                 }
                 case "차체조립(용접)" -> {
                     if (weldingDataset != null && weldingDataset.getFormat() == DatasetFormat.IMAGE) {
-                        java.io.File file = pickDatasetFile(weldingDataset);
+                        java.io.File file = pickDatasetFile(weldingDataset, Math.max(0, unitIndex - 1));
                         if (file != null) {
                             mlProxyService.analyzeWeldingImageFile(file, context);
                         } else {
@@ -319,19 +321,9 @@ public class ProductionSimulationService {
                 }
                 case "도장" -> {
                     if (paintDataset != null && paintDataset.getFormat() == DatasetFormat.IMAGE) {
-                        java.util.List<java.io.File> files = pickAllDatasetFiles(paintDataset);
-                        log.info("[PAINT] storageKey={}, resolved {} files", paintDataset.getStorageKey(), files.size());
-                        for (java.io.File f : files) {
-                            log.info("[PAINT] analyzing file: {}", f.getAbsolutePath());
-                        }
-                        if (files != null && !files.isEmpty()) {
-                            for (java.io.File f : files) {
-                                try {
-                                    mlProxyService.analyzePaintFile(f, context);
-                                } catch (Exception paintEx) {
-                                    log.warn("Paint analysis failed for {}: {}", f.getName(), paintEx.getMessage());
-                                }
-                            }
+                        java.io.File file = pickDatasetFile(paintDataset, Math.max(0, unitIndex - 1));
+                        if (file != null) {
+                            mlProxyService.analyzePaintFile(file, context);
                         } else {
                             mlProxyService.analyzePaintAuto(offset, context);
                         }
@@ -397,6 +389,10 @@ public class ProductionSimulationService {
     }
 
     private JsonNode loadJsonDataset(MlInputDataset dataset) {
+        return loadJsonDataset(dataset, 0);
+    }
+
+    private JsonNode loadJsonDataset(MlInputDataset dataset, int sequenceIndex) {
         try {
             String key = dataset.getStorageKey();
             if (isUrl(key)) {
@@ -409,6 +405,12 @@ public class ProductionSimulationService {
             if (path == null || !java.nio.file.Files.exists(path)) {
                 log.warn("Dataset file not found: {}", key);
                 return null;
+            }
+            if (!java.nio.file.Files.isDirectory(path) && sequenceIndex > 0) {
+                java.io.File candidate = resolveSequencedSiblingFile(path.toFile(), sequenceIndex);
+                if (candidate != null && candidate.exists()) {
+                    path = candidate.toPath();
+                }
             }
             return new com.fasterxml.jackson.databind.ObjectMapper()
                     .readTree(java.nio.file.Files.newBufferedReader(path));
@@ -453,6 +455,10 @@ public class ProductionSimulationService {
     }
 
     private java.io.File pickDatasetFile(MlInputDataset dataset) {
+        return pickDatasetFile(dataset, 0);
+    }
+
+    private java.io.File pickDatasetFile(MlInputDataset dataset, int sequenceIndex) {
         try {
             String key = dataset.getStorageKey();
             if (isUrl(key)) {
@@ -465,19 +471,62 @@ public class ProductionSimulationService {
             }
             if (java.nio.file.Files.isDirectory(path)) {
                 try (java.util.stream.Stream<java.nio.file.Path> stream = java.nio.file.Files.list(path)) {
-                    return stream
+                    java.util.List<java.io.File> files = stream
                             .filter(p -> !java.nio.file.Files.isDirectory(p))
                             .sorted()
-                            .findFirst()
                             .map(java.nio.file.Path::toFile)
-                            .orElse(null);
+                            .toList();
+                    if (files.isEmpty()) return null;
+                    int idx = Math.floorMod(sequenceIndex, files.size());
+                    return files.get(idx);
                 }
             }
-            return path.toFile();
+            java.io.File direct = path.toFile();
+            java.io.File sequenced = resolveSequencedSiblingFile(direct, sequenceIndex);
+            return sequenced != null ? sequenced : direct;
         } catch (Exception e) {
             log.warn("Failed to pick dataset file: {} ({})", dataset.getStorageKey(), e.getMessage());
             return null;
         }
+    }
+
+    private java.io.File resolveSequencedSiblingFile(java.io.File file, int sequenceIndex) {
+        if (file == null || sequenceIndex <= 0) return file;
+        String name = file.getName();
+        Pattern p = Pattern.compile("^(.*?)(_unit)(\\d+)(\\.[^.]+)$", Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(name);
+        if (!m.matches()) return file;
+
+        java.io.File parent = file.getParentFile();
+        if (parent == null || !parent.isDirectory()) return file;
+
+        String prefix = m.group(1) + m.group(2);
+        String ext = m.group(4);
+        Pattern siblingPattern = Pattern.compile(
+                "^" + Pattern.quote(prefix) + "(\\d+)" + Pattern.quote(ext) + "$",
+                Pattern.CASE_INSENSITIVE
+        );
+
+        java.io.File[] siblings = parent.listFiles(f -> {
+            if (f == null || !f.isFile()) return false;
+            return siblingPattern.matcher(f.getName()).matches();
+        });
+        if (siblings == null || siblings.length == 0) return file;
+
+        java.util.List<java.io.File> sorted = java.util.Arrays.stream(siblings)
+                .sorted((a, b) -> {
+                    Matcher ma = siblingPattern.matcher(a.getName());
+                    Matcher mb = siblingPattern.matcher(b.getName());
+                    if (ma.matches() && mb.matches()) {
+                        int ia = Integer.parseInt(ma.group(1));
+                        int ib = Integer.parseInt(mb.group(1));
+                        return Integer.compare(ia, ib);
+                    }
+                    return a.getName().compareToIgnoreCase(b.getName());
+                })
+                .toList();
+        int idx = Math.floorMod(sequenceIndex, sorted.size());
+        return sorted.get(idx);
     }
 
     private Map<String, java.io.File> pickBodyAssemblyFiles(MlInputDataset dataset) {

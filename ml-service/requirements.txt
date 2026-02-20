@@ -4,3 +4,17 @@ scikit-learn
 pandas
 joblib
 numpy
+python-multipart
+tensorflow
+liac-arff
+ultralytics
+xgboost
+catboost
+sqlalchemy
+psycopg2-binary
+requests
+langchain==0.1.20
+langchain-openai==0.0.8
+langchain-core>=0.1.0
+python-dotenv
+boto3

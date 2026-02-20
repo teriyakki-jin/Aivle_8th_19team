@@ -1,0 +1,200 @@
+name: Deploy
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      restart-ml:
+        description: "S3에 모델/데이터 업로드 후 ML 서비스만 재시작"
+        type: boolean
+        default: false
+      restart-backend:
+        description: "Backend 서비스만 재시작"
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  AWS_ACCOUNT_ID: "977069299523"
+  ECS_CLUSTER: automobile-risk-prod-cluster
+  ECR_BACKEND: automobile-risk-prod-backend
+  ECR_ML: automobile-risk-prod-ml-service
+  ECS_BACKEND: automobile-risk-prod-backend
+  ECS_ML: automobile-risk-prod-ml-service
+  S3_FRONTEND: automobile-risk-prod-frontend
+  CF_DISTRIBUTION: E3V8Q870KQC6KI
+
+jobs:
+  # ============================================================
+  # 1. Detect which paths changed (push only)
+  # ============================================================
+  changes:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+      ml: ${{ steps.filter.outputs.ml }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend/**'
+            ml:
+              - 'ml-service/**'
+
+  # ============================================================
+  # 2. Frontend: build -> S3 -> CloudFront invalidation
+  # ============================================================
+  deploy-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install & build
+        working-directory: frontend
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
+          npm run build
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to S3
+        run: aws s3 sync frontend/build/ "s3://$S3_FRONTEND/" --delete
+
+      - name: Invalidate CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id $CF_DISTRIBUTION \
+            --paths "/*"
+
+  # ============================================================
+  # 3. Backend: Docker build -> ECR -> ECS deploy
+  # ============================================================
+  deploy-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push
+        working-directory: backend
+        env:
+          ECR_REPO: ${{ env.ECR_BACKEND }}
+        run: |
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+          IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_BACKEND }}"
+          echo "Image: $IMAGE"
+          echo "Tag: $SHORT_SHA"
+          docker build -t "$IMAGE:$SHORT_SHA" -t "$IMAGE:latest" .
+          docker push "$IMAGE:$SHORT_SHA"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_BACKEND" \
+            --force-new-deployment
+
+  # ============================================================
+  # 4. ML Service: Docker build -> ECR -> ECS deploy
+  # ============================================================
+  deploy-ml:
+    needs: changes
+    if: needs.changes.outputs.ml == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push
+        working-directory: ml-service
+        run: |
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+          IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_ML }}"
+          echo "Image: $IMAGE"
+          echo "Tag: $SHORT_SHA"
+          docker build -t "$IMAGE:$SHORT_SHA" -t "$IMAGE:latest" .
+          docker push "$IMAGE:$SHORT_SHA"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_ML" \
+            --force-new-deployment
+
+  # ============================================================
+  # 5. Manual restart (workflow_dispatch)
+  #    S3에 모델/데이터 수동 업로드 후 서비스 재시작용
+  # ============================================================
+  restart-services:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.restart-ml || inputs.restart-backend)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/github-actions-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Restart ML service
+        if: inputs.restart-ml
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_ML \
+            --force-new-deployment
+          echo "ML service restart triggered — will re-download from S3"
+
+      - name: Restart Backend service
+        if: inputs.restart-backend
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_BACKEND \
+            --force-new-deployment
+          echo "Backend service restart triggered"

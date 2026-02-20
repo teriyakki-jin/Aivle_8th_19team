@@ -37,6 +37,18 @@ public class BoardController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<Post> updatePost(@PathVariable Long id, @RequestBody Post post, @AuthenticationPrincipal UserDetails userDetails) {
+        try {
+            Post updatedPost = boardService.updatePost(id, post, userDetails.getUsername());
+            return ResponseEntity.ok(updatedPost);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(403).build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePost(@PathVariable Long id) {
         boardService.deletePost(id);

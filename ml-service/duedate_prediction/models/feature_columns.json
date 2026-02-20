@@ -1,0 +1,21 @@
+{
+  "feature_columns": [
+    "assembly_anomaly_score",
+    "inspection_anomaly_score",
+    "order_qty",
+    "paint_anomaly_score",
+    "press_anomaly_score",
+    "stop_count_total",
+    "weld_anomaly_score",
+    "cumulative_delay_minutes",
+    "elapsed_minutes",
+    "remaining_slack_minutes",
+    "snapshot_stage",
+    "anomaly_sum",
+    "anomaly_count",
+    "anomaly_mean",
+    "anomaly_time_pressure",
+    "slack_usage_ratio",
+    "stop_per_hour"
+  ]
+}

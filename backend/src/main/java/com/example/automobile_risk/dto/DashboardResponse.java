@@ -19,6 +19,15 @@ public class DashboardResponse {
     private Double productionEfficiency;
     private List<HistoryData> historyData;
     private List<ProcessStat> processStats;
+    private List<ProcessDelayBreakdown> processDelayBreakdown;
+    private String overallRiskLevel;
+    private OrderSummary orderSummary;
+    private ProductionSummary productionSummary;
+
+    // Real-time ML prediction fields
+    private DashboardPredictionDto.CurrentPrediction currentPrediction;
+    private DashboardPredictionDto.DeltaSincePrev deltaSincePrev;
+    private List<DashboardPredictionDto.PredictionTrendPoint> predictionTrend;
 
     @Getter
     @Setter
@@ -51,5 +60,44 @@ public class DashboardResponse {
         private Integer 정상;
         private Integer 경고;
         private Integer 이상;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ProcessDelayBreakdown {
+        private String process;
+        private Double totalDelayHours;
+        private Integer eventCount;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class OrderSummary {
+        private Integer total;
+        private Integer created;
+        private Integer partiallyAllocated;
+        private Integer fullyAllocated;
+        private Integer completed;
+        private Integer cancelled;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ProductionSummary {
+        private Integer total;
+        private Integer planned;
+        private Integer inProgress;
+        private Integer completed;
+        private Integer stopped;
+        private Integer cancelled;
     }
 }

@@ -1,30 +1,111 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Factory, Cpu, Box, Droplet, Settings, LayoutDashboard, LogOut, User, ClipboardList, Battery } from 'lucide-react';
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Factory,
+  Cpu,
+  Box,
+  Droplet,
+  LayoutDashboard,
+  LogOut,
+  User,
+  ClipboardList,
+  ShieldCheck,
+  ShoppingCart,
+  ArrowLeftRight,
+  Hammer,
+  Zap,
+  Layers,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
 interface SidebarProps {
   username: string;
+  role: string | null;
   onLogout: () => void;
 }
 
-export function Sidebar({ username, onLogout }: SidebarProps) {
-  const location = useLocation();
+type AppMode = "process" | "order";
+const MODE_KEY = "app_mode"; // localStorage key
 
-  const menuItems = [
-    { path: '/', label: '메인 대시보드', icon: LayoutDashboard },
-    { path: '/press', label: '프레스 머신', icon: Factory },
-    { path: '/engine', label: '엔진 조립', icon: Cpu },
-    { path: '/body', label: '차체 조립', icon: Box },
-    { path: '/paint', label: '도장 품질', icon: Droplet },
-    { path: '/battery', label: '배터리 예지보전', icon: Battery },
-    { path: '/facility', label: '설비', icon: Settings },
-    { path: '/board', label: '게시판', icon: ClipboardList },
-  ];
+export function Sidebar({ username, role, onLogout }: SidebarProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // ✅ 모드 상태 (기본: process)
+  const [mode, setMode] = useState<AppMode>(() => {
+    const saved = localStorage.getItem(MODE_KEY);
+    return saved === "order" ? "order" : "process";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(MODE_KEY, mode);
+  }, [mode]);
+
+  const roleLabel =
+    role === "ADMIN"
+      ? "총괄 관리자"
+      : role === "PRODUCTION_MANAGER"
+      ? "생산 관리자"
+      : role === "PROCESS_MANAGER"
+      ? "공정 관리자"
+      : "관리자";
+
+  // ✅ 메뉴 2세트
+  const processMenuItems = useMemo(
+    () => [
+      { path: "/dashboard", label: "메인 대시보드", icon: LayoutDashboard },
+      { path: "/press", label: "프레스 머신", icon: Hammer },
+      { path: "/welding-image", label: "용접", icon: Zap },
+      { path: "/paint", label: "도장 품질", icon: Droplet },
+      { path: "/body", label: "차체 조립", icon: Box },
+      { path: "/windshield", label: "윈드실드", icon: ShieldCheck },
+      { path: "/engine-vibration", label: "엔진 진동", icon: Cpu },
+      { path: "/board", label: "게시판", icon: ClipboardList },
+    ],
+    []
+  );
+
+  const orderMenuItems = useMemo(
+    () => [
+      { path: "/dashboard", label: "메인 대시보드", icon: LayoutDashboard },
+      { path: "/order/orders", label: "주문", icon: ShoppingCart },
+      { path: "/order/production", label: "생산", icon: Factory },
+      { path: "/order/inventory", label: "재고", icon: Box },
+    ],
+    []
+  );
+
+  const forcedMode: AppMode | null =
+    role === "PROCESS_MANAGER" ? "process" : role === "PRODUCTION_MANAGER" ? "order" : null;
+  const activeMode = forcedMode ?? mode;
+  const menuItems = activeMode === "process" ? processMenuItems : orderMenuItems;
+
+  // ✅ 선택 상태 계산 (현재 path가 하위 라우트면 active)
+  const isActive = (itemPath: string) => {
+    return location.pathname === itemPath || location.pathname.startsWith(itemPath + "/");
+  };
+
+  // ✅ 모드 전환 버튼
+  const handleSwitchMode = () => {
+    if (forcedMode) return;
+    if (mode === "process") {
+      setMode("order");
+      navigate("/order/orders");
+    } else {
+      setMode("process");
+      navigate("/dashboard");
+    }
+  };
 
   return (
     <aside className="w-64 bg-slate-900 text-white flex flex-col">
+      {/* Header */}
       <div className="p-6 border-b border-slate-700">
-        <h1 className="text-xl font-bold">자동차 공정 관리</h1>
-        <p className="text-sm text-slate-400 mt-1">이상 및 납기 리스크 예측</p>
+        <h1 className="text-xl font-bold">
+          {mode === "process" ? "자동차 공정 관리" : "주문 생산 관리"}
+        </h1>
+        <p className="text-sm text-slate-400 mt-1">
+          {mode === "process" ? "이상 탐지 및 납기 리스크 예측" : "주문/계획/현황 모니터링"}
+        </p>
       </div>
 
       {/* User Info */}
@@ -35,24 +116,24 @@ export function Sidebar({ username, onLogout }: SidebarProps) {
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-white">{username}</p>
-            <p className="text-xs text-slate-400">관리자</p>
+            <p className="text-xs text-slate-400">{roleLabel}</p>
           </div>
         </div>
       </div>
 
+      {/* Nav */}
       <nav className="flex-1 p-4">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isSelected = location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path));
+          const selected = isActive(item.path);
 
           return (
             <Link
               key={item.path}
               to={item.path}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${isSelected
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-800'
-                }`}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
+                selected ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800"
+              }`}
             >
               <Icon className="w-5 h-5" />
               <span>{item.label}</span>
@@ -61,16 +142,32 @@ export function Sidebar({ username, onLogout }: SidebarProps) {
         })}
       </nav>
 
-      <div className="p-4 border-t border-slate-700">
+      {/* Footer */}
+      <div className="p-4 bg-slate-900">
+        {!forcedMode && (
+          <button
+            onClick={handleSwitchMode}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors mb-2"
+          >
+            <ArrowLeftRight className="w-5 h-5" />
+            <span>{mode === "process" ? "주문생산으로 이동" : "이상탐지로 이동"}</span>
+          </button>
+        )}
+
         <button
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 transition-colors mb-3"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition-colors mb-3"
         >
           <LogOut className="w-5 h-5" />
           <span>로그아웃</span>
         </button>
-        <div className="text-xs text-slate-500">
-          마지막 업데이트: {new Date().toLocaleTimeString('ko-KR')}
+
+        <div className="flex items-center gap-3 px-4 text-xs text-slate-700">
+          <Link to="/" className="hover:text-slate-500 transition-colors">홈으로 가기</Link>
+          <span>·</span>
+          <Link to="/terms" className="hover:text-slate-500 transition-colors">이용약관</Link>
+          <span>·</span>
+          <Link to="/privacy" className="hover:text-slate-500 transition-colors">개인정보처리방침</Link>
         </div>
       </div>
     </aside>

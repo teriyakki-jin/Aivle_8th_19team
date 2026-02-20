@@ -1,0 +1,624 @@
+package com.example.automobile_risk.service;
+
+import com.example.automobile_risk.entity.Equipment;
+import com.example.automobile_risk.entity.MlInputDataset;
+import com.example.automobile_risk.entity.ProcessExecution;
+import com.example.automobile_risk.entity.ProcessType;
+import com.example.automobile_risk.entity.Production;
+import com.example.automobile_risk.entity.enumclass.DatasetFormat;
+import com.example.automobile_risk.entity.enumclass.DefectSnapshotStage;
+import com.example.automobile_risk.entity.enumclass.EquipmentStatus;
+import com.example.automobile_risk.exception.ProductionNotFoundException;
+import com.example.automobile_risk.repository.EquipmentRepository;
+import com.example.automobile_risk.repository.ProcessExecutionRepository;
+import com.example.automobile_risk.repository.ProcessTypeRepository;
+import com.example.automobile_risk.repository.ProductionRepository;
+import com.example.automobile_risk.service.dto.ProductionStreamEvent;
+import com.fasterxml.jackson.databind.JsonNode;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ProductionSimulationService {
+
+    private final ProductionRepository productionRepository;
+    private final ProcessTypeRepository processTypeRepository;
+    private final EquipmentRepository equipmentRepository;
+    private final ProcessExecutionRepository processExecutionRepository;
+    private final PlatformTransactionManager transactionManager;
+    private final ProductionSseService productionSseService;
+    private final OrderService orderService;
+    private final DefectSummaryService defectSummaryService;
+    private final MLProxyService mlProxyService;
+    private final ProductionDatasetService productionDatasetService;
+    private final DueDatePredictionTriggerService dueDatePredictionTriggerService;
+
+    @Value("${datasets.base-path:}")
+    private String datasetsBasePath;
+
+    @Value("${datasets.base-url:}")
+    private String datasetsBaseUrl;
+
+    @Async("simulationExecutor")
+    public void simulate(Long productionId) {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+
+        Integer allocatedQty = tx.execute(status -> {
+            Production production = productionRepository.findById(productionId)
+                    .orElseThrow(() -> new ProductionNotFoundException(productionId));
+            int sum = production.getOrderProductionList().stream()
+                    .mapToInt(op -> op.getAllocatedQty())
+                    .sum();
+            return sum > 0 ? sum : production.getPlannedQty();
+        });
+
+        if (allocatedQty == null || allocatedQty <= 0) {
+            log.warn("Production {} has no allocated quantity. skip simulation.", productionId);
+            return;
+        }
+
+        long existingCount = tx.execute(status ->
+                processExecutionRepository.countByProductionId(productionId)
+        );
+        if (existingCount > 0) {
+            log.info("Production {} already has process executions. skip simulation.", productionId);
+            return;
+        }
+
+        List<ProcessType> processTypes = tx.execute(status ->
+                processTypeRepository.findByIsActiveTrueOrderByProcessOrderAsc()
+        );
+        if (processTypes == null || processTypes.isEmpty()) {
+            log.warn("No active process types. productionId={}", productionId);
+            return;
+        }
+
+        for (int unit = 1; unit <= allocatedQty; unit++) {
+            for (ProcessType processType : processTypes) {
+                final int unitIndex = unit;
+                try {
+                    log.info("Simulation start: productionId={}, unit={}, process={}",
+                            productionId, unitIndex, processType.getProcessName());
+                    Long peId = tx.execute(status -> {
+                        Production production = productionRepository.findById(productionId)
+                                .orElseThrow(() -> new ProductionNotFoundException(productionId));
+
+                        Equipment equipment = pickEquipment(processType.getId());
+                        if (equipment == null) {
+                            throw new IllegalStateException("Equipment not found for processType=" + processType.getProcessName());
+                        }
+
+                        ProcessExecution pe = ProcessExecution.createEntity(
+                                LocalDateTime.now(),
+                                processType.getProcessOrder(),
+                                unitIndex,
+                                production,
+                                processType,
+                                equipment
+                        );
+                        processExecutionRepository.save(pe);
+                        pe.operate(); // READY -> IN_PROGRESS
+                        productionSseService.publish(ProductionStreamEvent.builder()
+                                .type("process_execution")
+                                .productionId(productionId)
+                                .orderId(getOrderId(production))
+                                .processExecutionId(pe.getId())
+                                .executionOrder(pe.getExecutionOrder())
+                                .unitIndex(pe.getUnitIndex())
+                                .processExecutionStatus(pe.getStatus())
+                                .startDate(ProductionStreamEvent.toOffsetDateTime(pe.getStartDate()))
+                                .build());
+                        return pe.getId();
+                    });
+
+                    Long orderId = tx.execute(status -> {
+                        Production production = productionRepository.findById(productionId)
+                                .orElseThrow(() -> new ProductionNotFoundException(productionId));
+                        return getOrderId(production);
+                    });
+
+                    triggerMlForProcess(orderId, productionId, processType.getProcessName(), peId, unitIndex);
+
+                    sleepMillis(5000L);
+
+                    tx.execute(status -> {
+                        ProcessExecution pe = processExecutionRepository.findById(peId)
+                                .orElseThrow(() -> new IllegalStateException("ProcessExecution not found: " + peId));
+                        pe.complete(LocalDateTime.now());
+                        Production production = pe.getProduction();
+                        productionSseService.publish(ProductionStreamEvent.builder()
+                                .type("process_execution")
+                                .productionId(productionId)
+                                .orderId(getOrderId(production))
+                                .processExecutionId(pe.getId())
+                                .executionOrder(pe.getExecutionOrder())
+                                .unitIndex(pe.getUnitIndex())
+                                .processExecutionStatus(pe.getStatus())
+                                .startDate(ProductionStreamEvent.toOffsetDateTime(pe.getStartDate()))
+                                .endDate(ProductionStreamEvent.toOffsetDateTime(pe.getEndDate()))
+                                .build());
+                        return null;
+                    });
+
+                    String snapshotStage = toSnapshotStage(processType.getProcessName());
+                    if (snapshotStage != null) {
+                        log.info("Trigger duedate: productionId={}, processName={}, stage={}",
+                                productionId, processType.getProcessName(), snapshotStage);
+                        dueDatePredictionTriggerService.triggerOnStage(productionId, snapshotStage);
+                    } else {
+                        log.warn("Skip duedate: productionId={}, processName={} (stage mapping missing)",
+                                productionId, processType.getProcessName());
+                    }
+
+                    log.info("Simulation done: productionId={}, unit={}, process={}",
+                            productionId, unitIndex, processType.getProcessName());
+                } catch (Exception e) {
+                    log.error("Simulation failed: productionId={}, unit={}, process={}, msg={}",
+                            productionId, unitIndex, processType.getProcessName(), e.getMessage(), e);
+                    return;
+                }
+            }
+        }
+
+        tx.execute(status -> {
+            Production production = productionRepository.findById(productionId)
+                    .orElseThrow(() -> new ProductionNotFoundException(productionId));
+            long remaining = processExecutionRepository.countNotCompletedByProductionId(productionId);
+            if (remaining == 0) {
+                production.complete(LocalDateTime.now());
+                defectSummaryService.captureSnapshotForProduction(
+                        productionId,
+                        DefectSnapshotStage.COMPLETED,
+                        production.getEndDate()
+                );
+                List<Long> orderIds = orderService.findRelatedOrderIdsByProduction(productionId);
+                for (Long orderId : orderIds) {
+                    orderService.tryCompleteOrder(orderId);
+                }
+                productionSseService.publish(ProductionStreamEvent.builder()
+                        .type("production")
+                        .productionId(productionId)
+                        .orderId(getOrderId(production))
+                        .productionStatus(production.getProductionStatus())
+                        .endDate(ProductionStreamEvent.toOffsetDateTime(production.getEndDate()))
+                        .build());
+            }
+            return null;
+        });
+    }
+
+    private Equipment pickEquipment(Long processTypeId) {
+        List<Equipment> normals = equipmentRepository.findByProcessTypeAndStatus(processTypeId, EquipmentStatus.NORMAL);
+        if (normals != null && !normals.isEmpty()) return normals.get(0);
+        List<Equipment> any = equipmentRepository.findByProcessTypeId(processTypeId);
+        if (any != null && !any.isEmpty()) return any.get(0);
+        return null;
+    }
+
+    private void sleepMillis(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private Long getOrderId(Production production) {
+        if (production.getOrderProductionList() == null || production.getOrderProductionList().isEmpty()) {
+            return null;
+        }
+        return production.getOrderProductionList().get(0).getOrder().getId();
+    }
+
+    private String toSnapshotStage(String processName) {
+        if (processName == null) return null;
+        return switch (processName) {
+            case "프레스" -> "PRESS_DONE";
+            case "차체조립(용접)" -> "WELD_DONE";
+            case "도장" -> "PAINT_DONE";
+            case "의장" -> "ASSEMBLY_DONE";
+            case "검수" -> "INSPECTION_DONE";
+            default -> null;
+        };
+    }
+
+    private void triggerMlForProcess(Long orderId, Long productionId, String processName, Long processExecutionId, int unitIndex) {
+        if (orderId == null || processName == null || processExecutionId == null) return;
+
+        int offset = (int) (Math.abs(processExecutionId) % 10);
+        String normalizedProcess = normalizeProcessName(processName);
+        MLProxyService.MlContext context = new MLProxyService.MlContext(
+                orderId,
+                productionId,
+                processExecutionId,
+                normalizedProcess
+        );
+        MlInputDataset vibrationDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "press_vibration"
+        );
+        MlInputDataset pressImageDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "press_image"
+        );
+        MlInputDataset weldingDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "welding_image"
+        );
+        MlInputDataset paintDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "paint"
+        );
+        MlInputDataset bodyDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "body_assembly"
+        );
+        MlInputDataset windshieldDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "windshield"
+        );
+        MlInputDataset engineDataset = productionDatasetService.findDatasetForProductionProcess(
+                productionId,
+                normalizedProcess,
+                "engine"
+        );
+
+        try {
+            switch (processName) {
+                case "프레스" -> {
+                    if (vibrationDataset != null && vibrationDataset.getFormat() == DatasetFormat.JSON) {
+                        JsonNode body = loadJsonDataset(vibrationDataset, Math.max(0, unitIndex - 1));
+                        if (body != null) {
+                            mlProxyService.analyzePressVibrationJson(body, context);
+                        } else {
+                            mlProxyService.analyzePressVibration(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzePressVibration(offset, context);
+                    }
+                    if (pressImageDataset != null && pressImageDataset.getFormat() == DatasetFormat.IMAGE) {
+                        java.io.File file = pickDatasetFile(pressImageDataset, Math.max(0, unitIndex - 1));
+                        if (file != null) {
+                            mlProxyService.analyzePressImageFile(file, offset, context);
+                        } else {
+                            mlProxyService.analyzePressImage(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzePressImage(offset, context);
+                    }
+                }
+                case "차체조립(용접)" -> {
+                    if (weldingDataset != null && weldingDataset.getFormat() == DatasetFormat.IMAGE) {
+                        java.io.File file = pickDatasetFile(weldingDataset, Math.max(0, unitIndex - 1));
+                        if (file != null) {
+                            mlProxyService.analyzeWeldingImageFile(file, context);
+                        } else {
+                            mlProxyService.analyzeWeldingImageAuto(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzeWeldingImageAuto(offset, context);
+                    }
+                }
+                case "도장" -> {
+                    if (paintDataset != null && paintDataset.getFormat() == DatasetFormat.IMAGE) {
+                        java.io.File file = pickDatasetFile(paintDataset, Math.max(0, unitIndex - 1));
+                        if (file != null) {
+                            mlProxyService.analyzePaintFile(file, context);
+                        } else {
+                            mlProxyService.analyzePaintAuto(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzePaintAuto(offset, context);
+                    }
+                }
+                case "의장" -> {
+                    if (bodyDataset != null && bodyDataset.getFormat() == DatasetFormat.IMAGE) {
+                        Map<String, java.io.File> parts = pickBodyAssemblyFiles(bodyDataset);
+                        if (parts != null && parts.size() == 5) {
+                            mlProxyService.analyzeBodyAssemblyBatchFiles(parts, 0.5, context);
+                        } else {
+                            java.io.File file = pickDatasetFile(bodyDataset);
+                            if (file != null) {
+                                mlProxyService.analyzeBodyAssemblyFile(file, context);
+                            } else {
+                                mlProxyService.analyzeBodyAssemblyBatchAuto(0.5, offset, context);
+                            }
+                        }
+                    } else {
+                        mlProxyService.analyzeBodyAssemblyBatchAuto(0.5, offset, context);
+                    }
+                }
+                case "검수" -> {
+                    if (windshieldDataset != null && windshieldDataset.getFormat() == DatasetFormat.CSV) {
+                        java.io.File file = pickDatasetFile(windshieldDataset);
+                        if (file != null) {
+                            mlProxyService.analyzeWindshieldFile("left", file, context);
+                            mlProxyService.analyzeWindshieldFile("right", file, context);
+                        } else {
+                            mlProxyService.analyzeWindshieldAuto(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzeWindshieldAuto(offset, context);
+                    }
+                    if (engineDataset != null && engineDataset.getFormat() == DatasetFormat.ARFF) {
+                        java.io.File file = pickDatasetFile(engineDataset);
+                        if (file != null) {
+                            mlProxyService.analyzeEngineFile(file, context);
+                        } else {
+                            mlProxyService.analyzeEngineAuto(offset, context);
+                        }
+                    } else {
+                        mlProxyService.analyzeEngineAuto(offset, context);
+                    }
+                }
+                default -> {
+                }
+            }
+        } catch (Exception e) {
+            log.warn("ML call failed for process {} (productionId={}): {}", processName, productionId, e.getMessage());
+        }
+    }
+
+    private String normalizeProcessName(String processTypeName) {
+        return switch (processTypeName) {
+            case "차체조립(용접)" -> "용접";
+            case "의장" -> "조립";
+            case "검수" -> "검사";
+            default -> processTypeName;
+        };
+    }
+
+    private JsonNode loadJsonDataset(MlInputDataset dataset) {
+        return loadJsonDataset(dataset, 0);
+    }
+
+    private JsonNode loadJsonDataset(MlInputDataset dataset, int sequenceIndex) {
+        try {
+            String key = dataset.getStorageKey();
+            if (isUrl(key)) {
+                java.io.File file = downloadToTempFile(key);
+                if (file == null) return null;
+                return new com.fasterxml.jackson.databind.ObjectMapper()
+                        .readTree(java.nio.file.Files.newBufferedReader(file.toPath()));
+            }
+            java.nio.file.Path path = resolveLocalPath(key);
+            if (path == null || !java.nio.file.Files.exists(path)) {
+                log.warn("Dataset file not found: {}", key);
+                return null;
+            }
+            if (!java.nio.file.Files.isDirectory(path) && sequenceIndex > 0) {
+                java.io.File candidate = resolveSequencedSiblingFile(path.toFile(), sequenceIndex);
+                if (candidate != null && candidate.exists()) {
+                    path = candidate.toPath();
+                }
+            }
+            return new com.fasterxml.jackson.databind.ObjectMapper()
+                    .readTree(java.nio.file.Files.newBufferedReader(path));
+        } catch (Exception e) {
+            log.warn("Failed to load JSON dataset: {} ({})", dataset.getStorageKey(), e.getMessage());
+            return null;
+        }
+    }
+
+    private java.util.List<java.io.File> pickAllDatasetFiles(MlInputDataset dataset) {
+        try {
+            String key = dataset.getStorageKey();
+            if (isUrl(key)) {
+                java.io.File single = downloadToTempFile(key);
+                return single != null ? java.util.List.of(single) : java.util.List.of();
+            }
+            java.nio.file.Path path = resolveLocalPath(key);
+            if (path == null || !java.nio.file.Files.exists(path)) {
+                log.warn("Dataset path not found: {}", key);
+                return java.util.List.of();
+            }
+            if (java.nio.file.Files.isDirectory(path)) {
+                try (java.util.stream.Stream<java.nio.file.Path> stream = java.nio.file.Files.list(path)) {
+                    return stream
+                            .filter(p -> !java.nio.file.Files.isDirectory(p))
+                            .filter(p -> {
+                                String name = p.getFileName().toString().toLowerCase();
+                                return name.endsWith(".jpg") || name.endsWith(".jpeg")
+                                        || name.endsWith(".png") || name.endsWith(".bmp")
+                                        || name.endsWith(".webp");
+                            })
+                            .sorted()
+                            .map(java.nio.file.Path::toFile)
+                            .collect(java.util.stream.Collectors.toList());
+                }
+            }
+            return java.util.List.of(path.toFile());
+        } catch (Exception e) {
+            log.warn("Failed to pick all dataset files: {} ({})", dataset.getStorageKey(), e.getMessage());
+            return java.util.List.of();
+        }
+    }
+
+    private java.io.File pickDatasetFile(MlInputDataset dataset) {
+        return pickDatasetFile(dataset, 0);
+    }
+
+    private java.io.File pickDatasetFile(MlInputDataset dataset, int sequenceIndex) {
+        try {
+            String key = dataset.getStorageKey();
+            if (isUrl(key)) {
+                return downloadToTempFile(key);
+            }
+            java.nio.file.Path path = resolveLocalPath(key);
+            if (path == null || !java.nio.file.Files.exists(path)) {
+                log.warn("Dataset path not found: {}", key);
+                return null;
+            }
+            if (java.nio.file.Files.isDirectory(path)) {
+                try (java.util.stream.Stream<java.nio.file.Path> stream = java.nio.file.Files.list(path)) {
+                    java.util.List<java.io.File> files = stream
+                            .filter(p -> !java.nio.file.Files.isDirectory(p))
+                            .sorted()
+                            .map(java.nio.file.Path::toFile)
+                            .toList();
+                    if (files.isEmpty()) return null;
+                    int idx = Math.floorMod(sequenceIndex, files.size());
+                    return files.get(idx);
+                }
+            }
+            java.io.File direct = path.toFile();
+            java.io.File sequenced = resolveSequencedSiblingFile(direct, sequenceIndex);
+            return sequenced != null ? sequenced : direct;
+        } catch (Exception e) {
+            log.warn("Failed to pick dataset file: {} ({})", dataset.getStorageKey(), e.getMessage());
+            return null;
+        }
+    }
+
+    private java.io.File resolveSequencedSiblingFile(java.io.File file, int sequenceIndex) {
+        if (file == null || sequenceIndex <= 0) return file;
+        String name = file.getName();
+        Pattern p = Pattern.compile("^(.*?)(_unit)(\\d+)(\\.[^.]+)$", Pattern.CASE_INSENSITIVE);
+        Matcher m = p.matcher(name);
+        if (!m.matches()) return file;
+
+        java.io.File parent = file.getParentFile();
+        if (parent == null || !parent.isDirectory()) return file;
+
+        String prefix = m.group(1) + m.group(2);
+        String ext = m.group(4);
+        Pattern siblingPattern = Pattern.compile(
+                "^" + Pattern.quote(prefix) + "(\\d+)" + Pattern.quote(ext) + "$",
+                Pattern.CASE_INSENSITIVE
+        );
+
+        java.io.File[] siblings = parent.listFiles(f -> {
+            if (f == null || !f.isFile()) return false;
+            return siblingPattern.matcher(f.getName()).matches();
+        });
+        if (siblings == null || siblings.length == 0) return file;
+
+        java.util.List<java.io.File> sorted = java.util.Arrays.stream(siblings)
+                .sorted((a, b) -> {
+                    Matcher ma = siblingPattern.matcher(a.getName());
+                    Matcher mb = siblingPattern.matcher(b.getName());
+                    if (ma.matches() && mb.matches()) {
+                        int ia = Integer.parseInt(ma.group(1));
+                        int ib = Integer.parseInt(mb.group(1));
+                        return Integer.compare(ia, ib);
+                    }
+                    return a.getName().compareToIgnoreCase(b.getName());
+                })
+                .toList();
+        int idx = Math.floorMod(sequenceIndex, sorted.size());
+        return sorted.get(idx);
+    }
+
+    private Map<String, java.io.File> pickBodyAssemblyFiles(MlInputDataset dataset) {
+        try {
+            String key = dataset.getStorageKey();
+            Map<String, java.io.File> parts = new HashMap<>();
+            if (isUrl(key) || (datasetsBaseUrl != null && !datasetsBaseUrl.isBlank())) {
+                String prefix = isUrl(key) ? key : buildUrl(datasetsBaseUrl, key);
+                if (!prefix.endsWith("/")) prefix = prefix + "/";
+                putIfDownloaded(parts, "door", prefix + "door_unit01.jpg");
+                putIfDownloaded(parts, "bumper", prefix + "bumper_unit01.jpg");
+                putIfDownloaded(parts, "headlamp", prefix + "headlamp_unit01.jpg");
+                putIfDownloaded(parts, "taillamp", prefix + "taillamp_unit01.jpg");
+                putIfDownloaded(parts, "radiator", prefix + "radiator_unit01.jpg");
+                return parts.isEmpty() ? null : parts;
+            }
+
+            java.nio.file.Path path = resolveLocalPath(key);
+            if (path == null || !java.nio.file.Files.exists(path) || !java.nio.file.Files.isDirectory(path)) {
+                return null;
+            }
+            try (java.util.stream.Stream<java.nio.file.Path> stream = java.nio.file.Files.list(path)) {
+                stream.filter(p -> !java.nio.file.Files.isDirectory(p))
+                        .forEach(p -> {
+                            String name = p.getFileName().toString().toLowerCase();
+                            if (name.contains("door")) parts.put("door", p.toFile());
+                            else if (name.contains("bumper")) parts.put("bumper", p.toFile());
+                            else if (name.contains("headlamp")) parts.put("headlamp", p.toFile());
+                            else if (name.contains("taillamp")) parts.put("taillamp", p.toFile());
+                            else if (name.contains("radiator")) parts.put("radiator", p.toFile());
+                        });
+            }
+            return parts;
+        } catch (Exception e) {
+            log.warn("Failed to pick body assembly files: {} ({})", dataset.getStorageKey(), e.getMessage());
+            return null;
+        }
+    }
+
+    private boolean isUrl(String value) {
+        if (value == null) return false;
+        String v = value.trim().toLowerCase();
+        return v.startsWith("http://") || v.startsWith("https://");
+    }
+
+    private String buildUrl(String base, String path) {
+        if (base == null || base.isBlank()) return path;
+        String b = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        String p = path.startsWith("/") ? path.substring(1) : path;
+        return b + "/" + p;
+    }
+
+    private java.nio.file.Path resolveLocalPath(String storageKey) {
+        if (storageKey == null || storageKey.isBlank()) return null;
+        if (isUrl(storageKey)) return null;
+        java.nio.file.Path p = java.nio.file.Paths.get(storageKey);
+        if (p.isAbsolute()) return p;
+        if (datasetsBasePath != null && !datasetsBasePath.isBlank()) {
+            java.nio.file.Path resolved = java.nio.file.Paths.get(datasetsBasePath, storageKey);
+            log.info("[RESOLVE] basePath={}, storageKey={} -> {}", datasetsBasePath, storageKey, resolved);
+            return resolved;
+        }
+        java.nio.file.Path cwd = java.nio.file.Paths.get(System.getProperty("user.dir"));
+        String cwdName = cwd.getFileName() != null ? cwd.getFileName().toString().toLowerCase() : "";
+        if ("backend".equals(cwdName) && cwd.getParent() != null) {
+            java.nio.file.Path resolved = cwd.getParent().resolve(storageKey);
+            log.info("[RESOLVE] cwd={}, storageKey={} -> {}", cwd, storageKey, resolved);
+            return resolved;
+        }
+        java.nio.file.Path resolved = cwd.resolve(storageKey);
+        log.info("[RESOLVE] cwd={}, storageKey={} -> {}", cwd, storageKey, resolved);
+        return resolved;
+    }
+
+    private java.io.File downloadToTempFile(String url) {
+        try {
+            java.net.URL u = new java.net.URL(url);
+            String fileName = java.nio.file.Paths.get(u.getPath()).getFileName().toString();
+            java.nio.file.Path temp = java.nio.file.Files.createTempFile("dataset_", "_" + fileName);
+            try (java.io.InputStream in = u.openStream()) {
+                java.nio.file.Files.copy(in, temp, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            temp.toFile().deleteOnExit();
+            return temp.toFile();
+        } catch (Exception e) {
+            log.warn("Failed to download dataset: {} ({})", url, e.getMessage());
+            return null;
+        }
+    }
+
+    private void putIfDownloaded(Map<String, java.io.File> parts, String key, String url) {
+        java.io.File f = downloadToTempFile(url);
+        if (f != null) parts.put(key, f);
+    }
+}

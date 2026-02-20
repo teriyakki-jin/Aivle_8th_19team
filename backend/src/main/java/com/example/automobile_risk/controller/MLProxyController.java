@@ -1,0 +1,228 @@
+package com.example.automobile_risk.controller;
+
+import com.example.automobile_risk.service.MLProxyService;
+import com.fasterxml.jackson.databind.JsonNode;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+/**
+ * ML 서비스 프록시 컨트롤러
+ * Frontend → Spring Boot → FastAPI → DB 아키텍처 구현
+ */
+@RestController
+@RequestMapping("/api/v1/ml")
+@RequiredArgsConstructor
+@Slf4j
+@CrossOrigin(origins = {"http://localhost:3000", "http://127.0.0.1:3000"}, allowCredentials = "true")
+public class MLProxyController {
+
+    private final MLProxyService mlProxyService;
+
+    private MLProxyService.MlContext buildContext(Long orderId, String processName) {
+        if (orderId == null && (processName == null || processName.isBlank())) {
+            return null;
+        }
+        return new MLProxyService.MlContext(orderId, null, null, processName);
+    }
+
+    /**
+     * 윈드실드 분석
+     * POST /api/v1/ml/windshield
+     */
+    @PostMapping("/windshield")
+    public ResponseEntity<JsonNode> analyzeWindshield(
+            @RequestParam("side") String side,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
+        try {
+            log.info("Windshield analysis request - side: {}, file: {}", side, file.getOriginalFilename());
+            JsonNode result = mlProxyService.analyzeWindshield(side, file, buildContext(orderId, processName));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in windshield analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 엔진 진동 분석
+     * POST /api/v1/ml/engine
+     */
+    @PostMapping("/engine")
+    public ResponseEntity<JsonNode> analyzeEngine(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
+        try {
+            log.info("Engine analysis request - file: {}", file.getOriginalFilename());
+            JsonNode result = mlProxyService.analyzeEngine(file, buildContext(orderId, processName));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in engine analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 용접 이미지 분석 (자동)
+     * POST /api/v1/ml/welding/image/auto
+     */
+    @PostMapping("/welding/image/auto")
+    public ResponseEntity<JsonNode> analyzeWeldingImageAuto(
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
+        try {
+            log.info("Welding image auto analysis request - offset: {}", offset);
+            JsonNode result = mlProxyService.analyzeWeldingImageAuto(offset, buildContext(orderId, processName));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in welding image analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 도장 품질 분석 (자동)
+     * POST /api/v1/ml/paint/auto
+     */
+    @PostMapping("/paint/auto")
+    public ResponseEntity<JsonNode> analyzePaintAuto(
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
+        try {
+            log.info("Paint auto analysis request - offset: {}", offset);
+            JsonNode result = mlProxyService.analyzePaintAuto(offset, buildContext(orderId, processName));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in paint analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 프레스 진동 분석
+     * POST /api/v1/ml/press/vibration
+     */
+    @PostMapping("/press/vibration")
+    public ResponseEntity<JsonNode> analyzePressVibration(
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
+        try {
+            log.info("Press vibration analysis request - offset: {}", offset);
+            JsonNode result = mlProxyService.analyzePressVibration(offset, buildContext(orderId, processName));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in press vibration analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 프레스 이미지 분석
+     * POST /api/v1/ml/press/image
+     */
+    @PostMapping("/press/image")
+    public ResponseEntity<JsonNode> analyzePressImage(
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
+        try {
+            log.info("Press image analysis request - offset: {}", offset);
+            JsonNode result = mlProxyService.analyzePressImage(offset, buildContext(orderId, processName));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in press image analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 윈드실드 분석 (자동)
+     * POST /api/v1/ml/windshield/auto
+     */
+    @PostMapping("/windshield/auto")
+    public ResponseEntity<JsonNode> analyzeWindshieldAuto(
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
+        try {
+            log.info("Windshield auto analysis request - offset: {}", offset);
+            JsonNode result = mlProxyService.analyzeWindshieldAuto(offset, buildContext(orderId, processName));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in windshield auto analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 엔진 진동 분석 (자동)
+     * POST /api/v1/ml/engine/auto
+     */
+    @PostMapping("/engine/auto")
+    public ResponseEntity<JsonNode> analyzeEngineAuto(
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
+        try {
+            log.info("Engine auto analysis request - offset: {}", offset);
+            JsonNode result = mlProxyService.analyzeEngineAuto(offset, buildContext(orderId, processName));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in engine auto analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 차체 조립 분석 (자동 배치)
+     * POST /api/v1/ml/body/inspect/batch/auto
+     */
+    @PostMapping("/body/inspect/batch/auto")
+    public ResponseEntity<JsonNode> analyzeBodyAssemblyBatchAuto(
+            @RequestParam(value = "conf", required = false, defaultValue = "0.5") Double confidence,
+            @RequestParam(value = "offset", required = false, defaultValue = "0") Integer offset,
+            @RequestParam(value = "orderId", required = false) Long orderId,
+            @RequestParam(value = "processName", required = false) String processName) {
+        try {
+            log.info("Body assembly batch auto analysis request - confidence: {}, offset: {}", confidence, offset);
+            JsonNode result = mlProxyService.analyzeBodyAssemblyBatchAuto(confidence, offset, buildContext(orderId, processName));
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in body assembly analysis: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 납기 지연 예측
+     * POST /api/v1/ml/duedate
+     */
+    @PostMapping("/duedate")
+    public ResponseEntity<JsonNode> analyzeDueDate(@RequestBody JsonNode body) {
+        try {
+            log.info("DueDate prediction request");
+            JsonNode result = mlProxyService.analyzeDueDate(body);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error in duedate prediction: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * 헬스체크
+     * GET /api/v1/ml/health
+     */
+    @GetMapping("/health")
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("{\"status\":\"ok\",\"message\":\"ML Proxy Service is running\"}");
+    }
+}
